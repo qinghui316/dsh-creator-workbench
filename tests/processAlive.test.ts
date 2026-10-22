@@ -6,7 +6,7 @@ import { jobPidMatches, terminateOwnedProcess, waitForPidExit } from "../src/pro
 
 describe("process ownership", () => {
   it("does not treat an unverified command line as ownership", () => {
-    expect(jobPidMatches(process.pid, ["not-a-real-oil-creator-process"])).toBe(false);
+    expect(jobPidMatches(process.pid, ["not-a-real-creator-workbench-process"])).toBe(false);
     expect(jobPidMatches(99999999, ["preview_editor"])).toBe(false);
   });
 

@@ -27,10 +27,8 @@ const EMPTY_PROFILE: CreatorProfile = { enabledPlatforms: [...PUBLISH_PLATFORMS]
 
 const CAPABILITY_ROWS: ReadonlyArray<{ id: keyof CreatorCapabilities; label: CreatorKey }> = [
   { id: "library", label: "settings.capability.library" },
-  { id: "screenStudio", label: "settings.capability.screenStudio" },
   { id: "subtitleSkill", label: "settings.capability.subtitle" },
   { id: "coverSkill", label: "settings.capability.cover" },
-  { id: "editingSkill", label: "settings.capability.editing" },
   { id: "publishSkill", label: "settings.capability.publish" },
   { id: "articleSkill", label: "settings.capability.article" },
   { id: "publishSync", label: "settings.capability.ego" },
@@ -217,7 +215,7 @@ export function CreatorSettingsCard({
   };
 
   return (
-    <section data-plugin="dsh-oil-creator" data-surface="settings-card" className={open ? "card open" : "card"}>
+    <section data-plugin="dsh-creator-workbench" data-surface="settings-card" className={open ? "card open" : "card"}>
       <button
         type="button"
         className="header"

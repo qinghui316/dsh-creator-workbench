@@ -23,8 +23,6 @@ const pipelineSchema = z.union([
 
 const workflowSchema = z.union([
   z.literal("idle"),
-  z.literal("record"),
-  z.literal("cut"),
   z.literal("finish"),
   z.literal("publish"),
   z.literal("live"),
@@ -81,15 +79,15 @@ export const contentSummarySchema = z.object({
   date: z.string().optional(),
   recordedAt: z.number(),
   createdMs: z.number(),
+  videos: z.array(z.object({ name: z.string(), path: z.string(), size: z.number(), modifiedAt: z.number() })).optional(),
+  selectedVideo: z.string().optional(),
+  videoSelection: z.enum(["empty", "choose", "selected", "missing"]).optional(),
   videoRaw: z.string().optional(),
   videoSubtitled: z.string().optional(),
   covers: contentCoversSchema,
   subtitles: contentSubtitlesSchema,
   hasPublishPackage: z.boolean(),
   hasArticle: z.boolean(),
-  studioPath: z.string().optional(),
-  waitingForExport: z.boolean(),
-  exportTimedOut: z.boolean().optional(),
   articlePath: z.string().optional(),
   tags: z.array(z.string()),
   pipeline: pipelineSchema,
@@ -114,6 +112,7 @@ const secretViewSchema = z.object({
 
 export const librarySettingsSchema = z.object({
   libraryRoot: z.string(),
+  libraryConfirmed: z.boolean().optional(),
   profile: creatorProfileSchema,
   secrets: z.object({
     subtitle: secretViewSchema,
@@ -186,16 +185,6 @@ export const subtitleTextResultSchema = z.object({
   })),
 });
 
-export const setContentStageRequestSchema = z.object({
-  id: z.string().min(1),
-  readyToRecord: z.boolean(),
-});
-
-export const bindStudioRequestSchema = z.object({
-  id: z.string().min(1),
-  path: z.string().min(1),
-});
-
 export const setPublishRequestSchema = z.object({
   id: z.string().min(1),
   platform: publishPlatformSchema,
@@ -255,11 +244,6 @@ export const capabilitiesResultSchema = z.object({
   }),
 });
 
-export const waitExportRequestSchema = z.object({
-  id: z.string().min(1),
-  timeoutMs: z.number().optional(),
-});
-
 export const setLibraryRootRequestSchema = z.object({
   path: z.string().min(1),
 });
@@ -309,4 +293,13 @@ export const organizePreviewSchema = z.object({
     ]),
   })),
   unchanged: z.number().int().nonnegative(),
+});
+
+export const selectVideoRequestSchema = z.object({ id: z.string().min(1), folderPath: z.string().min(1), name: z.string().min(1) });
+export const videoImportRequestSchema = z.object({ id: z.string().min(1), folderPath: z.string().min(1), sourcePath: z.string().min(1), name: z.string().min(1).optional() });
+export const videoImportTokenSchema = z.object({ token: z.string().min(1) });
+export const videoImportStateSchema = z.object({
+  token: z.string(), id: z.string(), name: z.string(),
+  status: z.enum(["running", "completed", "failed", "cancelled"]),
+  jobId: z.string().optional(), error: z.string().optional(),
 });

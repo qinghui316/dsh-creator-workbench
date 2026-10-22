@@ -93,7 +93,7 @@ export function registerContentTriggers(
 
   const insert = (ref: string, title: string): PickOutcome => ({
     insert: {
-      source: "oil",
+      source: "creator-workbench",
       ref,
       label: chipLabel(title),
       clipboardText: `@${title}`,
@@ -102,7 +102,7 @@ export function registerContentTriggers(
 
   const atSource: TriggerSource = {
     trigger: "@",
-    name: "oil",
+    name: "creator-workbench",
     order: 30,
     async candidates(session, req) {
       if (!ownsCurrentSession(session) || req.signal.aborted) return [];
@@ -145,7 +145,7 @@ export function registerContentTriggers(
 
   const slashSource: TriggerSource = {
     trigger: "/",
-    name: "oil",
+    name: "creator-workbench",
     order: 40,
     async candidates(session, req) {
       if (!ownsCurrentSession(session) || req.signal.aborted) return [];

@@ -28,13 +28,11 @@ function statusOf(overrides: {
     },
     capabilities: {
       library: capability("ready"),
-      screenStudio: capability("ready"),
       subtitleSkill: capability("ready"),
       subtitleCredential: capability("ready"),
       coverSkill: capability("ready"),
       coverCredential: capability("ready"),
       publishSync: overrides.publishSync ?? capability("ready"),
-      editingSkill: capability("ready"),
       publishSkill: capability("ready"),
       articleSkill: capability("ready"),
     },
@@ -48,10 +46,10 @@ describe("creatorGuideText", () => {
     expect(guide).toContain("/Movies/视频项目");
     expect(guide).toContain("YYYY-MM-DD_可读标题");
     expect(guide).toContain("script.md");
-    expect(guide).toContain("oil_organize_library");
-    expect(guide).toContain("oil_generate_subtitles");
-    expect(guide).toContain("oil_generate_cover");
-    expect(guide).toContain("oil_sync_publish");
+    expect(guide).toContain("creator_organize_library");
+    expect(guide).toContain("creator_generate_subtitles");
+    expect(guide).toContain("creator_generate_cover");
+    expect(guide).toContain("creator_sync_publish");
     expect(guide).toContain("video-publisher");
   });
 
@@ -61,7 +59,7 @@ describe("creatorGuideText", () => {
     }));
     expect(guide).toContain("未发现 Ego Browser");
     expect(guide).toContain("自动发布");
-    expect(guide).toContain("oil_sync_publish");
+    expect(guide).toContain("creator_sync_publish");
     expect(guide).toContain("lite.ego.app");
     expect(guide).toContain("不要假装能同步");
   });
@@ -75,22 +73,22 @@ describe("creatorGuideText", () => {
   it("lists enabled platforms and limits publishing and sync to them", () => {
     const guide = creatorGuideText(statusOf({ enabledPlatforms: ["douyin", "bilibili"] }));
     expect(guide).toContain("当前 enabledPlatforms：抖音（douyin）、B站（bilibili）");
-    expect(guide).toContain("video-publisher 与 oil_sync_publish 只处理这些平台");
+    expect(guide).toContain("video-publisher 与 creator_sync_publish 只处理这些平台");
     expect(guide).not.toContain("小红书（xiaohongshu）");
   });
 
   it("stops automatic publishing and sync when no platform is enabled", () => {
     const guide = creatorGuideText(statusOf({ enabledPlatforms: [] }));
     expect(guide).toContain("当前 enabledPlatforms 为空（[]）");
-    expect(guide).toContain("不要调用 video-publisher，也不要调用 oil_sync_publish");
-    expect(guide).toContain("先用 oil_creator_setup 配置启用平台");
+    expect(guide).toContain("不要调用 video-publisher，也不要调用 creator_sync_publish");
+    expect(guide).toContain("先用 creator_setup 配置启用平台");
     expect(guide).toContain("不执行自动发布和数据回收");
   });
 
   it("asks for a persona before writing scripts when rules are unset", () => {
     const guide = creatorGuideText(statusOf({}));
     expect(guide).toContain("当前没有配置脚本规则（人设）");
-    expect(guide).toContain("oil_script_rules");
+    expect(guide).toContain("creator_script_rules");
   });
 
   it("tells the model to follow existing rules when configured", () => {
@@ -99,22 +97,20 @@ describe("creatorGuideText", () => {
     expect(guide).not.toContain("当前没有配置脚本规则");
   });
 
-  it("tells the model auto-editing needs Screen Studio when missing", () => {
-    const status = statusOf({});
-    status.capabilities.screenStudio = capability("missing", "未发现 Screen Studio；绑定工程、自动剪辑（screen-studio-editor）不可用。");
-    const guide = creatorGuideText(status);
-    expect(guide).toContain("自动剪辑");
-    expect(guide).toContain("screen-studio-editor");
-    expect(guide).toContain("当前没有可用的 Screen Studio");
-    expect(guide).toContain("跳过这一环节");
+  it("guides ordinary video import with optional subtitles", () => {
+    const guide = creatorGuideText(statusOf({}));
+    expect(guide).toContain("视频导入");
+    expect(guide).toContain("MP4");
+    expect(guide).toContain("字幕可选");
+    expect(guide).not.toContain("creator_wait_export");
   });
 
-  it("covers article transcription without requiring Screen Studio", () => {
+  it("covers article transcription from ordinary videos", () => {
     const guide = creatorGuideText(statusOf({}));
     expect(guide).toContain("## 公众号图文");
     expect(guide).toContain("oil-video-article");
-    expect(guide).toContain("输入不绑死 Screen Studio");
-    expect(guide).toContain("普通成片视频时也能转写");
+    expect(guide).toContain("当前视频");
+    expect(guide).toContain("普通成片视频可以转写");
   });
 
   it("gives install commands and key sites for missing skills and credentials", () => {

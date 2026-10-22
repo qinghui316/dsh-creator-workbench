@@ -1,18 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { OIL_CREATOR_INVOCATIONS, PACKAGE_NAME, REMOTE_NAMESPACE } from "../src/remote-contract.ts";
+import { CREATOR_WORKBENCH_INVOCATIONS, PACKAGE_NAME, REMOTE_NAMESPACE } from "../src/remote-contract.ts";
 import { TYPERT } from "../src/typert.host.ts";
 
 describe("handwritten TYPERT", () => {
   it("matches the package and host face", () => {
     expect(TYPERT.package).toBe(PACKAGE_NAME);
     expect(TYPERT.face).toBe("host");
-    expect(TYPERT.invocations).toBe(OIL_CREATOR_INVOCATIONS);
+    expect(TYPERT.invocations).toBe(CREATOR_WORKBENCH_INVOCATIONS);
   });
 
-  it("exposes oilCreator methods with zod v4 codecs", () => {
-    const methods = OIL_CREATOR_INVOCATIONS.map((item) => item.method);
+  it("exposes creatorWorkbench methods with zod v4 codecs", () => {
+    const methods = CREATOR_WORKBENCH_INVOCATIONS.map((item) => item.method);
     expect(methods).toEqual([
+      "selectVideo",
+      "startVideoImport",
+      "getVideoImport",
+      "cancelVideoImport",
       "listContents",
       "getContent",
       "getCoverThumb",
@@ -26,11 +30,8 @@ describe("handwritten TYPERT", () => {
       "setLibraryRoot",
       "refreshCatalog",
       "createContent",
-      "setContentStage",
       "setProfile",
       "setScriptRules",
-      "bindStudio",
-      "openStudio",
       "setPublish",
       "syncPublish",
       "setScript",
@@ -39,7 +40,7 @@ describe("handwritten TYPERT", () => {
       "startSubtitleGenerate",
       "startCoverGenerate",
     ]);
-    for (const item of OIL_CREATOR_INVOCATIONS) {
+    for (const item of CREATOR_WORKBENCH_INVOCATIONS) {
       expect(item.service).toBe(REMOTE_NAMESPACE);
       expect(item.namespace).toBe(REMOTE_NAMESPACE);
       expect(item.result.mode).toBe("strict");

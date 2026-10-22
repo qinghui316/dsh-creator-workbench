@@ -52,7 +52,7 @@ describe("createContentFolder", () => {
 });
 
 describe("scanLibrary video pick", () => {
-  it("uses the newest raw video when several exist", async () => {
+  it("requires an explicit choice when several videos exist", async () => {
     const root = await mkdtemp(join(tmpdir(), "oil-videos-"));
     const created = await createContentFolder(root, "多成片", new Date(2026, 7, 15));
     const older = join(created.folderPath, "take-1.mp4");
@@ -62,7 +62,9 @@ describe("scanLibrary video pick", () => {
     await utimes(older, new Date(2026, 7, 15, 10), new Date(2026, 7, 15, 10));
     await utimes(newer, new Date(2026, 7, 15, 12), new Date(2026, 7, 15, 12));
     const items = await scanLibrary(root, emptyOverlay());
-    expect(items[0]?.videoRaw).toBe(newer);
+    expect(items[0]?.videoRaw).toBeUndefined();
+    expect(items[0]?.videoSelection).toBe("choose");
+    expect(items[0]?.videos).toHaveLength(2);
   });
 });
 
@@ -103,7 +105,6 @@ describe("pipeline and filters", () => {
     subtitles: {},
     hasPublishPackage: false,
     hasArticle: false,
-    waitingForExport: false,
     tags: ["AI"],
     publish: emptyPublish(),
     burn: emptyBurn(),
@@ -111,20 +112,17 @@ describe("pipeline and filters", () => {
     coverJob: emptyBurn(),
   };
 
-  it("derives workflow from studio, video, and overlay", () => {
+  it("derives workflow from selected video and cover without requiring subtitles", () => {
     expect(workflowOf(base)).toBe("idle");
-    expect(workflowOf(base, { readyToRecord: true })).toBe("record");
-    expect(workflowOf({ ...base, studioPath: "/p.screenstudio" })).toBe("cut");
-    expect(workflowOf({ ...base, videoRaw: "/a.mp4" })).toBe("finish");
+    expect(workflowOf({ ...base, videoRaw: "/a.mp4", videos: [{ name: "a.mp4", path: "/a.mp4", size: 1, modifiedAt: 1 }], selectedVideo: "a.mp4" })).toBe("finish");
     expect(workflowOf({
       ...base,
-      videoRaw: "/a.mp4",
-      subtitles: { srt: "/a.srt" },
+      videoRaw: "/a.mp4", videos: [{ name: "a.mp4", path: "/a.mp4", size: 1, modifiedAt: 1 }], selectedVideo: "a.mp4",
       covers: { "3x4": "/a.png" },
     })).toBe("publish");
     expect(workflowOf({
       ...base,
-      videoRaw: "/a.mp4",
+      videoRaw: "/a.mp4", videos: [{ name: "a.mp4", path: "/a.mp4", size: 1, modifiedAt: 1 }], selectedVideo: "a.mp4",
       publish: {
         ...emptyPublish(),
         xiaohongshu: { status: "published", source: "sync" },
@@ -241,7 +239,7 @@ describe("folderDateMs", () => {
 
 describe("scanLibrary", () => {
   it("reads one content folder", async () => {
-    const root = await mkdtemp(join(tmpdir(), "dsh-oil-creator-"));
+    const root = await mkdtemp(join(tmpdir(), "dsh-creator-workbench-"));
     const folder = join(root, "2026-01-23_demo");
     await mkdir(folder);
     await writeFile(join(folder, "2026-01-23_demo_3x4.png"), "x");
@@ -364,7 +362,7 @@ describe("scanLibrary", () => {
   });
 
   it("lists newer recordings first", async () => {
-    const root = await mkdtemp(join(tmpdir(), "dsh-oil-creator-"));
+    const root = await mkdtemp(join(tmpdir(), "dsh-creator-workbench-"));
     const older = join(root, "2026-01-01_old");
     const newer = join(root, "2026-08-01_new");
     await mkdir(older);

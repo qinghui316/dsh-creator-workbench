@@ -150,7 +150,7 @@ export function ContentSidebarPanel({
   return (
     <div
       className="contentPanel"
-      data-plugin="dsh-oil-creator"
+      data-plugin="dsh-creator-workbench"
       data-surface="library"
     >
       <div className="contentHeader">
@@ -246,7 +246,7 @@ export function ContentSidebarPanel({
           </>
         )}
       >
-        <div data-plugin="dsh-oil-creator" data-surface="create-dialog">
+        <div data-plugin="dsh-creator-workbench" data-surface="create-dialog">
           <div className="createField">
             <label className="createLabel" htmlFor="oil-create-name">{t("create.name")}</label>
             <Input

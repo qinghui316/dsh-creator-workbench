@@ -23,7 +23,6 @@ describe("shouldIgnoreWatchName", () => {
     expect(shouldIgnoreWatchName(".DS_Store")).toBe(true);
     expect(shouldIgnoreWatchName("2026-08-16_demo/.DS_Store")).toBe(true);
     expect(shouldIgnoreWatchName("clip.mp4.part")).toBe(true);
-    expect(shouldIgnoreWatchName("demo.screenstudio/project.json")).toBe(true);
     expect(shouldIgnoreWatchName("._cover.png")).toBe(true);
   });
 });

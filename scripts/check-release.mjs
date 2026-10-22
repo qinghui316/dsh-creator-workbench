@@ -47,8 +47,8 @@ const RUNTIME_FILES = [
   "lib/collect-publish.mjs",
 ];
 
-const GITHUB_REPOSITORY = "https://github.com/oil-oil/dsh-oil-creator";
-const GITHUB_REPOSITORY_GIT = "git+https://github.com/oil-oil/dsh-oil-creator.git";
+const GITHUB_REPOSITORY = "https://github.com/qinghui316/dsh-creator-workbench";
+const GITHUB_REPOSITORY_GIT = "git+https://github.com/qinghui316/dsh-creator-workbench.git";
 
 function git(root, args) {
   return execFileSync("git", args, {
@@ -59,7 +59,12 @@ function git(root, args) {
 }
 
 function run(root, command, args) {
-  execFileSync(command, args, {
+  const manager = command === "pnpm" && /pnpm\.(?:c?js)$/.test(process.env.npm_execpath ?? "") ? process.env.npm_execpath : undefined;
+  if (!manager && process.platform === "win32" && command === "pnpm" && args.length === 1 && args[0] === "check") {
+    execFileSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", "pnpm check"], { cwd: root, stdio: "inherit", windowsHide: true });
+    return;
+  }
+  execFileSync(manager ? process.execPath : command, manager ? [manager, ...args] : args, {
     cwd: root,
     stdio: "inherit",
   });
@@ -101,15 +106,17 @@ function checkRelease(root) {
     addFailure("缺少 origin 远程仓库");
   }
 
+  // One index query avoids dozens of Git processes per check on Windows.
+  let tracked = new Set();
+  try { tracked = new Set(git(root, ["ls-files", "-z"]).split("\0")); }
+  catch (error) { addFailure(`无法读取 Git 索引：${error.message}`); }
   for (const file of REQUIRED_FILES) {
     const absolutePath = resolve(root, file);
     if (!existsSync(absolutePath)) {
       addFailure(`关键文件缺失：${file}`);
       continue;
     }
-    try {
-      git(root, ["ls-files", "--error-unmatch", "--", file]);
-    } catch {
+    if (!tracked.has(file)) {
       addFailure(`关键文件未跟踪：${file}`);
     }
   }
@@ -191,8 +198,8 @@ function runReleasePipeline(root) {
   let output;
   try {
     output = execFileSync(
-      "npm",
-      ["pack", "--dry-run", "--ignore-scripts", "--json"],
+      process.execPath,
+      [resolve(process.execPath, "../node_modules/npm/bin/npm-cli.js"), "pack", "--dry-run", "--ignore-scripts", "--json"],
       { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
     );
   } catch (error) {

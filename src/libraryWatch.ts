@@ -13,7 +13,6 @@ export function shouldIgnoreWatchName(name: string | null): boolean {
   for (const part of name.split(/[\\/]/)) {
     if (part === "" || part === ".") continue;
     if (NOISE_FILE.test(part) || part.startsWith("._")) return true;
-    if (part === ".screenstudio" || part.endsWith(".screenstudio")) return true;
     if (part === "node_modules" || part === ".git") return true;
     if (NOISE_EXT.test(part) || part.startsWith("~")) return true;
   }

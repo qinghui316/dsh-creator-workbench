@@ -2,7 +2,7 @@ export type ContentFilter = "all" | "cover" | "subtitle" | "article";
 
 export type PipelineStage = "raw" | "subtitled" | "covered" | "packaged";
 
-export type WorkflowStage = "idle" | "record" | "cut" | "finish" | "publish" | "live";
+export type WorkflowStage = "idle" | "finish" | "publish" | "live";
 
 export type { PublishPlatform } from "./platforms.ts";
 import type { PublishPlatform } from "./platforms.ts";
@@ -77,7 +77,15 @@ export interface ContentSubtitles {
   transcript?: string;
 }
 
+export type VideoSelectionState = "empty" | "choose" | "selected" | "missing";
+export interface VideoCandidate { name: string; path: string; size: number; modifiedAt: number }
+export interface VideoImportRequest { id: string; folderPath: string; sourcePath: string; name?: string }
+export interface VideoImportState { token: string; id: string; name: string; status: "running" | "completed" | "failed" | "cancelled"; jobId?: string; error?: string }
+
 export interface ContentSummary {
+  videos?: VideoCandidate[];
+  selectedVideo?: string;
+  videoSelection?: VideoSelectionState;
   id: string;
   folderPath: string;
   title: string;
@@ -90,9 +98,6 @@ export interface ContentSummary {
   subtitles: ContentSubtitles;
   hasPublishPackage: boolean;
   hasArticle: boolean;
-  studioPath?: string;
-  waitingForExport: boolean;
-  exportTimedOut?: boolean;
   articlePath?: string;
   tags: string[];
   pipeline: PipelineStage;
@@ -109,6 +114,7 @@ export interface CreatorProfile {
 
 export interface LibrarySettings {
   libraryRoot: string;
+  libraryConfirmed?: boolean;
   profile: CreatorProfile;
   secrets: CreatorSecrets;
   scriptRules?: string;
@@ -125,13 +131,11 @@ export interface CreatorCapability {
 
 export interface CreatorCapabilities {
   library: CreatorCapability;
-  screenStudio: CreatorCapability;
   subtitleSkill: CreatorCapability;
   subtitleCredential: CreatorCapability;
   coverSkill: CreatorCapability;
   coverCredential: CreatorCapability;
   publishSync: CreatorCapability;
-  editingSkill: CreatorCapability;
   publishSkill: CreatorCapability;
   articleSkill: CreatorCapability;
 }
@@ -223,27 +227,8 @@ export interface CreateContentResult {
   folderPath: string;
 }
 
-export interface SetContentStageRequest {
-  id: string;
-  readyToRecord: boolean;
-}
-
-export interface BindStudioRequest {
-  id: string;
-  path: string;
-}
-
-export interface WaitExportRequest {
-  id: string;
-  timeoutMs?: number;
-}
-
 export interface OverlayItem {
   title?: string;
-  readyToRecord?: boolean;
-  studioPath?: string;
-  waitingForExport?: boolean;
-  exportTimedOut?: boolean;
   publish?: Partial<Record<PublishPlatform, OverlayPublish>>;
   burn?: BurnJob;
   subtitleJob?: MediaJob;
@@ -281,6 +266,7 @@ export interface SyncPublishResult {
 
 export interface OverlayStore {
   schemaVersion: 1;
+  videoSelections?: Record<string, Record<string, string>>;
   libraryRoot?: string;
   profile?: CreatorProfile;
   scriptRules?: string;

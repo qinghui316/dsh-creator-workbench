@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import { browserCreatorStorage, loadCreatorUiState, saveCreatorUiState } from "./persistence.ts";
 
-export const CREATOR_REPOSITORY = "oil-oil/dsh-oil-creator";
+export const CREATOR_REPOSITORY = "qinghui316/dsh-creator-workbench";
 
 /** DSH Desktop 0.11.0's installed workbench provider contract. */
 export interface CreatorWorkbenchService {

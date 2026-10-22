@@ -1,4 +1,5 @@
 import type {
+  VideoImportState,
   ContentDetail,
   ContentFilter,
   CoverThumbResult,
@@ -22,6 +23,10 @@ export interface CreatorViewFace {
   getRevision: () => Promise<number>;
   getContent: (id: string) => Promise<ContentDetail>;
   getCoverThumb: (id: string) => Promise<CoverThumbResult>;
+  startVideoImport: (id: string, sourcePath: string, name: string, folderPath: string) => Promise<VideoImportState>;
+  getVideoImport: (token: string) => Promise<VideoImportState>;
+  cancelVideoImport: (token: string) => Promise<VideoImportState>;
+  selectVideo: (id: string, name: string, folderPath: string) => Promise<ContentDetail>;
   getVideoPlayback: (id: string) => Promise<VideoPlaybackResult>;
   getArticleMedia: (id: string) => Promise<ArticleMediaResult>;
   getSubtitleText: (id: string) => Promise<SubtitleTextResult>;
@@ -34,9 +39,6 @@ export interface CreatorViewFace {
   setScriptRules: (text: string) => Promise<void>;
   refreshCatalog: () => Promise<ListContentsResult>;
   createContent: (title: string) => Promise<{ id: string; folderPath: string }>;
-  markReadyToRecord: (id: string) => Promise<ContentDetail>;
-  bindStudio: (id: string, path: string) => Promise<ContentDetail>;
-  openStudio: (id: string) => Promise<ContentDetail>;
   setPublish: (id: string, platform: PublishPlatform, status: PublishMark, url?: string) => Promise<ContentDetail>;
   syncPublish: (request?: { platform?: PublishPlatform; id?: string }) => Promise<SyncPublishResult>;
   openSubtitlePreview: (id: string) => Promise<SubtitlePreviewResult>;

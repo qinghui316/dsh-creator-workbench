@@ -19,7 +19,6 @@ function item(folderPath: string, patch: Partial<ContentSummary> = {}): ContentS
     subtitles: {},
     hasPublishPackage: false,
     hasArticle: false,
-    waitingForExport: false,
     tags: [],
     pipeline: "raw",
     workflow: "finish",
@@ -28,6 +27,8 @@ function item(folderPath: string, patch: Partial<ContentSummary> = {}): ContentS
     subtitleJob: emptyBurn(),
     coverJob: emptyBurn(),
     ...patch,
+    videos: patch.videoRaw === undefined ? [] : [{ name: "selected.mp4", path: patch.videoRaw, size: 1, modifiedAt: 1 }],
+    ...(patch.videoRaw === undefined ? {} : { selectedVideo: "selected.mp4", videoSelection: "selected" as const }),
   };
 }
 

@@ -3,7 +3,7 @@ import { defineTool, type ToolDefinition } from "@deepseek-ai/dsh-tools";
 import { normalizeEnabledPlatforms } from "./overlay.ts";
 import { PUBLISH_PLATFORMS } from "./platforms.ts";
 import { isPublishMark, isPublishPlatform } from "./publishStatus.ts";
-import type { OilCreatorService } from "./service.ts";
+import type { CreatorWorkbenchService } from "./service.ts";
 import type { CreatorProfile, PublishPlatform } from "./types.ts";
 
 interface ToolsContext {
@@ -28,9 +28,40 @@ function present(title: string, rawInput: unknown): { card: "generic"; title: st
 
 const JSON_VALUE = { type: "json" } as const;
 
-export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorService): void {
+export function registerCreatorTools(ctx: ToolsContext, service: CreatorWorkbenchService): void {
   ctx.tools.register(defineTool({
-    name: "oil_creator_guide",
+    name: "creator_get_content",
+    description: "Read an episode's exact folderPath, video candidates, current video selection, local materials and task states. Do this before importing, selecting a video or preparing any external Skill input.",
+    parameters: { id: { type: "string", required: true, description: "Episode folder id." } },
+    output: { schema: JSON_VALUE, render: (_args, value) => compactText("内容资料", JSON.stringify(value)) },
+    presentCall: (args) => present("查看内容资料", args),
+    execute: (args, exec) => service.getContent(args, signalOf(exec)).then(asJson),
+  }));
+  ctx.tools.register(defineTool({
+    name: "creator_import_video",
+    description: "Copy a user-selected local MP4/MOV into an episode without overwriting or moving the source. Returns a Harness jobId; use job_output/job_kill. Get the exact folderPath from creator_get_content first. Do not treat job start as completion.",
+    parameters: {
+      id: { type: "string", required: true },
+      folderPath: { type: "string", required: true },
+      sourcePath: { type: "string", required: true, description: "Absolute local video path supplied or confirmed by the user." },
+      name: { type: "string", description: "Optional destination filename; no directory components." },
+    },
+    output: { schema: JSON_VALUE, render: (_args, value) => compactText("导入视频", JSON.stringify(value)) },
+    presentCall: (args) => present("导入视频", args),
+    execute: (args, exec) => service.startVideoImport(args, signalOf(exec)).then(asJson),
+  }));
+  ctx.tools.register(defineTool({
+    name: "creator_select_video",
+    description: "Explicitly select the current video from the episode candidates. Preview, cover and subtitle tools use this exact selection. Get folderPath and candidates from creator_get_content first.",
+    parameters: {
+      id: { type: "string", required: true }, folderPath: { type: "string", required: true }, name: { type: "string", required: true },
+    },
+    output: { schema: JSON_VALUE, render: (_args, value) => compactText("当前视频", JSON.stringify(value)) },
+    presentCall: (args) => present("选择当前视频", args),
+    execute: (args, exec) => service.selectVideo(args, signalOf(exec)).then(asJson),
+  }));
+  ctx.tools.register(defineTool({
+    name: "creator_guide",
     description:
       "Self-bootstrap guide for this plugin. Call this when the user asks what this plugin does, "
       + "how to use it, or when you are unsure which step comes next. "
@@ -51,7 +82,7 @@ export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorServi
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_script_rules",
+    name: "creator_script_rules",
     description:
       "Read or update the creator's script rules (persona): tone, structure, audience, and taboos "
       + "that every script.md must follow. Omit text to read. Send text to save. Empty text clears. "
@@ -78,7 +109,7 @@ export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorServi
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_creator_setup",
+    name: "creator_setup",
     description:
       "Inspect the creator workspace, optional local capabilities, credential status, and current configuration. "
       + "Omit fields for a read-only diagnosis. Proposed changes are previewed unless apply=true. "
@@ -118,7 +149,7 @@ export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorServi
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_create_content",
+    name: "creator_create_content",
     description:
       "Create an empty dated library folder named YYYY-MM-DD_title using today's date and a readable title.",
     parameters: {
@@ -143,15 +174,13 @@ export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorServi
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_update_content",
+    name: "creator_update_content",
     description:
-      "Write overlay-only marks for one episode: readyToRecord, bind a Screen Studio project, "
+      "Write overlay-only publish marks for one episode: "
       + "or set a platform publish status. To change topic.md or script.md, write those files "
       + "in the episode folder with the built-in file tools.",
     parameters: {
       id: { type: "string", required: true, description: "Folder id." },
-      readyToRecord: { type: "boolean", description: "True moves idle content to 待录制." },
-      studioPath: { type: "string", description: "Bind a .screenstudio project to this episode." },
       publishPlatform: {
         type: "string",
         enum: PUBLISH_PLATFORMS,
@@ -175,12 +204,6 @@ export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorServi
     async execute(args, exec) {
       const signal = signalOf(exec);
       if (args.id === "") throw new Error("id is required");
-      if (args.readyToRecord !== undefined) {
-        await service.setContentStage({ id: args.id, readyToRecord: args.readyToRecord }, signal);
-      }
-      if (args.studioPath !== undefined && args.studioPath !== "") {
-        await service.bindStudio({ id: args.id, path: args.studioPath }, signal);
-      }
       const hasPlatform = args.publishPlatform !== undefined;
       const hasStatus = args.publishStatus !== undefined;
       if (hasPlatform !== hasStatus) {
@@ -199,7 +222,7 @@ export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorServi
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_creator_profile",
+    name: "creator_profile",
     description:
       "Read or update the list of enabled publishing platforms. "
       + "Omit the list to read. Send the complete list to replace it.",
@@ -227,7 +250,7 @@ export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorServi
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_organize_library",
+    name: "creator_organize_library",
     description:
       "Preview or apply library folder cleanup to YYYY-MM-DD_readable title. "
       + "Adds a date from the recording/folder time when missing, and turns hyphens/underscores in titles into spaces. "
@@ -256,7 +279,7 @@ export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorServi
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_sync_publish",
+    name: "creator_sync_publish",
     description:
       "Sync published titles, URLs, and counts from logged-in creator dashboards. "
       + "Pass id to update one episode only and stop paging once that title is found. "
@@ -304,29 +327,10 @@ export function registerCreatorTools(ctx: ToolsContext, service: OilCreatorServi
     },
   }));
 
-  ctx.tools.register(defineTool({
-    name: "oil_open_studio",
-    description:
-      "Open the bound Screen Studio project for this episode so the user can review and export.",
-    parameters: {
-      id: { type: "string", required: true, description: "Folder id." },
-    },
-    output: {
-      schema: JSON_VALUE,
-      render: (_args, value) => {
-        const record = value as { title?: string; id?: string };
-        return compactText("Open Studio", record.title || record.id || "");
-      },
-    },
-    presentCall: (args) => present("Open Studio", args),
-    execute: async (args, exec) => {
-      if (args.id === "") throw new Error("id is required");
-      return asJson(await service.openStudio({ id: args.id }, signalOf(exec)));
-    },
-  }));
+
 
   ctx.tools.register(defineTool({
-    name: "oil_open_subtitle_preview",
+    name: "creator_open_subtitle_preview",
     description:
       "Open the oil-subtitle preview editor in the browser for this episode (video + editable cues).",
     parameters: {

@@ -8,7 +8,7 @@ import type {
 } from "@deepseek-ai/dsh-attachment";
 import { defineTool, type ToolDefinition } from "@deepseek-ai/dsh-tools";
 
-import type { OilCreatorService } from "./service.ts";
+import type { CreatorWorkbenchService } from "./service.ts";
 import type { ContentCovers } from "./types.ts";
 
 interface VisualToolsContext {
@@ -59,7 +59,7 @@ export function imageMediaType(path: string): ImageMediaType | undefined {
 }
 
 async function prepareCoverReview(
-  service: OilCreatorService,
+  service: CreatorWorkbenchService,
   attachments: AttachmentStore,
   id: string,
   signal: AbortSignal,
@@ -114,7 +114,7 @@ async function atomicWrite(path: string, content: string): Promise<void> {
 }
 
 export async function saveVisualReview(
-  service: OilCreatorService,
+  service: CreatorWorkbenchService,
   id: string,
   review: VisualReviewInput,
   signal: AbortSignal,
@@ -135,12 +135,12 @@ export async function saveVisualReview(
   return { jsonPath, markdownPath };
 }
 
-export function registerVisualReviewTools(ctx: VisualToolsContext, service: OilCreatorService): void {
+export function registerVisualReviewTools(ctx: VisualToolsContext, service: CreatorWorkbenchService): void {
   ctx.tools.register(defineTool({
-    name: "oil_prepare_visual_review",
+    name: "creator_prepare_visual_review",
     description:
       "Load all generated cover variants for one episode into the multimodal model context. "
-      + "Inspect composition, readability, safe areas, ratio adaptation, and brand consistency, then call oil_save_visual_review.",
+      + "Inspect composition, readability, safe areas, ratio adaptation, and brand consistency, then call creator_save_visual_review.",
     parameters: {
       id: { type: "string", required: true, description: "Folder id." },
     },
@@ -168,10 +168,10 @@ export function registerVisualReviewTools(ctx: VisualToolsContext, service: OilC
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_save_visual_review",
+    name: "creator_save_visual_review",
     description:
       "Persist a completed multimodal cover review into visual-review.json and visual-review.md in the episode folder. "
-      + "Call only after oil_prepare_visual_review and include concrete findings for each affected ratio.",
+      + "Call only after creator_prepare_visual_review and include concrete findings for each affected ratio.",
     parameters: {
       id: { type: "string", required: true, description: "Folder id." },
       verdict: { type: "string", required: true, enum: ["pass", "needs_changes"] },

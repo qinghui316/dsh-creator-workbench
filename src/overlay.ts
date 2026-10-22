@@ -45,12 +45,6 @@ export function decodeOverlay(value: unknown): OverlayStore {
       if (typeof record.title === "string" && record.title.length > 0) {
         next.title = record.title;
       }
-      if (record.readyToRecord === true) next.readyToRecord = true;
-      if (typeof record.studioPath === "string" && record.studioPath.length > 0) {
-        next.studioPath = record.studioPath;
-      }
-      if (record.waitingForExport === true) next.waitingForExport = true;
-      if (record.exportTimedOut === true) next.exportTimedOut = true;
       const publish = decodeOverlayPublish(record.publish);
       if (publish !== undefined) next.publish = publish;
       const burn = decodeBurnJob(record.burn);
@@ -64,6 +58,9 @@ export function decodeOverlay(value: unknown): OverlayStore {
   }
   const store = emptyOverlay();
   store.items = items;
+  if (typeof raw.videoSelections === "object" && raw.videoSelections !== null) {
+    store.videoSelections = Object.fromEntries(Object.entries(raw.videoSelections).filter(([, v]) => typeof v === "object" && v !== null).map(([root, v]) => [root, Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, name]) => typeof name === "string"))])) as Record<string, Record<string, string>>;
+  }
   if (typeof raw.libraryRoot === "string" && raw.libraryRoot.length > 0) {
     store.libraryRoot = raw.libraryRoot;
   }

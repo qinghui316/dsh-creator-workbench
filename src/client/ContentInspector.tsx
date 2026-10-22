@@ -1,3 +1,4 @@
+import { VideoPanel } from "./VideoPanel.tsx";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   IconBrowseOutlineRegular,
@@ -9,9 +10,9 @@ import {
 } from "@deepseek-ai/dsh-client-ui-primitives";
 
 import { formatCount } from "../collectPublish.ts";
-import { isPublishMark } from "../publishStatus.ts";
+import { isPublishMark } from "../publishRules.ts";
 import { rewriteArticleImages } from "../articleMarkdown.ts";
-import type { ArticleMediaResult, ContentDetail, PublishMark, PublishPlatform, SubtitleCue, VideoPlaybackResult, WorkflowStage } from "../types.ts";
+import type { ArticleMediaResult, ContentDetail, PublishMark, PublishPlatform, SubtitleCue, WorkflowStage } from "../types.ts";
 import { CoverThumb, coverThumbRevision } from "./CoverThumb.tsx";
 import type { CreatorViewFace } from "./face.ts";
 import {
@@ -35,8 +36,6 @@ type InspectorTab = (typeof TABS)[number];
 
 const PIPELINE_STEPS = [
   { id: "topic", label: "inspector.step.topic", hint: "inspector.step.topicHint" },
-  { id: "record", label: "inspector.step.record", hint: "inspector.step.recordHint" },
-  { id: "cut", label: "inspector.step.cut", hint: "inspector.step.cutHint" },
   { id: "finish", label: "inspector.step.finish", hint: "inspector.step.finishHint" },
   { id: "publish", label: "inspector.step.publish" },
 ] as const;
@@ -45,11 +44,9 @@ type PipelineStepId = (typeof PIPELINE_STEPS)[number]["id"];
 
 const WORKFLOW_INDEX: Record<WorkflowStage, number> = {
   idle: 0,
-  record: 1,
-  cut: 2,
-  finish: 3,
-  publish: 4,
-  live: 4,
+  finish: 1,
+  publish: 2,
+  live: 2,
 };
 
 const PUBLISH_KEY: Record<PublishMark, CreatorKey> = {
@@ -68,8 +65,6 @@ const PUBLISH_MARKS: readonly PublishMark[] = ["unpublished", "draft", "publishe
 
 const STAGE_KEY: Record<WorkflowStage, CreatorKey> = {
   idle: "inspector.stage.idle",
-  record: "inspector.stage.record",
-  cut: "inspector.stage.cut",
   finish: "inspector.stage.finish",
   publish: "inspector.stage.publish",
   live: "inspector.stage.live",
@@ -161,19 +156,19 @@ export function ContentInspector({
   getContent,
   getCoverThumb,
   getVideoPlayback,
+  startVideoImport,
+  getVideoImport,
+  cancelVideoImport,
+  selectVideo,
   getArticleMedia,
   getSubtitleText,
   getSettings,
-  markReadyToRecord,
-  bindStudio,
-  openStudio,
   setPublish,
   syncPublish,
   startSubtitleGenerate,
   startSubtitleBurn,
   startCoverGenerate,
   setScript,
-  pickDirectory,
   openSubtitlePreview,
   openPath,
 }: ContentInspectorProps) {
@@ -200,8 +195,6 @@ export function ContentInspector({
   const [scriptDraft, setScriptDraft] = useState("");
   const [scriptSaved, setScriptSaved] = useState(true);
   scriptSavedRef.current = scriptSaved;
-  const [videoSrc, setVideoSrc] = useState<string | undefined>(undefined);
-  const [videoReady, setVideoReady] = useState(false);
   const [articleOrigin, setArticleOrigin] = useState<string | undefined>(undefined);
   const [publishMenu, setPublishMenu] = useState<PublishPlatform | null>(null);
   const [publishPending, setPublishPending] = useState<PublishPlatform | null>(null);
@@ -213,8 +206,6 @@ export function ContentInspector({
     setSyncHint(undefined);
     setScriptDraft("");
     setScriptSaved(true);
-    setVideoSrc(undefined);
-    setVideoReady(false);
     setArticleOrigin(undefined);
     setBusy(undefined);
     expectSubtitlePreview.current = false;
@@ -290,24 +281,6 @@ export function ContentInspector({
       cancelled = true;
     };
   }, [selectedId, libraryEpoch, suspended]);
-
-  useEffect(() => {
-    if (suspended || tab !== "video" || selectedId === null || !ready()) return;
-    let cancelled = false;
-    setVideoReady(false);
-    void getVideoPlayback(selectedId).then((next: VideoPlaybackResult) => {
-      if (cancelled) return;
-      setVideoSrc(next.found ? next.url : undefined);
-      setVideoReady(true);
-    }, () => {
-      if (cancelled) return;
-      setVideoSrc(undefined);
-      setVideoReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [tab, selectedId, libraryEpoch, suspended]);
 
   useEffect(() => {
     if (suspended || tab !== "article" || selectedId === null || !ready()) return;
@@ -402,26 +375,6 @@ export function ContentInspector({
   const currentStep: PipelineStepId = publishStepDone
     ? "publish"
     : (PIPELINE_STEPS[stageIndex]?.id ?? "topic");
-
-  const onReadyToRecord = (): void => {
-    if (detail === undefined) return;
-    void markReadyToRecord(detail.id).then((next) => { setDetail(next); });
-  };
-
-  const onBindStudio = (): void => {
-    if (detail === undefined) return;
-    void pickDirectory().then((path) => {
-      if (path === null) return;
-      return bindStudio(detail.id, path);
-    }).then((next) => {
-      if (next !== undefined) setDetail(next);
-    });
-  };
-
-  const onOpenStudio = (): void => {
-    if (detail === undefined) return;
-    void openStudio(detail.id);
-  };
 
   const onGenerateCover = (): void => {
     if (detail === undefined) return;
@@ -564,7 +517,6 @@ export function ContentInspector({
     return { status: t("inspector.track.notGenerated" as CreatorKey) };
   };
 
-  const currentStepMeta = PIPELINE_STEPS.find((step) => step.id === currentStep);
 
   const moveTabFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number): void => {
     let target = index;
@@ -583,7 +535,7 @@ export function ContentInspector({
   return (
     <div
       ref={pane}
-      data-plugin="dsh-oil-creator"
+      data-plugin="dsh-creator-workbench"
       data-surface="inspector"
       className={wide ? "wide" : undefined}
     >
@@ -691,6 +643,7 @@ export function ContentInspector({
                 );
               })}
             </div>
+            <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} />
             {hasVideo && (
               <Surface title={t("inspector.make" as CreatorKey)}>
                 <div className="workList">
@@ -712,54 +665,6 @@ export function ContentInspector({
                     )}
                   />
                 </div>
-              </Surface>
-            )}
-            {currentStepMeta !== undefined && currentStep !== "publish" && currentStep !== "finish" && (
-              <Surface
-                title={t(currentStepMeta.label as CreatorKey)}
-                hint={"hint" in currentStepMeta ? t(currentStepMeta.hint as CreatorKey) : undefined}
-              >
-                {currentStep === "topic" && (
-                  <ActionBar>
-                    <ActionButton tone="primary" onClick={onReadyToRecord}>
-                      {t("inspector.readyToRecord" as CreatorKey)}
-                    </ActionButton>
-                  </ActionBar>
-                )}
-                {currentStep === "record" && (
-                  <ActionBar>
-                    <ActionButton
-                      tone="primary"
-                      onClick={detail.studioPath === undefined ? onBindStudio : onOpenStudio}
-                    >
-                      {t((detail.studioPath === undefined ? "inspector.studio.bind" : "inspector.studio.open") as CreatorKey)}
-                    </ActionButton>
-                  </ActionBar>
-                )}
-                {currentStep === "cut" && (
-                  <>
-                    {detail.waitingForExport && !hasVideo && (
-                      <JobNote tone={detail.exportTimedOut === true ? "error" : "running"}>
-                        {t((detail.exportTimedOut === true
-                          ? "inspector.step.exportTimedOut"
-                          : "inspector.step.waitingExport") as CreatorKey)}
-                      </JobNote>
-                    )}
-                    <ActionBar>
-                      <ActionButton
-                        tone="primary"
-                        onClick={detail.studioPath === undefined ? onBindStudio : onOpenStudio}
-                      >
-                        {t((detail.studioPath === undefined ? "inspector.studio.bind" : "inspector.studio.open") as CreatorKey)}
-                      </ActionButton>
-                      {detail.studioPath !== undefined && (
-                        <ActionButton onClick={onBindStudio}>
-                          {t("inspector.studio.rebind" as CreatorKey)}
-                        </ActionButton>
-                      )}
-                    </ActionBar>
-                  </>
-                )}
               </Surface>
             )}
             {actionError !== undefined && (
@@ -867,19 +772,7 @@ export function ContentInspector({
           </>
         )}
         {detail !== undefined && tab === "video" && (
-          !videoReady
-            ? <div className="empty">{t("empty.loading" as CreatorKey)}</div>
-            : videoSrc === undefined
-              ? <div className="empty">{t("inspector.video.empty" as CreatorKey)}</div>
-              : (
-                <video
-                  className="videoPlayer"
-                  controls={true}
-                  playsInline={true}
-                  preload="metadata"
-                  src={videoSrc}
-                />
-              )
+          <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} />
         )}
         {detail !== undefined && tab === "script" && (
           <textarea

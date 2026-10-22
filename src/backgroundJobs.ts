@@ -1,11 +1,11 @@
 import type { JobHooks, JobId, JobOutcome, JobRegistry, JobSpec } from "@deepseek-ai/dsh-jobs";
 import { defineTool, type ToolDefinition } from "@deepseek-ai/dsh-tools";
 
-import type { OilCreatorService } from "./service.ts";
+import type { CreatorWorkbenchService } from "./service.ts";
 
 declare module "@deepseek-ai/dsh-jobs" {
   interface JobKindMap {
-    "oil-media": "oil-media";
+    "creator-media": "creator-media";
   }
 }
 
@@ -44,7 +44,7 @@ function backgroundOutput() {
 }
 
 async function assertMediaIdle(
-  service: OilCreatorService,
+  service: CreatorWorkbenchService,
   id: string,
   fields: readonly MediaField[],
   signal: AbortSignal,
@@ -52,15 +52,6 @@ async function assertMediaIdle(
   const detail = await service.getContent({ id }, signal);
   const running = fields.find((field) => detail[field].status === "running");
   if (running !== undefined) throw new Error(`${id}: ${running} is already running`);
-}
-
-async function assertExportIdle(
-  service: OilCreatorService,
-  id: string,
-  signal: AbortSignal,
-): Promise<void> {
-  const detail = await service.getContent({ id }, signal);
-  if (detail.waitingForExport) throw new Error(`${id}: export wait is already running`);
 }
 
 function startExclusiveJob(
@@ -94,7 +85,7 @@ function startExclusiveJob(
 }
 
 function mediaHooks(
-  service: OilCreatorService,
+  service: CreatorWorkbenchService,
   id: string,
   field: MediaField,
   start: (signal: AbortSignal) => Promise<unknown>,
@@ -128,76 +119,11 @@ function mediaHooks(
   };
 }
 
-function exportHooks(
-  service: OilCreatorService,
-  id: string,
-  timeoutMs: number | undefined,
-): JobHooks {
-  const controller = new AbortController();
-  const done = (async (): Promise<JobOutcome> => {
-    try {
-      await service.waitForExport(
-        timeoutMs === undefined ? { id } : { id, timeoutMs },
-        controller.signal,
-      );
-      const detail = await service.waitForExportCompletion(id, controller.signal);
-      if (detail.exportTimedOut === true) {
-        return { status: "failed", detail: "export timed out", result: `${id}: export timed out` };
-      }
-      return {
-        status: "completed",
-        detail: "export ready",
-        result: detail.videoSubtitled ?? detail.videoRaw ?? `${id}: export ready`,
-      };
-    } catch (cause) {
-      if (controller.signal.aborted) {
-        try {
-          await service.cancelExportWait(id);
-        } catch (cleanupCause) {
-          return { status: "failed", detail: "cancel cleanup failed", result: message(cleanupCause) };
-        }
-        return { status: "killed", detail: "export wait", result: `${id}: cancelled` };
-      }
-      return { status: "failed", detail: "export wait", result: message(cause) };
-    }
-  })();
-  return {
-    cancel: (reason) => {
-      if (!controller.signal.aborted) controller.abort(new Error(reason ?? "cancelled"));
-    },
-    done,
-  };
-}
-
-export function registerCreatorJobTools(ctx: JobToolsContext, service: OilCreatorService): void {
+export function registerCreatorJobTools(ctx: JobToolsContext, service: CreatorWorkbenchService): void {
   const active = new Set<string>();
 
   ctx.tools.register(defineTool({
-    name: "oil_wait_export",
-    description:
-      "Watch an episode folder for a stable MP4/MOV export as a Harness background job. "
-      + "Returns a job id immediately; use job_output with wait=true for completion and job_kill for cancellation.",
-    parameters: {
-      id: { type: "string", required: true, description: "Folder id." },
-      timeoutMs: { type: "integer", description: "Timeout in milliseconds. Default 2 hours." },
-    },
-    output: backgroundOutput(),
-    presentCall: (args) => present("Wait for export", args),
-    execute: async (args, exec) => {
-      if (args.id.trim() === "") throw new Error("id is required");
-      exec.signal.throwIfAborted();
-      await assertExportIdle(service, args.id, exec.signal);
-      const jobId = startExclusiveJob(ctx.jobs, active, `${args.id}:export`, {
-        kind: "oil-media",
-        label: `Wait for export: ${args.id}`,
-        ...(exec.agent === undefined ? {} : { owner: exec.agent.session.id }),
-      }, () => exportHooks(service, args.id, args.timeoutMs));
-      return { kind: "background" as const, jobId };
-    },
-  }));
-
-  ctx.tools.register(defineTool({
-    name: "oil_burn_subtitles",
+    name: "creator_burn_subtitles",
     description:
       "Burn the confirmed subtitle draft as a Harness background job. "
       + "Open and confirm the subtitle preview first; use job_output with wait=true or job_kill for control.",
@@ -209,7 +135,7 @@ export function registerCreatorJobTools(ctx: JobToolsContext, service: OilCreato
       exec.signal.throwIfAborted();
       await assertMediaIdle(service, args.id, ["burn"], exec.signal);
       const jobId = startExclusiveJob(ctx.jobs, active, `${args.id}:burn`, {
-        kind: "oil-media",
+        kind: "creator-media",
         label: `Burn subtitles: ${args.id}`,
         ...(exec.agent === undefined ? {} : { owner: exec.agent.session.id }),
       }, () => mediaHooks(service, args.id, "burn", (signal) =>
@@ -219,7 +145,7 @@ export function registerCreatorJobTools(ctx: JobToolsContext, service: OilCreato
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_generate_subtitles",
+    name: "creator_generate_subtitles",
     description:
       "Transcribe, review, and lay out subtitle drafts as a Harness background job. "
       + "Completion opens the preview editor; use job_output with wait=true or job_kill for control.",
@@ -231,7 +157,7 @@ export function registerCreatorJobTools(ctx: JobToolsContext, service: OilCreato
       exec.signal.throwIfAborted();
       await assertMediaIdle(service, args.id, ["subtitleJob", "burn"], exec.signal);
       const jobId = startExclusiveJob(ctx.jobs, active, `${args.id}:subtitleJob`, {
-        kind: "oil-media",
+        kind: "creator-media",
         label: `Generate subtitles: ${args.id}`,
         ...(exec.agent === undefined ? {} : { owner: exec.agent.session.id }),
       }, () => mediaHooks(service, args.id, "subtitleJob", (signal) =>
@@ -241,7 +167,7 @@ export function registerCreatorJobTools(ctx: JobToolsContext, service: OilCreato
   }));
 
   ctx.tools.register(defineTool({
-    name: "oil_generate_cover",
+    name: "creator_generate_cover",
     description:
       "Generate 3x4 / 4x3 / 16x9 covers as a Harness background job. "
       + "Extract and pass the cover headline first; use job_output with wait=true or job_kill for control.",
@@ -260,7 +186,7 @@ export function registerCreatorJobTools(ctx: JobToolsContext, service: OilCreato
         ...(typeof args.title === "string" && args.title.trim() !== "" ? { title: args.title } : {}),
       };
       const jobId = startExclusiveJob(ctx.jobs, active, `${args.id}:coverJob`, {
-        kind: "oil-media",
+        kind: "creator-media",
         label: `Generate cover: ${args.id}`,
         ...(exec.agent === undefined ? {} : { owner: exec.agent.session.id }),
       }, () => mediaHooks(service, args.id, "coverJob", (signal) =>

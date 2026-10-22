@@ -1,20 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import { parseByteRange, playbackOf } from "../src/videoServe.ts";
+import { parseByteRange, playbackOf, startVideoServer } from "../src/videoServe.ts";
+import { mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+describe("local playback HTTP", () => {
+  it("serves ranges, refreshes replaced files, and handles a disappeared source", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creator-player-")); const path = join(root, "普通视频.MP4");
+    await writeFile(path, "0123456789"); const server = await startVideoServer(path);
+    try {
+      const range = await fetch(server.url, { headers: { Range: "bytes=2-5" } });
+      expect(range.status).toBe(206); expect(range.headers.get("Content-Range")).toBe("bytes 2-5/10"); expect(await range.text()).toBe("2345");
+      await writeFile(path, "new"); const updated = await fetch(server.url);
+      expect(updated.headers.get("Content-Length")).toBe("3"); expect(await updated.text()).toBe("new");
+      await unlink(path); expect((await fetch(server.url)).status).toBe(404);
+    } finally { server.close(); await rm(root, { recursive: true, force: true }); }
+  });
+});
 
 describe("playbackOf", () => {
-  it("prefers the subtitled file", () => {
-    expect(playbackOf({
-      videoRaw: "/a.mp4",
-      videoSubtitled: "/a_subtitled.mp4",
-    })).toEqual({ path: "/a_subtitled.mp4", kind: "subtitled" });
+  const videos = [{ name: "a.mp4", path: "/a.mp4", size: 1, modifiedAt: 1 }, { name: "a_subtitled.mp4", path: "/a_subtitled.mp4", size: 1, modifiedAt: 2 }];
+  it("uses exactly the selected video", () => {
+    expect(playbackOf({ videos, selectedVideo: "a.mp4" })).toEqual({ path: "/a.mp4", kind: "raw" });
+    expect(playbackOf({ videos, selectedVideo: "a_subtitled.mp4" })?.path).toBe("/a_subtitled.mp4");
   });
-
-  it("falls back to the raw file", () => {
-    expect(playbackOf({ videoRaw: "/a.mp4" })).toEqual({ path: "/a.mp4", kind: "raw" });
-  });
-
-  it("is empty without a video", () => {
+  it("never substitutes a missing or unselected video", () => {
+    expect(playbackOf({ videos })).toBeUndefined();
+    expect(playbackOf({ videos, selectedVideo: "gone.mp4" })).toBeUndefined();
     expect(playbackOf({})).toBeUndefined();
   });
 });

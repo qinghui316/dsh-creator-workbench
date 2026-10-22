@@ -23,8 +23,8 @@ describe("creator settings platform contract", () => {
 
   it("exposes enabled platforms in the registered creator tools", () => {
     const tools = registeredTools();
-    const setup = tools.get("oil_creator_setup");
-    const profile = tools.get("oil_creator_profile");
+    const setup = tools.get("creator_setup");
+    const profile = tools.get("creator_profile");
     const setupPlatforms = setup?.parameters.properties.enabledPlatforms as { items?: { enum?: readonly string[] } };
     const profilePlatforms = profile?.parameters.properties.enabledPlatforms as { items?: { enum?: readonly string[] } };
 

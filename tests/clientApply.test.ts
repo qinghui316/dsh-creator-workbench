@@ -15,11 +15,11 @@ function mountClient(pickDirectory = vi.fn(async (): Promise<string | null> => n
   const register = vi.fn((_descriptor: unknown, component: typeof panel) => { panel = component; return release; });
   const setLibraryRoot = vi.fn(async () => ({ ok: true, value: {} }));
   const createContent = vi.fn(async () => ({ ok: true, value: { id: "new", folderPath: "/chosen/new" } }));
-  const remote = { setLibraryRoot, createContent, getRevision: async () => ({ ok: true, value: { revision: 0 } }) };
+  const remote = { getSettings: async () => ({ ok: true, value: { libraryRoot: "/chosen", libraryConfirmed: false } }), getCapabilities: async () => ({ ok: true, value: { capabilities: { library: { state: "missing" } } } }), setLibraryRoot, createContent, getRevision: async () => ({ ok: true, value: { revision: 0 } }) };
   const services: Record<string, unknown> = {
     desktopWorkbenches: { register, isActive: () => true, currentSession: () => undefined },
     uiWorkspace: { pickDirectory },
-    "remote.oilCreator": remote,
+    "remote.creatorWorkbench": remote,
   };
   const ctx = {
     fiber: { state: 1 },
@@ -36,7 +36,7 @@ function mountClient(pickDirectory = vi.fn(async (): Promise<string | null> => n
   const primitives = new Proxy({}, { get: (_target, key) => (props: object) => createElement(String(key), props) });
   runInNewContext(readFileSync(new URL("../lib/client.js", import.meta.url), "utf8"), {
     window: { __ModuleLoader__: { load: ({ id, factory }: { id: string; factory: (require: (name: string) => unknown) => typeof client }) => {
-      expect(id).toBe("dsh-oil-creator");
+      expect(id).toBe("dsh-creator-workbench");
       client = factory((name) => {
         if (name === "react") return React;
         if (name === "react/jsx-runtime") return jsx;
@@ -56,7 +56,7 @@ describe("Desktop workbench client", () => {
     const mounted = mountClient();
     expect(mounted.client.inject).toContain("desktopWorkbenches");
     expect(mounted.register).toHaveBeenCalledOnce();
-    expect(mounted.register.mock.calls[0]?.[0]).toMatchObject({ repository: "https://github.com/oil-oil/dsh-oil-creator" });
+    expect(mounted.register.mock.calls[0]?.[0]).toMatchObject({ repository: "https://github.com/qinghui316/dsh-creator-workbench" });
     expect(mounted.register.mock.calls[0]?.[0]).not.toHaveProperty("id");
     expect(mounted.panel().props.face).toBeDefined();
     await mounted.dispose();

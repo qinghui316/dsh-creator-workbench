@@ -70,7 +70,7 @@ vi.mock("../src/processAlive.ts", async (importOriginal) => {
   };
 });
 
-import { OilCreatorService } from "../src/service.ts";
+import { CreatorWorkbenchService } from "../src/service.ts";
 import { saveCollectCache } from "../src/collectCache.ts";
 import { emptyOverlay, loadOverlay, saveOverlay } from "../src/overlay.ts";
 import { emptyBurn, emptyPublish } from "../src/publishStatus.ts";
@@ -85,11 +85,13 @@ function item(folderPath: string, videoRaw: string): ContentSummary {
     recordedAt: 1,
     createdMs: 1,
     videoRaw,
+    videos: [{ name: "selected.mp4", path: videoRaw, size: 1, modifiedAt: 1 }],
+    selectedVideo: "selected.mp4",
+    videoSelection: "selected",
     covers: {},
     subtitles: {},
     hasPublishPackage: false,
     hasArticle: false,
-    waitingForExport: false,
     tags: [],
     pipeline: "raw",
     workflow: "finish",
@@ -100,14 +102,14 @@ function item(folderPath: string, videoRaw: string): ContentSummary {
   };
 }
 
-describe("OilCreatorService.startSubtitleGenerate", () => {
+describe("CreatorWorkbenchService.startSubtitleGenerate", () => {
   it("always prepares subtitles without resolving or injecting the cover credential", async () => {
     const folder = await mkdtemp(join(tmpdir(), "oil-service-subtitle-"));
     const video = join(folder, "demo.mp4");
     await writeFile(video, "v");
 
-    let launch: Parameters<OilCreatorService["startChainedJob"]>[2] | undefined;
-    const service = Object.create(OilCreatorService.prototype) as OilCreatorService;
+    let launch: Parameters<CreatorWorkbenchService["startChainedJob"]>[2] | undefined;
+    const service = Object.create(CreatorWorkbenchService.prototype) as CreatorWorkbenchService;
     const probe = service as unknown as {
       ctx: { get: (name: string) => unknown };
       find: () => Promise<ContentSummary>;
@@ -115,7 +117,7 @@ describe("OilCreatorService.startSubtitleGenerate", () => {
       startChainedJob: (
         id: string,
         field: "burn" | "subtitleJob" | "coverJob",
-        nextLaunch: Parameters<OilCreatorService["startChainedJob"]>[2],
+        nextLaunch: Parameters<CreatorWorkbenchService["startChainedJob"]>[2],
         signal: AbortSignal,
       ) => Promise<ContentDetail>;
     };
@@ -146,10 +148,10 @@ describe("OilCreatorService.startSubtitleGenerate", () => {
   });
 });
 
-describe("OilCreatorService.startChainedJob", () => {
+describe("CreatorWorkbenchService.startChainedJob", () => {
   it("passes each step only its declared credential", async () => {
     chained.calls.length = 0;
-    const service = Object.create(OilCreatorService.prototype) as OilCreatorService;
+    const service = Object.create(CreatorWorkbenchService.prototype) as CreatorWorkbenchService;
     const probe = service as unknown as {
       patchItem: () => Promise<ContentDetail>;
     };
@@ -174,14 +176,14 @@ describe("OilCreatorService.startChainedJob", () => {
   });
 });
 
-describe("OilCreatorService.openSubtitlePreview", () => {
-  async function previewService(folder: string, video: string): Promise<OilCreatorService> {
-    const service = Object.create(OilCreatorService.prototype) as OilCreatorService;
+describe("CreatorWorkbenchService.openSubtitlePreview", () => {
+  async function previewService(folder: string, video: string): Promise<CreatorWorkbenchService> {
+    const service = Object.create(CreatorWorkbenchService.prototype) as CreatorWorkbenchService;
     const previewItem = item(folder, video);
     previewItem.subtitles = { srt: join(folder, "demo.srt") };
     const probe = service as unknown as {
       dataDir: string;
-      previews: OilCreatorService["previews"];
+      previews: CreatorWorkbenchService["previews"];
       find: () => Promise<ContentSummary>;
       subtitleSkill: () => Promise<{ root: string; python: string }>;
     };
@@ -211,12 +213,12 @@ describe("OilCreatorService.openSubtitlePreview", () => {
   });
 });
 
-async function syncService(profile: CreatorProfile): Promise<OilCreatorService> {
+async function syncService(profile: CreatorProfile): Promise<CreatorWorkbenchService> {
   const dataDir = await mkdtemp(join(tmpdir(), "oil-service-sync-"));
   const overlay = emptyOverlay();
   overlay.profile = profile;
   await saveOverlay(dataDir, overlay);
-  const service = Object.create(OilCreatorService.prototype) as OilCreatorService;
+  const service = Object.create(CreatorWorkbenchService.prototype) as CreatorWorkbenchService;
   const probe = service as unknown as {
     dataDir: string;
     scanned: () => Promise<{ items: ContentSummary[] }>;
@@ -228,7 +230,7 @@ async function syncService(profile: CreatorProfile): Promise<OilCreatorService> 
   return service;
 }
 
-describe("OilCreatorService.syncPublish", () => {
+describe("CreatorWorkbenchService.syncPublish", () => {
   beforeEach(() => {
     collect.calls.length = 0;
     collect.run.mockClear();
@@ -281,7 +283,7 @@ describe("OilCreatorService.syncPublish", () => {
   });
 });
 
-describe("OilCreatorService subtitle job reconcile", () => {
+describe("CreatorWorkbenchService subtitle job reconcile", () => {
   async function overlayService(item: OverlayItem) {
     const dataDir = await mkdtemp(join(tmpdir(), "oil-service-job-"));
     const libraryRoot = await mkdtemp(join(tmpdir(), "oil-service-lib-"));
@@ -289,7 +291,7 @@ describe("OilCreatorService subtitle job reconcile", () => {
     overlay.libraryRoot = libraryRoot;
     overlay.items.demo = item;
     await saveOverlay(dataDir, overlay);
-    const service = Object.create(OilCreatorService.prototype) as OilCreatorService;
+    const service = Object.create(CreatorWorkbenchService.prototype) as CreatorWorkbenchService;
     const probe = service as unknown as {
       dataDir: string;
       libraryRoot: string;

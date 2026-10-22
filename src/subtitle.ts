@@ -1,3 +1,4 @@
+import { currentVideoPath } from "./videoSelection.ts";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -84,7 +85,7 @@ export function srtToSegments(raw: string): Array<{ start: number; end: number; 
 
 export function workDirOf(item: ContentSummary): string {
   if (item.subtitles.transcript !== undefined) return dirname(item.subtitles.transcript);
-  const video = item.videoRaw ?? item.videoSubtitled;
+  const video = currentVideoPath(item);
   const stem = video === undefined ? item.id : basename(video, extname(video));
   return join(item.folderPath, `${stem}.subtitle-work`);
 }
@@ -122,7 +123,7 @@ export async function pickPreviewLaunch(item: ContentSummary): Promise<{
   args: string[];
   video: string;
 }> {
-  const video = item.videoRaw ?? item.videoSubtitled;
+  const video = currentVideoPath(item);
   if (video === undefined) throw new Error("no video to preview");
   const manifest = join(workDirOf(item), "subtitle-manifest.json");
   if (await pathExists(manifest)) return { args: [manifest], video };
@@ -141,7 +142,7 @@ export async function pickBurnLaunch(item: ContentSummary): Promise<{
   args: string[];
   output: string;
 }> {
-  const video = item.videoRaw;
+  const video = currentVideoPath(item);
   if (video === undefined) throw new Error("no raw video to burn");
   const stem = basename(video, extname(video));
   const output = await uniqueSubtitledPath(item.folderPath, stem);

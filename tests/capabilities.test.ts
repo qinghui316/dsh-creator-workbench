@@ -60,9 +60,6 @@ describe("creator setup inspection", () => {
     expect(result.capabilities.subtitleSkill.state).toBe("ready");
     expect(result.capabilities.coverSkill.state).toBe("ready");
     expect(result.capabilities.publishSync.path).toBe(join(bin, "ego-browser"));
-    expect(result.capabilities.screenStudio.state).toBe("unsupported");
-    expect(result.capabilities.editingSkill.state).toBe("ready");
-    expect(result.capabilities.editingSkill.path).toBe(join(root, "skills", "screen-studio-editor"));
     expect(result.capabilities.publishSkill.state).toBe("ready");
     expect(result.capabilities.articleSkill.state).toBe("ready");
     expect(result.recommendations).toEqual([]);
@@ -89,7 +86,6 @@ describe("creator setup inspection", () => {
     );
     expect(result.capabilities.coverCredential.state).toBe("missing");
     expect(result.capabilities.publishSync.state).toBe("missing");
-    expect(result.capabilities.editingSkill.state).toBe("missing");
     expect(result.capabilities.publishSkill.state).toBe("missing");
     expect(result.capabilities.articleSkill.state).toBe("missing");
     expect(result.recommendations.length).toBeGreaterThan(3);
@@ -161,7 +157,7 @@ describe("defaultFindSkillDir", () => {
 });
 
 describe("inspectCreatorSetup windows and mac paths", () => {
-  it("accepts a Windows subtitle venv and does not claim Screen Studio", async () => {
+  it("accepts a Windows subtitle venv", async () => {
     const root = await mkdtemp(join(tmpdir(), "oil-win-setup-"));
     const libraryRoot = join(root, "library");
     const subtitleRoot = join(root, "oil-subtitle");
@@ -200,7 +196,6 @@ describe("inspectCreatorSetup windows and mac paths", () => {
     expect(result.capabilities.subtitleSkill.state).toBe("ready");
     expect(result.capabilities.coverSkill.state).toBe("ready");
     expect(result.capabilities.publishSync.state).toBe("ready");
-    expect(result.capabilities.screenStudio.state).toBe("unsupported");
   });
 
   it("does not treat an Ego app without the CLI as ready", async () => {

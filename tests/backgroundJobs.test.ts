@@ -15,7 +15,7 @@ function setup(service: Record<string, unknown>) {
     jobs: {
       start: (spec: { run: () => typeof hooks }) => {
         hooks = spec.run();
-        return "oil-media-1";
+        return "creator-media-1";
       },
     },
   } as never, service as never);
@@ -26,7 +26,6 @@ describe("creator background jobs", () => {
   it("registers long media work with the Harness job registry", async () => {
     const service = {
       getContent: vi.fn(async () => ({
-        waitingForExport: false,
         burn: { status: "idle" },
         subtitleJob: { status: "idle" },
         coverJob: { status: "idle" },
@@ -37,16 +36,15 @@ describe("creator background jobs", () => {
     };
     const registered = setup(service);
     expect([...registered.tools.keys()]).toEqual([
-      "oil_wait_export",
-      "oil_burn_subtitles",
-      "oil_generate_subtitles",
-      "oil_generate_cover",
+      "creator_burn_subtitles",
+      "creator_generate_subtitles",
+      "creator_generate_cover",
     ]);
-    const result = await registered.tools.get("oil_generate_cover")?.execute(
+    const result = await registered.tools.get("creator_generate_cover")?.execute(
       { id: "demo", title: "封面标题" },
       { signal: new AbortController().signal },
     );
-    expect(result).toEqual({ kind: "background", jobId: "oil-media-1" });
+    expect(result).toEqual({ kind: "background", jobId: "creator-media-1" });
     await expect(registered.hooks()?.done).resolves.toEqual({
       status: "completed",
       detail: "coverJob",
@@ -61,7 +59,6 @@ describe("creator background jobs", () => {
   it("routes job cancellation through the owned media process cleanup", async () => {
     const service = {
       getContent: vi.fn(async () => ({
-        waitingForExport: false,
         burn: { status: "idle" },
         subtitleJob: { status: "idle" },
         coverJob: { status: "idle" },
@@ -73,7 +70,7 @@ describe("creator background jobs", () => {
       cancelMediaJob: vi.fn(async () => undefined),
     };
     const registered = setup(service);
-    await registered.tools.get("oil_generate_cover")?.execute(
+    await registered.tools.get("creator_generate_cover")?.execute(
       { id: "demo" },
       { signal: new AbortController().signal },
     );
@@ -89,7 +86,6 @@ describe("creator background jobs", () => {
   it("rejects a duplicate job for the same content and media field", async () => {
     const service = {
       getContent: vi.fn(async () => ({
-        waitingForExport: false,
         burn: { status: "idle" },
         subtitleJob: { status: "idle" },
         coverJob: { status: "idle" },
@@ -99,7 +95,7 @@ describe("creator background jobs", () => {
       cancelMediaJob: vi.fn(async () => undefined),
     };
     const registered = setup(service);
-    const tool = registered.tools.get("oil_generate_cover");
+    const tool = registered.tools.get("creator_generate_cover");
     await tool?.execute({ id: "demo" }, { signal: new AbortController().signal });
     await expect(tool?.execute({ id: "demo" }, { signal: new AbortController().signal }))
       .rejects.toThrow("already running");

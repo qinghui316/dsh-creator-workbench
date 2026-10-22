@@ -1,5 +1,7 @@
+import { currentVideoPath } from "./videoSelection.ts";
+import type { ContentSummary } from "./types.ts";
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { lstat, stat } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { extname } from "node:path";
 
@@ -12,13 +14,9 @@ const MIME: Record<string, string> = {
   ".webm": "video/webm",
 };
 
-export function playbackOf(item: {
-  videoRaw?: string;
-  videoSubtitled?: string;
-}): { path: string; kind: "raw" | "subtitled" } | undefined {
-  if (item.videoSubtitled !== undefined) return { path: item.videoSubtitled, kind: "subtitled" };
-  if (item.videoRaw !== undefined) return { path: item.videoRaw, kind: "raw" };
-  return undefined;
+export function playbackOf(item: Pick<ContentSummary, "videos" | "selectedVideo">): { path: string; kind: "raw" | "subtitled" } | undefined {
+  const path = currentVideoPath(item);
+  return path === undefined ? undefined : { path, kind: "raw" };
 }
 
 export function parseByteRange(
@@ -54,6 +52,11 @@ export async function startVideoServer(path: string): Promise<{
   const mime = MIME[extname(path).toLowerCase()] ?? "video/mp4";
   const port = await findFreePort(8900, 8999);
   const server: Server = createServer((request, response) => {
+    void (async () => {
+    const current = await lstat(path).catch(() => undefined);
+    if (current === undefined || !current.isFile() || current.isSymbolicLink()) {
+      response.writeHead(404); response.end(); return;
+    }
     response.setHeader("Access-Control-Allow-Origin", "*");
     response.setHeader("Access-Control-Allow-Headers", "Range");
     response.setHeader("Access-Control-Expose-Headers", "Content-Range, Accept-Ranges, Content-Length");
@@ -67,32 +70,33 @@ export async function startVideoServer(path: string): Promise<{
       response.end();
       return;
     }
-    const range = parseByteRange(request.headers.range, info.size);
+    const range = parseByteRange(request.headers.range, current.size);
     if (range === undefined) {
       response.writeHead(200, {
         "Content-Type": mime,
-        "Content-Length": info.size,
+        "Content-Length": current.size,
         "Accept-Ranges": "bytes",
       });
       if (request.method === "HEAD") {
         response.end();
         return;
       }
-      createReadStream(path).pipe(response);
+      pipeFile(path, response);
       return;
     }
     const length = range.end - range.start + 1;
     response.writeHead(206, {
       "Content-Type": mime,
       "Content-Length": length,
-      "Content-Range": `bytes ${range.start}-${range.end}/${info.size}`,
+      "Content-Range": `bytes ${range.start}-${range.end}/${current.size}`,
       "Accept-Ranges": "bytes",
     });
     if (request.method === "HEAD") {
       response.end();
       return;
     }
-    createReadStream(path, { start: range.start, end: range.end }).pipe(response);
+    pipeFile(path, response, range);
+    })().catch(() => { if (!response.headersSent) response.writeHead(500); response.end(); });
   });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -106,4 +110,11 @@ export async function startVideoServer(path: string): Promise<{
       server.close();
     },
   };
+}
+
+function pipeFile(path: string, response: import("node:http").ServerResponse, range?: { start: number; end: number }): void {
+  const stream = createReadStream(path, range);
+  stream.on("error", () => { response.destroy(); });
+  response.on("close", () => { stream.destroy(); });
+  stream.pipe(response);
 }

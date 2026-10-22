@@ -44,17 +44,17 @@ function git(repository: string, ...args: string[]) {
 }
 
 function createRepository() {
-  const repository = mkdtempSync(join(tmpdir(), "dsh-oil-creator-release-"));
+  const repository = mkdtempSync(join(tmpdir(), "dsh-creator-workbench-release-"));
   const files = new Map<string, string>([
     ["package.json", JSON.stringify({
-      name: "dsh-oil-creator",
+      name: "dsh-creator-workbench",
       version: "0.1.0",
       repository: {
         type: "git",
-        url: "git+https://github.com/oil-oil/dsh-oil-creator.git",
+        url: "git+https://github.com/qinghui316/dsh-creator-workbench.git",
       },
-      bugs: { url: "https://github.com/oil-oil/dsh-oil-creator/issues" },
-      homepage: "https://github.com/oil-oil/dsh-oil-creator#readme",
+      bugs: { url: "https://github.com/qinghui316/dsh-creator-workbench/issues" },
+      homepage: "https://github.com/qinghui316/dsh-creator-workbench#readme",
       packageManager: "pnpm@10.16.1",
       main: "./lib/index.js",
       exports: { ".": "./lib/index.js" },
@@ -106,6 +106,7 @@ function createRepository() {
     const path = join(repository, "node_modules/.bin", command);
     mkdirSync(join(path, ".."), { recursive: true });
     writeFileSync(path, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    if (process.platform === "win32") writeFileSync(`${path}.cmd`, "@echo off\r\nexit /b 0\r\n");
   }
 
   git(repository, "init", "-q");
@@ -134,7 +135,8 @@ function runReleaseCheck(repository: string) {
   }
 }
 
-describe("release:check", () => {
+// This suite deliberately creates real Git repositories and invokes pnpm/npm.
+describe("release:check", { timeout: 30_000 }, () => {
   it("accepts a clean repository with origin and tracked release files", () => {
     const repository = createRepository();
     try {

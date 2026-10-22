@@ -15,7 +15,6 @@ function detail(patch: Partial<ContentDetail> = {}): ContentDetail {
     subtitles: {},
     hasPublishPackage: false,
     hasArticle: false,
-    waitingForExport: false,
     tags: [],
     pipeline: "raw",
     workflow: "publish",

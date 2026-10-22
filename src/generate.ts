@@ -1,3 +1,4 @@
+import { currentVideoPath } from "./videoSelection.ts";
 import { mkdir } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 
@@ -36,7 +37,7 @@ export async function pickTranscribeLaunch(item: ContentSummary): Promise<{
   output: string;
   script: string;
 }> {
-  const video = item.videoRaw ?? item.videoSubtitled;
+  const video = currentVideoPath(item);
   if (video === undefined) throw new Error("no video to transcribe");
   const work = workDirOf(item);
   await mkdir(work, { recursive: true });
@@ -53,7 +54,7 @@ export async function pickSubtitleWorkflow(
   item: ContentSummary,
   skillRoot: string,
 ): Promise<{ steps: GenerateStep[]; output: string }> {
-  const video = item.videoRaw ?? item.videoSubtitled;
+  const video = currentVideoPath(item);
   if (video === undefined) throw new Error("no video to transcribe");
   const work = workDirOf(item);
   await mkdir(work, { recursive: true });
@@ -120,7 +121,7 @@ export async function pickCoverLaunch(
   args: string[];
   output: string;
 }> {
-  const video = item.videoRaw ?? item.videoSubtitled;
+  const video = currentVideoPath(item);
   if (video === undefined) throw new Error("no video to cover");
   const coverTitle = title?.trim() === "" ? undefined : title?.trim();
   const args = [

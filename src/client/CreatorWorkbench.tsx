@@ -99,7 +99,7 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
   };
 
   return (
-    <section data-plugin="dsh-oil-creator" data-surface="workbench" data-selected={selectedId !== null || undefined}>
+    <section data-plugin="dsh-creator-workbench" data-surface="workbench" data-selected={selectedId !== null || undefined}>
       <header className="workbenchHeader">
         <span>{t("workbench.title")}</span>
         <div className="workbenchActions">

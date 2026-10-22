@@ -57,23 +57,6 @@ async function libraryCapability(path: string): Promise<CreatorCapability> {
     : capability("missing", true, "内容目录存在，但当前进程没有读写权限。", path);
 }
 
-async function screenStudioCapability(
-  platform: NodeJS.Platform,
-  home: string,
-): Promise<CreatorCapability> {
-  if (platform !== "darwin") {
-    return capability("unsupported", false, "Screen Studio 仅支持 macOS；录制绑定和自动剪辑不可用，其他内容管理能力仍可使用。");
-  }
-  const candidates = [join(home, "Applications", "Screen Studio.app")];
-  if (home === homedir()) candidates.unshift("/Applications/Screen Studio.app");
-  for (const path of candidates) {
-    if (await access(path).then(() => true, () => false)) {
-      return capability("ready", false, "已发现 Screen Studio，可绑定工程和自动剪辑。", path);
-    }
-  }
-  return capability("missing", false, "未发现 Screen Studio；绑定工程、自动剪辑（screen-studio-editor）不可用。");
-}
-
 async function subtitleCapability(
   path: string,
   platform: NodeJS.Platform,
@@ -186,7 +169,6 @@ function egoCapability(found: { path: string; kind: "cli" | "app" } | undefined)
 function recommendationsOf(capabilities: CreatorCapabilities): string[] {
   const recommendations: string[] = [];
   if (capabilities.library.state !== "ready") recommendations.push("先选择一个可读写的内容目录。");
-  if (capabilities.screenStudio.state === "missing") recommendations.push("需要录屏和自动剪辑时再安装 Screen Studio（screen.studio，仅 macOS）。");
   if (capabilities.subtitleSkill.state !== "ready") {
     const installedPath = capabilities.subtitleSkill.path;
     recommendations.push(
@@ -207,7 +189,6 @@ function recommendationsOf(capabilities: CreatorCapabilities): string[] {
         : "自动发布和数据回收：安装 Ego Browser（https://lite.ego.app）并保证 PATH 里有 ego-browser，再登录各平台后台。",
     );
   }
-  if (capabilities.editingSkill.state !== "ready") recommendations.push("自动剪辑：git clone https://github.com/oil-oil/screen-studio-editor ~/.agents/skills/screen-studio-editor");
   if (capabilities.publishSkill.state !== "ready") recommendations.push("自动发布：git clone https://github.com/oil-oil/video-publisher-skill ~/.agents/skills/video-publisher");
   if (capabilities.articleSkill.state !== "ready") recommendations.push("公众号图文：git clone https://github.com/oil-oil/oil-video-article ~/.agents/skills/oil-video-article");
   return recommendations;
@@ -222,13 +203,11 @@ export async function inspectCreatorSetup(
   const findSkillDir = options.findSkillDir ?? ((name: string) => defaultFindSkillDir(name, home));
   const capabilities: CreatorCapabilities = {
     library: await libraryCapability(options.libraryRoot),
-    screenStudio: await screenStudioCapability(platform, home),
     subtitleSkill: await subtitleCapability(options.subtitleSkillDir, platform),
     subtitleCredential: credentialCapability(options.settings.secrets.subtitle, "字幕"),
     coverSkill: await coverCapability(options.coverSkillDir, platform),
     coverCredential: credentialCapability(options.settings.secrets.cover, "封面"),
     publishSync: egoCapability(await findEgo(platform, env, home)),
-    editingSkill: skillCapability(findSkillDir, "screen-studio-editor"),
     publishSkill: skillCapability(findSkillDir, "video-publisher"),
     articleSkill: skillCapability(findSkillDir, "oil-video-article"),
   };

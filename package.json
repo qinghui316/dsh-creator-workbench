@@ -1,16 +1,16 @@
 {
-  "name": "dsh-oil-creator",
-  "version": "0.2.1",
+  "name": "dsh-creator-workbench",
+  "version": "0.1.0",
   "description": "AI-assisted local creator workbench for DeepSeek Harness",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/oil-oil/dsh-oil-creator.git"
+    "url": "git+https://github.com/qinghui316/dsh-creator-workbench.git"
   },
   "bugs": {
-    "url": "https://github.com/oil-oil/dsh-oil-creator/issues"
+    "url": "https://github.com/qinghui316/dsh-creator-workbench/issues"
   },
-  "homepage": "https://github.com/oil-oil/dsh-oil-creator#readme",
+  "homepage": "https://github.com/qinghui316/dsh-creator-workbench#readme",
   "keywords": [
     "deepseek-harness",
     "creator",
@@ -68,9 +68,10 @@
     "build": "tsdown && node scripts/copy-inplace.mjs scripts/collect-publish.mjs lib/collect-publish.mjs",
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "node scripts/check-dependencies.mjs && vitest run",
     "release:check": "node scripts/check-release.mjs",
-    "check": "pnpm typecheck && pnpm build && pnpm test"
+    "check": "pnpm typecheck && pnpm build && pnpm test",
+    "architecture": "node scripts/check-dependencies.mjs"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "~3.18.4",

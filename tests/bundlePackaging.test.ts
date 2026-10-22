@@ -61,13 +61,13 @@ describe("DeepSeek Harness bundle packaging", () => {
     expect(manifest.engines?.node).toBe(">=22.19.0");
     expect(manifest.repository).toEqual({
       type: "git",
-      url: "git+https://github.com/oil-oil/dsh-oil-creator.git",
+      url: "git+https://github.com/qinghui316/dsh-creator-workbench.git",
     });
     expect(manifest.bugs?.url).toBe(
-      "https://github.com/oil-oil/dsh-oil-creator/issues",
+      "https://github.com/qinghui316/dsh-creator-workbench/issues",
     );
     expect(manifest.homepage).toBe(
-      "https://github.com/oil-oil/dsh-oil-creator#readme",
+      "https://github.com/qinghui316/dsh-creator-workbench#readme",
     );
     expect(manifest.dsh?.client?.inject).toEqual(expect.arrayContaining([
       "dsh-desktop-workbenches", "@deepseek-ai/dsh-client-ui-workspace",
@@ -81,7 +81,7 @@ describe("DeepSeek Harness bundle packaging", () => {
     for (const range of Object.values(manifest.peerDependencies ?? {})) {
       expect(range).not.toContain("0.1.1-rc.2");
     }
-    expect(patch.trim()).toBe("- insert:\n    - id: dsh-oil-creator\n      name: dsh-oil-creator");
+    expect(patch.replaceAll("\r\n", "\n").trim()).toBe("- insert:\n    - id: dsh-creator-workbench\n      name: dsh-creator-workbench");
     expect(copyInplace).not.toContain(".dsh/profiles");
     expect(copyInplace).toContain("libDirectory");
     expect(releaseCheck).toContain('run(root, "pnpm", ["check"])');
@@ -91,7 +91,7 @@ describe("DeepSeek Harness bundle packaging", () => {
   });
 
   it("keeps README assets and runtime files in the real npm tarball", () => {
-    const packDirectory = mkdtempSync(join(tmpdir(), "dsh-oil-creator-pack-"));
+    const packDirectory = mkdtempSync(join(tmpdir(), "dsh-creator-workbench-pack-"));
     const runtimeFiles = [
       "lib/index.js",
       "lib/client.js",
@@ -106,8 +106,8 @@ describe("DeepSeek Harness bundle packaging", () => {
       }
 
       const output = execFileSync(
-        "npm",
-        [
+        process.execPath,
+        [resolve(process.execPath, "../node_modules/npm/bin/npm-cli.js"),
           "pack",
           "--ignore-scripts",
           "--json",
@@ -127,7 +127,7 @@ describe("DeepSeek Harness bundle packaging", () => {
         encoding: "utf8",
       })
         .trim()
-        .split("\n")
+        .split(/\r?\n/)
         .map((entry) => entry.replace(/^package\//, ""));
       const packedFiles = new Set(entries);
 

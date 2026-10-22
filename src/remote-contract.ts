@@ -2,6 +2,10 @@ import type { InvocationDescriptor } from "@deepseek-ai/dsh-typert-protocol";
 import { z } from "zod";
 
 import {
+  selectVideoRequestSchema,
+  videoImportRequestSchema,
+  videoImportTokenSchema,
+  videoImportStateSchema,
   capabilitiesResultSchema,
   contentDetailSchema,
   coverThumbResultSchema,
@@ -12,10 +16,8 @@ import {
   setLibraryRootRequestSchema,
   createContentRequestSchema,
   createContentResultSchema,
-  setContentStageRequestSchema,
   setProfileRequestSchema,
   setScriptRulesRequestSchema,
-  bindStudioRequestSchema,
   setPublishRequestSchema,
   setScriptRequestSchema,
   subtitlePreviewResultSchema,
@@ -27,8 +29,8 @@ import {
   articleMediaResultSchema,
 } from "./schemas.ts";
 
-export const PACKAGE_NAME = "dsh-oil-creator";
-export const REMOTE_NAMESPACE = "oilCreator";
+export const PACKAGE_NAME = "dsh-creator-workbench";
+export const REMOTE_NAMESPACE = "creatorWorkbench";
 
 const emptyObjectSchema = z.object({});
 
@@ -67,7 +69,11 @@ function invocation(
   };
 }
 
-export const OIL_CREATOR_INVOCATIONS: readonly InvocationDescriptor[] = [
+export const CREATOR_WORKBENCH_INVOCATIONS: readonly InvocationDescriptor[] = [
+  invocation("selectVideo", selectVideoRequestSchema, contentDetailSchema),
+  invocation("startVideoImport", videoImportRequestSchema, videoImportStateSchema),
+  invocation("getVideoImport", videoImportTokenSchema, videoImportStateSchema),
+  invocation("cancelVideoImport", videoImportTokenSchema, videoImportStateSchema),
   invocation("listContents", listContentsRequestSchema, listContentsResultSchema),
   invocation("getContent", idRequestSchema, contentDetailSchema),
   invocation("getCoverThumb", idRequestSchema, coverThumbResultSchema),
@@ -81,11 +87,8 @@ export const OIL_CREATOR_INVOCATIONS: readonly InvocationDescriptor[] = [
   invocation("setLibraryRoot", setLibraryRootRequestSchema, librarySettingsSchema),
   invocation("refreshCatalog", emptyObjectSchema, listContentsResultSchema),
   invocation("createContent", createContentRequestSchema, createContentResultSchema),
-  invocation("setContentStage", setContentStageRequestSchema, contentDetailSchema),
   invocation("setProfile", setProfileRequestSchema, librarySettingsSchema),
   invocation("setScriptRules", setScriptRulesRequestSchema, librarySettingsSchema),
-  invocation("bindStudio", bindStudioRequestSchema, contentDetailSchema),
-  invocation("openStudio", idRequestSchema, contentDetailSchema),
   invocation("setPublish", setPublishRequestSchema, contentDetailSchema),
   invocation("syncPublish", syncPublishRequestSchema, syncPublishResultSchema),
   invocation("setScript", setScriptRequestSchema, contentDetailSchema),

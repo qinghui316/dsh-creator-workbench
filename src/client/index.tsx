@@ -10,6 +10,7 @@ import { startLibraryLiveSync } from "./catalogSync.ts";
 import { remountPluginCss, releasePluginCss } from "./pluginCss.ts";
 import { registerContentTriggers } from "./contentTriggers.ts";
 import type {
+  VideoImportState,
   ContentDetail,
   ContentFilter,
   CoverThumbResult,
@@ -37,7 +38,7 @@ import { CreatorWorkbench } from "./CreatorWorkbench.tsx";
 import { captureWorkbenchNavigation, desktopWorkbenchesOf, pickCreatorDirectory } from "./workbench.ts";
 declare module "@deepseek-ai/dsh-client-ui-slots" {
   interface LocaleNamespaceMap {
-    "dsh.oil.creator": CreatorKey;
+    "dsh.creator.workbench": CreatorKey;
   }
 }
 
@@ -47,7 +48,12 @@ interface RemoteAnswer<T> {
   error?: { code: string; message: string };
 }
 
-interface OilCreatorRemote {
+interface CreatorWorkbenchRemote {
+  startVideoImport: (request: { id: string; folderPath: string; sourcePath: string; name?: string }) => Promise<RemoteAnswer<VideoImportState>>;
+  getVideoImport: (request: { token: string }) => Promise<RemoteAnswer<VideoImportState>>;
+  cancelVideoImport: (request: { token: string }) => Promise<RemoteAnswer<VideoImportState>>;
+  selectVideo: (request: { id: string; folderPath: string; name: string }) => Promise<RemoteAnswer<ContentDetail>>;
+
   listContents: (request: { query: string; filter: ContentFilter }) => Promise<RemoteAnswer<ListContentsResult>>;
   openContentPath: (request: { path: string }) => Promise<RemoteAnswer<Record<string, never>>>;
   getContent: (request: { id: string }) => Promise<RemoteAnswer<ContentDetail>>;
@@ -63,9 +69,6 @@ interface OilCreatorRemote {
   setScriptRules: (request: { text: string }) => Promise<RemoteAnswer<LibrarySettings>>;
   refreshCatalog: (request: Record<string, never>) => Promise<RemoteAnswer<ListContentsResult>>;
   createContent: (request: { title: string; libraryRoot?: string }) => Promise<RemoteAnswer<CreateContentResult>>;
-  setContentStage: (request: { id: string; readyToRecord: boolean }) => Promise<RemoteAnswer<ContentDetail>>;
-  bindStudio: (request: { id: string; path: string }) => Promise<RemoteAnswer<ContentDetail>>;
-  openStudio: (request: { id: string }) => Promise<RemoteAnswer<ContentDetail>>;
   setPublish: (request: {
     id: string;
     platform: PublishPlatform;
@@ -90,15 +93,15 @@ function unwrap<T>(answer: RemoteAnswer<T>, fallback: string): T {
 export const inject = ["locale", "remote", "uiWorkspace", "desktopWorkbenches"];
 
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-oil-creator: dictionaries");
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-creator-workbench: dictionaries");
   ctx.effect(() => {
     remountPluginCss();
     return () => {
       releasePluginCss();
     };
-  }, "dsh-oil-creator: chrome");
-  const remoteOf = (): OilCreatorRemote | undefined =>
-    ctx.get("remote.oilCreator") as OilCreatorRemote | undefined;
+  }, "dsh-creator-workbench: chrome");
+  const remoteOf = (): CreatorWorkbenchRemote | undefined =>
+    ctx.get("remote.creatorWorkbench") as CreatorWorkbenchRemote | undefined;
 
   const face = (): CreatorViewFace => ({
     ready: () => remoteOf() !== undefined,
@@ -195,7 +198,9 @@ export function apply(ctx: ClientContext): void {
       if (remote === undefined) throw new Error("remote unavailable");
       const service = desktopWorkbenchesOf(ctx);
       const originalSession = service.currentSession();
-      const path = await pickCreatorDirectory(ctx);
+      const settings = unwrap(await remote.getSettings({}), "读取资料库失败");
+      const capabilities = unwrap(await remote.getCapabilities({}), "读取目录状态失败");
+      const path = settings.libraryConfirmed && capabilities.capabilities.library.state === "ready" ? settings.libraryRoot : await pickCreatorDirectory(ctx);
       if (path === null || !service.isActive() || service.currentSession() !== originalSession) throw new Error("已取消选择资料目录。");
       unwrap(await remote.setLibraryRoot({ path }), "set root failed");
       const created = unwrap(await remote.createContent({ title, libraryRoot: path }), "create failed");
@@ -203,24 +208,25 @@ export function apply(ctx: ClientContext): void {
       bumpLibrary();
       return created;
     },
-    markReadyToRecord: async (id) => {
+    startVideoImport: async (id, sourcePath, name, folderPath) => {
       const remote = remoteOf();
       if (remote === undefined) throw new Error("remote unavailable");
-      const next = unwrap(await remote.setContentStage({ id, readyToRecord: true }), "stage failed");
-      bumpLibrary();
-      return next;
+      return unwrap(await remote.startVideoImport({ id, folderPath, sourcePath, ...(name === undefined ? {} : { name }) }), "导入失败");
     },
-    bindStudio: async (id, path) => {
+    getVideoImport: async (token) => {
       const remote = remoteOf();
       if (remote === undefined) throw new Error("remote unavailable");
-      const next = unwrap(await remote.bindStudio({ id, path }), "bind failed");
-      bumpLibrary();
-      return next;
+      return unwrap(await remote.getVideoImport({ token }), "查询导入失败");
     },
-    openStudio: async (id) => {
+    cancelVideoImport: async (token) => {
       const remote = remoteOf();
       if (remote === undefined) throw new Error("remote unavailable");
-      return unwrap(await remote.openStudio({ id }), "open failed");
+      return unwrap(await remote.cancelVideoImport({ token }), "取消失败");
+    },
+    selectVideo: async (id, name, folderPath) => {
+      const remote = remoteOf();
+      if (remote === undefined) throw new Error("remote unavailable");
+      return unwrap(await remote.selectVideo({ id, name, folderPath }), "选择失败");
     },
     setPublish: async (id, platform, status, url) => {
       const remote = remoteOf();
@@ -296,7 +302,7 @@ export function apply(ctx: ClientContext): void {
           && (target === undefined || targetId === session);
       },
     );
-  }, "dsh-oil-creator: content triggers"));
+  }, "dsh-creator-workbench: content triggers"));
 
   const workbenches = desktopWorkbenchesOf(ctx);
   const credentialClient = credentialsOf(ctx);
@@ -304,12 +310,12 @@ export function apply(ctx: ClientContext): void {
     return <CreatorWorkbench face={contentFace} service={workbenches} credentials={credentialClient} t={ctx.locale.bind(NS)} />;
   }
   ctx.effect(() => workbenches.register({
-    title: "内容工作台",
-    repository: "https://github.com/oil-oil/dsh-oil-creator",
+    title: "创作工作台",
+    repository: "https://github.com/qinghui316/dsh-creator-workbench",
     description: "管理本地片库、脚本、字幕、封面与发布状态",
-    panelTitle: "内容工作台",
+    panelTitle: "创作工作台",
     layout: { businessSide: "right", businessWidth: 0.7 },
-  }, BusinessPanel), "dsh-oil-creator: workbench");
+  }, BusinessPanel), "dsh-creator-workbench: workbench");
 
   ctx.effect(async () => {
     const disposeRemote = await ctx.remote.$mount(TYPERT_REMOTE);
@@ -329,5 +335,5 @@ export function apply(ctx: ClientContext): void {
       stopLive();
       await disposeRemote();
     };
-  }, "dsh-oil-creator: remote-view");
+  }, "dsh-creator-workbench: remote-view");
 }

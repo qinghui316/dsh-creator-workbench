@@ -17,7 +17,7 @@ export function defaultLibraryRoot(platform: NodeJS.Platform = process.platform)
 }
 
 export function defaultDataDir(): string {
-  return join(homedir(), ".dsh-oil-creator");
+  return join(homedir(), ".dsh-creator-workbench");
 }
 
 export function defaultSubtitleSkillDir(): string {

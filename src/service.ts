@@ -1,3 +1,7 @@
+import type { JobRegistry } from "@deepseek-ai/dsh-jobs";
+import { VideoImports } from "./videoImport.ts";
+import { contentFolder, videoFile } from "./videoFiles.ts";
+import type { VideoImportRequest, VideoImportState } from "./types.ts";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { readdir, realpath, stat } from "node:fs/promises";
@@ -6,7 +10,7 @@ import { dirname, isAbsolute, join, relative } from "node:path";
 import type { Context } from "@deepseek-ai/cordis";
 import { TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
 
-import { isSubtitledVideoName, pathExists } from "./artifacts.ts";
+import { pathExists } from "./artifacts.ts";
 import {
   countsOf,
   coverPathOf,
@@ -88,7 +92,6 @@ import { coverThumb } from "./thumbs.ts";
 import { startArticleServer } from "./articleServe.ts";
 import { playbackOf, startVideoServer } from "./videoServe.ts";
 import type {
-  BindStudioRequest,
   BurnJob,
   ContentDetail,
   CoverThumbResult,
@@ -102,7 +105,6 @@ import type {
   IdRequest,
   OverlayItem,
   OverlayStore,
-  SetContentStageRequest,
   LibrarySettings,
   ListContentsRequest,
   ListContentsResult,
@@ -120,12 +122,11 @@ import type {
   SyncPublishResult,
   ArticleMediaResult,
   VideoPlaybackResult,
-  WaitExportRequest,
 } from "./types.ts";
 
-export const OIL_CREATOR_SERVICE = "oilCreator";
+export const CREATOR_WORKBENCH_SERVICE = "creatorWorkbench";
 
-export class OilCreatorService extends TypertRemoteService {
+export class CreatorWorkbenchService extends TypertRemoteService {
   // Gateway calls methods on a Cordis proxy; `#private` fields throw on that receiver.
   libraryRoot: string;
   readonly dataDir: string;
@@ -139,13 +140,14 @@ export class OilCreatorService extends TypertRemoteService {
   catalogRevision = 0;
   watchClose: (() => void) | undefined;
   watchedRoot: string | undefined;
-  exportWaiters = new Map<string, AbortController>();
+  imports = new VideoImports();
+  importJobs: JobRegistry | undefined;
   previews = new Map<string, { url: string; port: number; pid: number }>();
   videos = new Map<string, { url: string; path: string; close: () => void }>();
   articles = new Map<string, { origin: string; root: string; close: () => void }>();
 
   constructor(ctx: Context, config: Config) {
-    super(ctx, OIL_CREATOR_SERVICE);
+    super(ctx, CREATOR_WORKBENCH_SERVICE);
     this.libraryRoot = resolveUserPath(config.libraryRoot);
     this.dataDir = resolveUserPath(resolveDataDir(config));
     this.subtitleSkillDirConfig = config.subtitleSkillDir;
@@ -153,9 +155,9 @@ export class OilCreatorService extends TypertRemoteService {
     void loadOverlay(this.dataDir).then((overlay) => { this.rememberOverlay(overlay); });
     ctx.effect(() => async () => {
       this.stopWatch();
-      this.stopExportWaiters();
+      this.imports.dispose();
       await this.stopServers();
-    }, "oil-creator: library watch");
+    }, "creator-workbench: library watch");
   }
 
   subtitleSkillDir(): string {
@@ -213,19 +215,6 @@ export class OilCreatorService extends TypertRemoteService {
     this.watchedRoot = undefined;
   }
 
-  stopExportWaiters(): void {
-    for (const waiter of this.exportWaiters.values()) waiter.abort();
-    this.exportWaiters.clear();
-  }
-
-  subtitleSkill(): Promise<{ root: string; python: string }> {
-    return resolveSubtitleSkill(this.subtitleSkillDir());
-  }
-
-  coverSkill(): Promise<{ root: string; python: string; script: string }> {
-    return resolveCoverSkill(this.coverSkillDir());
-  }
-
   ensureWatch(libraryRoot: string): void {
     if (this.watchedRoot === libraryRoot && this.watchClose !== undefined) return;
     this.stopWatch();
@@ -242,6 +231,14 @@ export class OilCreatorService extends TypertRemoteService {
         this.invalidateCatalog();
       },
     }).close;
+  }
+
+  subtitleSkill(): Promise<{ root: string; python: string }> {
+    return resolveSubtitleSkill(this.subtitleSkillDir());
+  }
+
+  coverSkill(): Promise<{ root: string; python: string; script: string }> {
+    return resolveCoverSkill(this.coverSkillDir());
   }
 
   async scanned() {
@@ -533,24 +530,6 @@ export class OilCreatorService extends TypertRemoteService {
     return this.listContents({ query: "", filter: "all" }, signal);
   }
 
-  async setContentStage(
-    request: SetContentStageRequest,
-    signal: AbortSignal,
-  ): Promise<ContentDetail> {
-    signal.throwIfAborted();
-    await withOverlayLock(this.dataDir, async () => {
-      const overlay = await loadOverlay(this.dataDir);
-      const current = overlay.items[request.id] ?? {};
-      const next = { ...current };
-      if (request.readyToRecord) next.readyToRecord = true;
-      else delete next.readyToRecord;
-      overlay.items[request.id] = next;
-      await saveOverlay(this.dataDir, overlay);
-      this.invalidateCatalog();
-    });
-    return this.getContent({ id: request.id }, signal);
-  }
-
   async createContent(
     request: CreateContentRequest,
     signal: AbortSignal,
@@ -562,14 +541,6 @@ export class OilCreatorService extends TypertRemoteService {
     const created = await createContentFolder(libraryRoot, request.title);
     this.invalidateCatalog();
     return created;
-  }
-
-  async bindStudio(request: BindStudioRequest, signal: AbortSignal): Promise<ContentDetail> {
-    signal.throwIfAborted();
-    const studioPath = await resolveStudioPath(request.path);
-    return this.patchItem(request.id, (item) => {
-      item.studioPath = studioPath;
-    }, signal);
   }
 
   async setPublish(request: SetPublishRequest, signal: AbortSignal): Promise<ContentDetail> {
@@ -929,49 +900,6 @@ export class OilCreatorService extends TypertRemoteService {
     }, signal);
   }
 
-  async openStudio(request: IdRequest, signal: AbortSignal): Promise<ContentDetail> {
-    signal.throwIfAborted();
-    const item = await this.find(request.id);
-    if (item === undefined) throw new Error(`content not found: ${request.id}`);
-    if (item.studioPath === undefined) throw new Error("no Screen Studio project bound");
-    if (process.platform !== "darwin") throw new Error("Screen Studio is only supported on macOS");
-    await openExternalPath(item.studioPath);
-    return this.getContent({ id: request.id }, signal);
-  }
-
-  async waitForExport(request: WaitExportRequest, signal: AbortSignal): Promise<ContentDetail> {
-    signal.throwIfAborted();
-    const item = await this.find(request.id);
-    if (item === undefined) throw new Error(`content not found: ${request.id}`);
-    if (item.videoRaw !== undefined || item.videoSubtitled !== undefined) {
-      return this.getContent({ id: request.id }, signal);
-    }
-    const started = await this.patchItem(request.id, (next) => {
-      next.waitingForExport = true;
-      delete next.exportTimedOut;
-    }, signal);
-    this.exportWaiters.get(request.id)?.abort();
-    const waiter = new AbortController();
-    this.exportWaiters.set(request.id, waiter);
-    const timeoutMs = request.timeoutMs ?? 7_200_000;
-    void waitForStableVideo(item.folderPath, timeoutMs, waiter.signal).then((found) => {
-      if (waiter.signal.aborted) return;
-      this.exportWaiters.delete(request.id);
-      return this.patchItem(request.id, (next) => {
-        if (found) {
-          delete next.waitingForExport;
-          delete next.exportTimedOut;
-          return;
-        }
-        next.waitingForExport = true;
-        next.exportTimedOut = true;
-      }, new AbortController().signal);
-    }, () => {
-      this.exportWaiters.delete(request.id);
-    });
-    return started;
-  }
-
   async waitForMediaJob(
     id: string,
     field: "burn" | "subtitleJob" | "coverJob",
@@ -1007,29 +935,57 @@ export class OilCreatorService extends TypertRemoteService {
     }, signal);
   }
 
-  async waitForExportCompletion(id: string, signal: AbortSignal): Promise<ContentDetail> {
-    while (true) {
-      signal.throwIfAborted();
-      const detail = await this.getContent({ id }, signal);
-      if (detail.videoRaw !== undefined || detail.videoSubtitled !== undefined || detail.exportTimedOut === true) {
-        return detail;
-      }
-      await sleep(400, signal);
-    }
-  }
-
-  async cancelExportWait(id: string): Promise<void> {
-    this.exportWaiters.get(id)?.abort();
-    this.exportWaiters.delete(id);
-    await this.patchItem(id, (next) => {
-      delete next.waitingForExport;
-      delete next.exportTimedOut;
-    }, new AbortController().signal);
-  }
-
   async find(id: string) {
     const { items } = await this.scanned();
     return items.find((item) => item.id === id);
+  }
+
+  async saveVideoSelection(libraryRoot: string, id: string, name: string): Promise<void> {
+    await withOverlayLock(this.dataDir, async () => {
+      const overlay = await loadOverlay(this.dataDir);
+      overlay.videoSelections ??= {};
+      overlay.videoSelections[libraryRoot] ??= {};
+      overlay.videoSelections[libraryRoot]![id] = name;
+      await saveOverlay(this.dataDir, overlay);
+      this.invalidateCatalog();
+    });
+  }
+
+  async selectVideo(request: { id: string; name: string; folderPath: string }, signal: AbortSignal): Promise<ContentDetail> {
+    signal.throwIfAborted();
+    const { libraryRoot, items } = await this.scanned();
+    const item = items.find((entry) => entry.id === request.id);
+    if (item === undefined) throw new Error("内容已找不到，请刷新片库。");
+    if (item.folderPath !== request.folderPath) throw new Error("资料库已切换，请重新打开对应内容。");
+    const folder = await contentFolder(libraryRoot, item.folderPath);
+    await videoFile(folder, request.name);
+    signal.throwIfAborted();
+    await this.saveVideoSelection(libraryRoot, request.id, request.name);
+    return this.getContent({ id: request.id }, signal);
+  }
+
+  async startVideoImport(request: VideoImportRequest, signal: AbortSignal): Promise<VideoImportState> {
+    signal.throwIfAborted();
+    const { libraryRoot, items } = await this.scanned();
+    const item = items.find((entry) => entry.id === request.id);
+    if (item === undefined) throw new Error("内容已找不到，请刷新片库。");
+    if (item.folderPath !== request.folderPath) throw new Error("资料库已切换，请重新打开对应内容。");
+    if (this.importJobs === undefined) throw new Error("后台任务服务尚未就绪，请等待工作台加载完成后重试。");
+    await contentFolder(libraryRoot, item.folderPath);
+    signal.throwIfAborted();
+    return this.imports.start(this.importJobs, { ...request, folder: item.folderPath, libraryRoot }, async (name) => {
+      await this.saveVideoSelection(libraryRoot, request.id, name);
+    });
+  }
+
+  async getVideoImport(request: { token: string }, signal: AbortSignal): Promise<VideoImportState> {
+    signal.throwIfAborted();
+    return this.imports.get(request.token);
+  }
+
+  async cancelVideoImport(request: { token: string }, signal: AbortSignal): Promise<VideoImportState> {
+    signal.throwIfAborted();
+    return this.imports.cancel(request.token);
   }
 
   rememberOverlay(overlay: OverlayStore): void {
@@ -1039,10 +995,11 @@ export class OilCreatorService extends TypertRemoteService {
 
   async settingsOf(
     libraryRoot: string,
-    overlay: { profile?: LibrarySettings["profile"]; scriptRules?: string },
+    overlay: { profile?: LibrarySettings["profile"]; scriptRules?: string; libraryRoot?: string },
   ): Promise<LibrarySettings> {
     return {
       libraryRoot,
+      libraryConfirmed: overlay.libraryRoot !== undefined,
       profile: overlay.profile ?? emptyProfile(),
       secrets: await describeCreatorSecrets(this.ctx),
       ...(overlay.scriptRules === undefined ? {} : { scriptRules: overlay.scriptRules }),
@@ -1084,15 +1041,6 @@ function envForGenerateStep(
       : undefined;
   if (key === undefined || env === undefined || env[key] === undefined) return undefined;
   return { [key]: env[key] };
-}
-
-async function resolveStudioPath(path: string): Promise<string> {
-  const info = await stat(path).catch(() => undefined);
-  if (info === undefined) throw new Error("Screen Studio project missing");
-  if (path.endsWith(".screenstudio")) return path;
-  const project = join(path, "project.json");
-  if (await pathExists(project)) return path;
-  throw new Error("not a Screen Studio project");
 }
 
 const JOB_FIELDS = ["burn", "subtitleJob", "coverJob"] as const;
@@ -1202,38 +1150,4 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
     };
     signal.addEventListener("abort", onAbort, { once: true });
   });
-}
-
-async function waitForStableVideo(
-  folderPath: string,
-  timeoutMs: number,
-  signal: AbortSignal,
-): Promise<boolean> {
-  const started = Date.now();
-  let last = "";
-  let same = 0;
-  while (Date.now() - started < timeoutMs) {
-    signal.throwIfAborted();
-    const names = await readdir(folderPath).catch(() => []);
-    let newest: { path: string; size: number; mtime: number } | undefined;
-    for (const name of names) {
-      if (!name.endsWith(".mp4") && !name.endsWith(".mov")) continue;
-      if (isSubtitledVideoName(name)) continue;
-      const path = join(folderPath, name);
-      const info = await stat(path).catch(() => undefined);
-      if (info === undefined || !info.isFile() || info.size === 0) continue;
-      if (newest === undefined || info.mtimeMs > newest.mtime) {
-        newest = { path, size: info.size, mtime: info.mtimeMs };
-      }
-    }
-    const key = newest === undefined ? "" : `${newest.path}:${newest.size}`;
-    if (key !== "" && key === last) same += 1;
-    else {
-      last = key;
-      same = 0;
-    }
-    if (same >= 4) return true;
-    await sleep(2000, signal);
-  }
-  return false;
 }

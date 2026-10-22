@@ -52,7 +52,7 @@ describe("visual review tools", () => {
         covers,
       })),
     } as never);
-    const tool = registered.find((entry) => entry.name === "oil_prepare_visual_review");
+    const tool = registered.find((entry) => entry.name === "creator_prepare_visual_review");
     const result = await tool?.execute({ id: "demo" }, { signal: new AbortController().signal });
     const blocks = tool?.output.render({}, result);
     expect(saveImages).toHaveBeenCalledOnce();
@@ -72,7 +72,7 @@ describe("visual review tools", () => {
         covers: { "3x4": "/tmp/demo.png" },
       })),
     } as never);
-    const tool = registered.find((entry) => entry.name === "oil_prepare_visual_review");
+    const tool = registered.find((entry) => entry.name === "creator_prepare_visual_review");
     await expect(tool?.execute({ id: "demo" }, { signal: new AbortController().signal }))
       .rejects.toThrow("missing cover variants: 4x3, 16x9");
   });

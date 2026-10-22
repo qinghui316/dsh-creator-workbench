@@ -1,3 +1,5 @@
+import { validVideoName, resolveVideoSelection, currentVideoPath } from "./videoSelection.ts";
+import { videoFile } from "./videoFiles.ts";
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
@@ -21,7 +23,7 @@ import type {
 
 const DATE_PREFIX = /^(\d{4}-\d{2}-\d{2})_(.+)$/;
 const SKIP_DIRS = new Set([
-  ".dsh-oil-creator",
+  ".dsh-creator-workbench",
   ".oil-cover",
   "公众号文章",
 ]);
@@ -128,14 +130,11 @@ export function workflowOf(
   overlay?: OverlayItem,
 ): WorkflowStage {
   if (anyPlatformPublished(item.publish)) return "live";
-  const recorded = item.videoRaw !== undefined || item.videoSubtitled !== undefined;
+  const recorded = currentVideoPath(item) !== undefined;
   if (recorded) {
-    if (hasSubtitle(item as ContentSummary) && hasCover(item as ContentSummary)) return "publish";
+    if (hasCover(item as ContentSummary)) return "publish";
     return "finish";
   }
-  if (item.studioPath !== undefined || overlay?.studioPath !== undefined) return "cut";
-  if (overlay?.waitingForExport === true) return "finish";
-  if (overlay?.readyToRecord === true) return "record";
   return "idle";
 }
 
@@ -217,24 +216,19 @@ async function scanFolder(
     else if (await fileExists(fallback)) subtitles.transcript = fallback;
   }
 
-  let videoRaw: string | undefined;
-  let videoRawMtime = Number.NEGATIVE_INFINITY;
-  let videoSubtitled: string | undefined;
-  let videoSubtitledMtime = Number.NEGATIVE_INFINITY;
-  for (const name of names) {
-    if (!name.endsWith(".mp4") && !name.endsWith(".mov")) continue;
-    const path = join(folderPath, name);
-    const mtime = await fileMtime(path) ?? Number.NEGATIVE_INFINITY;
-    if (isSubtitledVideoName(name)) {
-      if (mtime >= videoSubtitledMtime) {
-        videoSubtitled = path;
-        videoSubtitledMtime = mtime;
-      }
-    } else if (mtime >= videoRawMtime) {
-      videoRaw = path;
-      videoRawMtime = mtime;
-    }
+  const videos: NonNullable<ContentSummary["videos"]> = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !validVideoName(entry.name)) continue;
+    const path = await videoFile(folderPath, entry.name).catch(() => undefined);
+    if (path === undefined) continue;
+    const info = await stat(path);
+    videos.push({ name: entry.name, path, size: info.size, modifiedAt: info.mtimeMs });
   }
+  videos.sort((a, b) => a.name.localeCompare(b.name, "zh"));
+  const selection = resolveVideoSelection(videos, overlay.videoSelections?.[libraryRoot]?.[folderName]);
+  const selected = videos.find((video) => video.name === selection.selectedVideo);
+  const videoRaw = selected?.path;
+  const videoSubtitled = selected !== undefined && isSubtitledVideoName(selected.name.toLowerCase()) ? selected.path : undefined;
 
   const packageName = pickPublishPackage(names);
   const packagePath = packageName === undefined ? undefined : join(folderPath, packageName);
@@ -263,10 +257,6 @@ async function scanFolder(
       : folderDate;
 
   const overlayItem = overlay.items[folderName];
-  const studioInFolder = names.find((name) => name.endsWith(".screenstudio"));
-  const studioPath = overlayItem?.studioPath
-    ?? (studioInFolder === undefined ? undefined : join(folderPath, studioInFolder));
-
   let articlePath: string | undefined;
   if (names.includes(ARTICLE_DIR)) {
     const articleNames = await readdir(join(folderPath, ARTICLE_DIR)).catch(() => []);
@@ -282,15 +272,14 @@ async function scanFolder(
     createdMs,
     covers,
     subtitles,
+    videos,
+    ...selection,
     hasPublishPackage: packageJson !== undefined,
     hasArticle: articlePath !== undefined,
-    waitingForExport: overlayItem?.waitingForExport === true,
-    ...(overlayItem?.exportTimedOut === true ? { exportTimedOut: true } : {}),
     tags,
     ...(date === undefined ? {} : { date }),
     ...(videoRaw === undefined ? {} : { videoRaw }),
     ...(videoSubtitled === undefined ? {} : { videoSubtitled }),
-    ...(studioPath === undefined ? {} : { studioPath }),
     ...(articlePath === undefined ? {} : { articlePath }),
     publish: mergePublish(await readFolderPublish(folderPath, names), overlayItem?.publish),
     burn: overlayItem?.burn ?? emptyBurn(),
@@ -312,12 +301,6 @@ async function fileExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-async function fileMtime(path: string | undefined): Promise<number | undefined> {
-  if (path === undefined) return undefined;
-  const info = await stat(path).catch(() => undefined);
-  return info?.mtimeMs;
 }
 
 export async function scanLibrary(
