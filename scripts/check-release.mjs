@@ -208,7 +208,11 @@ function runReleasePipeline(root) {
 
   let metadata;
   try {
-    metadata = JSON.parse(output);
+    // npm can print prepare/build diagnostics before its JSON, even with
+    // --ignore-scripts on some versions. Keep parsing the actual pack manifest.
+    const start = output.search(/(?:^|\n)\[\s*\{/);
+    if (start < 0) throw new Error("npm pack did not return a JSON manifest");
+    metadata = JSON.parse(output.slice(start).trimStart());
   } catch (error) {
     return [`npm pack --dry-run 输出不可解析：${error.message}`];
   }

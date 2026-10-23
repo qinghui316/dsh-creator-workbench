@@ -137,9 +137,13 @@ function runReleaseCheck(repository: string) {
 
 // This suite deliberately creates real Git repositories and invokes pnpm/npm.
 describe("release:check", { timeout: 30_000 }, () => {
-  it("accepts a clean repository with origin and tracked release files", () => {
+  it("accepts a clean repository with tracked release files and build diagnostics before npm metadata", () => {
     const repository = createRepository();
     try {
+      const buildCommand = join(repository, "node_modules/.bin", process.platform === "win32" ? "tsdown.cmd" : "tsdown");
+      writeFileSync(buildCommand, process.platform === "win32"
+        ? "@echo off\r\necho build diagnostics before npm metadata\r\nexit /b 0\r\n"
+        : "#!/bin/sh\nprintf 'build diagnostics before npm metadata\\n'\nexit 0\n", { mode: 0o755 });
       const result = runReleaseCheck(repository);
       expect(result.code).toBe(0);
       expect(result.output).toContain("release:check 通过");

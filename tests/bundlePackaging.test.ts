@@ -20,7 +20,8 @@ function parsePackMetadata(output: string) {
   }>;
 }
 
-describe("DeepSeek Harness bundle packaging", () => {
+// Real npm archive work can exceed the default five seconds on Windows.
+describe("DeepSeek Harness bundle packaging", { timeout: 30_000 }, () => {
   it("inserts its own plugin without overriding Desktop navigation", () => {
     const manifest = JSON.parse(
       readFileSync(resolve(root, "package.json"), "utf8"),
