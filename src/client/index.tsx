@@ -55,6 +55,8 @@ interface CreatorWorkbenchRemote {
   getCoverImage: (request: CoverScope & { versionId: string }) => Promise<RemoteAnswer<{ mime: string; base64: string }>>;
   getImageSettings: (request: Record<string, never>) => Promise<RemoteAnswer<ImageSettings>>;
   setImageSettings: (request: { apiBase: string; model: string }) => Promise<RemoteAnswer<ImageSettings>>;
+  beginImageUpdate: (request: { apiBase: string; model: string; revision: string; hasNewKey: boolean }) => Promise<RemoteAnswer<ImageSettings>>;
+  completeImageUpdate: (request: { token: string; keyUpdated: boolean }) => Promise<RemoteAnswer<ImageSettings>>;
   checkImageService: (request: Record<string, never>) => Promise<RemoteAnswer<ImageSettings>>;
   startVideoImport: (request: { id: string; folderPath: string; sourcePath: string; name?: string }) => Promise<RemoteAnswer<VideoImportState>>;
   getVideoImport: (request: { token: string }) => Promise<RemoteAnswer<VideoImportState>>;
@@ -117,6 +119,8 @@ export function apply(ctx: ClientContext): void {
     getCoverImage: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.getCoverImage(request), "图片读取失败"); },
     getImageSettings: async () => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.getImageSettings({}), "生图设置读取失败"); },
     setImageSettings: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.setImageSettings(request), "生图设置保存失败"); },
+    beginImageUpdate: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.beginImageUpdate(request), "设置更新未开始"); },
+    completeImageUpdate: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.completeImageUpdate(request), "设置更新未完成"); },
     checkImageService: async () => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.checkImageService({}), "连接检查失败"); },
     prepareCoverDraft: async (detail, runId, append) => { await prepareCoverDraft(ctx, detail, runId, () => pickCreatorDirectory(ctx), append); },
     ready: () => remoteOf() !== undefined,

@@ -19,6 +19,8 @@ describe("handwritten TYPERT", () => {
       "getCoverImage",
       "getImageSettings",
       "setImageSettings",
+      "beginImageUpdate",
+      "completeImageUpdate",
       "checkImageService",
       "selectVideo",
       "startVideoImport",

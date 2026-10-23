@@ -207,8 +207,10 @@ export function ContentSidebarPanel({
               type="button"
               className="iconButton"
               aria-label={t("toolbar.refresh")}
+              disabled={loading}
               onClick={() => {
-                void refreshCatalog().then(() => loadList(query));
+                setLoading(true);
+                void refreshCatalog().then(() => loadList(query), (cause: unknown) => { setLoading(false); setError(cause instanceof Error ? cause.message : t("empty.error")); });
               }}
             >
               <IconRefreshOutlineRegular size={16} />
@@ -268,9 +270,10 @@ export function ContentSidebarPanel({
         </div>
       </Modal>
       <div className="contentList">
-        {error !== undefined && <div className="contentEmpty">{error}</div>}
+        {loading && <div className="contentEmpty" role="status">正在读取…</div>}
+        {error !== undefined && <div className="contentEmpty" role="alert">{error}<Button variant="ghost" onClick={() => { void loadList(); }}>重试</Button></div>}
         {error === undefined && items.length === 0 && !loading && (
-          <div className="contentEmpty">{t("empty.library")}</div>
+          <div className="contentEmpty">{query ? "没有找到相关内容" : t("empty.library")}</div>
         )}
         {items.map((item) => (
           <button
@@ -291,7 +294,7 @@ export function ContentSidebarPanel({
               />
             </span>
             <span className="rowBody">
-              <span className="rowTitle">{item.title}</span>
+              <span className="rowTitle" title={item.title}>{item.title}</span>
               <span className="rowMeta">
                 <StatusPill tone={WORKFLOW_TONE[item.workflow]}>
                   {t(`inspector.stage.${item.workflow}` as CreatorKey)}

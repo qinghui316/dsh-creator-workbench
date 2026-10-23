@@ -181,6 +181,8 @@ export class CoverWorkflow {
       }
       await this.snapshot(folder, run);
       const settings = await readImageSettings(this.host.dataDir), key = await this.host.key();
+      const latestSettings = await readImageSettings(this.host.dataDir);
+      if (settings.pending || latestSettings.pending || settings.revision !== latestSettings.revision) throw new Error("生图设置更新未完成或已变化，请先保存。");
       if (!settings.apiBase || !settings.model || !key) throw new Error("请在数据与设置中配置生图服务地址、模型和 API Key。");
       if (plan) {
         if (run.status === "cancelled") throw new Error("该制作记录已取消，请重新发起。");

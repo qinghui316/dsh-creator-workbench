@@ -77,6 +77,8 @@ export const CREATOR_WORKBENCH_INVOCATIONS: readonly InvocationDescriptor[] = [
   invocation("getCoverImage", coverScopeSchema.extend({ versionId: z.string() }), z.object({ mime: z.string(), base64: z.string() })),
   invocation("getImageSettings", emptyObjectSchema, imageSettingsSchema),
   invocation("setImageSettings", z.object({ apiBase: z.string(), model: z.string() }), imageSettingsSchema),
+  invocation("beginImageUpdate", z.object({ apiBase: z.string(), model: z.string(), revision: z.string(), hasNewKey: z.boolean() }), imageSettingsSchema),
+  invocation("completeImageUpdate", z.object({ token: z.string(), keyUpdated: z.boolean() }), imageSettingsSchema),
   invocation("checkImageService", emptyObjectSchema, imageSettingsSchema),
   invocation("selectVideo", selectVideoRequestSchema, contentDetailSchema),
   invocation("startVideoImport", videoImportRequestSchema, videoImportStateSchema),

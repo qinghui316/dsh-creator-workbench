@@ -3,7 +3,7 @@ export const COVER_RATIOS = ["3x4", "4x3", "16x9"] as const;
 export type CoverRatio = typeof COVER_RATIOS[number];
 export type CoverStatus = "waiting_agent" | "preparing" | "running" | "partial" | "completed" | "failed" | "cancelled" | "unconfirmed";
 export interface CoverScope { id: string; folderPath: string }
-export interface ImageSettings { apiBase: string; model: string; revision: string; checked?: { revision: string; connection: string; generation: string; edit: string } }
+export interface ImageSettings { apiBase: string; model: string; revision: string; pending?: { token: string; apiBase: string; model: string; needsKey: boolean }; checked?: { revision: string; connection: string; generation: string; edit: string } }
 export interface CoverVersion {
   id: string; ratio: CoverRatio; file: string; mime: string; width: number; height: number;
   source: "import" | "generated" | "legacy"; createdAt: number; video?: string; runId?: string;

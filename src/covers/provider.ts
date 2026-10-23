@@ -18,8 +18,32 @@ export async function readImageSettings(dataDir: string): Promise<ImageSettings>
 }
 export async function saveImageSettings(dataDir: string, input: { apiBase: string; model: string }): Promise<ImageSettings> {
   return coverLock(`image-settings:${dataDir}`, async () => {
+    if ((await readImageSettings(dataDir)).pending) throw new Error("生图设置更新未完成，请继续保存。");
     const settings = { ...normalizeImageSettings(input), revision: randomUUID() };
     await mkdir(dataDir, { recursive: true }); await atomicJson(join(dataDir, "image-service.json"), settings); return settings;
+  });
+}
+/** Non-secret coordination: credentials are still written exclusively by the host. */
+export async function beginImageUpdate(dataDir: string, input: { apiBase: string; model: string; revision: string; hasNewKey: boolean }): Promise<ImageSettings> {
+  const target = normalizeImageSettings(input);
+  return coverLock(`image-settings:${dataDir}`, async () => {
+    const current = await readImageSettings(dataDir);
+    if (current.revision !== input.revision) throw new Error("设置已在其他位置变化，请重新读取后保存。");
+    const originChanged = !current.apiBase || new URL(current.apiBase).origin !== new URL(target.apiBase).origin;
+    if ((originChanged || current.pending?.needsKey) && !input.hasNewKey) throw new Error("请填写对应服务的新 API Key。");
+    const token = randomUUID();
+    const next: ImageSettings = { ...current, revision: token, pending: { ...target, token, needsKey: input.hasNewKey } };
+    delete next.checked;
+    await mkdir(dataDir, { recursive: true }); await atomicJson(join(dataDir, "image-service.json"), next); return next;
+  });
+}
+export async function completeImageUpdate(dataDir: string, token: string, keyUpdated: boolean): Promise<ImageSettings> {
+  return coverLock(`image-settings:${dataDir}`, async () => {
+    const current = await readImageSettings(dataDir), pending = current.pending;
+    if (!pending || pending.token !== token) throw new Error("设置更新已变化，请重新读取后保存。");
+    if (pending.needsKey && !keyUpdated) throw new Error("API Key 尚未保存，设置更新未完成。");
+    const next: ImageSettings = { apiBase: pending.apiBase, model: pending.model, revision: randomUUID() };
+    await atomicJson(join(dataDir, "image-service.json"), next); return next;
   });
 }
 export class ImageRequestError extends Error {
@@ -39,6 +63,7 @@ async function readLimited(response: Response, limit: number): Promise<Uint8Arra
   return Buffer.concat(chunks);
 }
 export async function requestImage(settings: ImageSettings, key: string, input: { ratio: CoverRatio; prompt: string; mode: "reference" | "text"; references: Array<{ data: Uint8Array; name: string }> }, signal: AbortSignal): Promise<Uint8Array> {
+  if (settings.pending) throw new ImageRequestError("生图设置更新未完成，请继续保存。", false);
   const timeout = AbortSignal.timeout(180_000), combined = AbortSignal.any([signal, timeout]);
   const size = { "3x4": "960x1280", "4x3": "1280x960", "16x9": "1280x720" }[input.ratio];
   let body: string | FormData; const headers: Record<string, string> = { Authorization: `Bearer ${key}` };
@@ -72,6 +97,7 @@ export async function requestImage(settings: ImageSettings, key: string, input: 
   }
 }
 export async function checkImageConnection(settings: ImageSettings, key: string, signal: AbortSignal): Promise<ImageSettings> {
+  if (settings.pending) throw new Error("生图设置更新未完成，请先保存。");
   const response = await fetch(`${settings.apiBase}/models`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]), redirect: "error" });
   return { ...settings, checked: { revision: settings.revision, connection: response.ok ? "连接成功；未执行生图" : `HTTP ${response.status}；此服务可能不提供模型列表`, generation: settings.checked?.generation ?? "未验证", edit: settings.checked?.edit ?? "未验证" } };
 }

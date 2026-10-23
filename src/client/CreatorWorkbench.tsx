@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@deepseek-ai/dsh-client-ui-primitives";
 import { ContentInspector } from "./ContentInspector.tsx";
 import { ContentSidebarPanel } from "./sidebar/ContentSidebarPanel.tsx";
-import { CreatorSettingsCard } from "./CreatorSettingsCard.tsx";
+import { CreatorSettingsCard, type CreatorSettingsHandle } from "./CreatorSettingsCard.tsx";
 import { useProfileEpoch, useSelectedContentId } from "./contentSelection.ts";
 import type { CredentialsClient } from "./credentialsApi.ts";
 import type { CreatorViewFace } from "./face.ts";
 import type { CreatorKey } from "./locales.ts";
 import { contentBindingForSession, relocateSessionContent, restoreSessionContent, startContentSession, type CreatorWorkbenchService } from "./workbench.ts";
 import "./CreatorWorkbench.css";
+import "./InternalUi.css";
 
 export function CreatorWorkbench({ face, service, credentials, t }: {
   face: CreatorViewFace;
@@ -19,6 +20,7 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
   useProfileEpoch();
   const remoteReady = face.ready();
   const [selectedId, setSelectedId] = useSelectedContentId();
+  const settingsRef = useRef<CreatorSettingsHandle>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,13 +106,13 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
         <span>{t("workbench.title")}</span>
         <div className="workbenchActions">
           {selectedId !== null && <Button disabled={starting || restoring || restoreFailed} onClick={() => { void begin(); }}>{starting ? t("workbench.starting") : t("workbench.session")}</Button>}
-          <Button onClick={() => { setSettingsOpen((value) => !value); }}>{settingsOpen ? t("workbench.library") : t("workbench.settings")}</Button>
+          <Button onClick={() => { if (settingsOpen) settingsRef.current?.requestClose(); else setSettingsOpen(true); }}>{settingsOpen ? t("workbench.library") : t("workbench.settings")}</Button>
         </div>
       </header>
       {error !== null && <div className="workbenchError" role="alert">{error}</div>}
       {restoreFailed && <Button disabled={restoring} onClick={() => { void reselect(); }}>{t("workbench.relocate")}</Button>}
       {restoring && <div className="workbenchEmpty" role="status">{t("workbench.restoring")}</div>}
-      <div className="workbenchSettings" hidden={!settingsOpen}><CreatorSettingsCard {...face} credentials={credentials} t={t} /></div>
+      <div className="workbenchSettings" hidden={!settingsOpen}><CreatorSettingsCard ref={settingsRef} {...face} credentials={credentials} t={t} onClose={() => setSettingsOpen(false)} /></div>
       <div className="workbenchBody" hidden={settingsOpen || restoring || restoreFailed}>
         <div className="workbenchLibrary"><ContentSidebarPanel {...face} t={t} suspended={restoring || restoreFailed} /></div>
         <div className="workbenchDetail">

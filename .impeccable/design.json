@@ -1,0 +1,237 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-23T13:24:02.9941339Z",
+  "title": "Design System: 创作工作台",
+  "extensions": {
+    "colorMeta": {
+      "business-primary": {
+        "role": "primary",
+        "displayName": "宿主业务强调色"
+      },
+      "button-primary-fill": {
+        "role": "primary",
+        "displayName": "宿主主按钮填充"
+      },
+      "button-primary-hover": {
+        "role": "primary",
+        "displayName": "宿主主按钮悬停"
+      },
+      "button-foreground": {
+        "role": "neutral",
+        "displayName": "主按钮前景"
+      },
+      "surface-base": {
+        "role": "neutral",
+        "displayName": "基础表面"
+      },
+      "surface-hover": {
+        "role": "neutral",
+        "displayName": "轻交互表面"
+      },
+      "surface-active": {
+        "role": "neutral",
+        "displayName": "按下表面"
+      },
+      "surface-layer-2": {
+        "role": "neutral",
+        "displayName": "第二层表面"
+      },
+      "label-primary": {
+        "role": "neutral",
+        "displayName": "主文字"
+      },
+      "label-secondary": {
+        "role": "neutral",
+        "displayName": "次要文字"
+      },
+      "label-tertiary": {
+        "role": "neutral",
+        "displayName": "三级文字"
+      },
+      "border-soft": {
+        "role": "neutral",
+        "displayName": "柔和分隔线"
+      },
+      "border-field": {
+        "role": "neutral",
+        "displayName": "字段边框"
+      },
+      "border-action": {
+        "role": "neutral",
+        "displayName": "次要动作边框"
+      },
+      "state-success": {
+        "role": "semantic",
+        "displayName": "成功状态"
+      },
+      "state-error": {
+        "role": "semantic",
+        "displayName": "错误状态"
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "详情标题",
+        "purpose": "当前内容名称。"
+      },
+      "section": {
+        "displayName": "业务分组标题",
+        "purpose": "视频、封面与内嵌面板标题。"
+      },
+      "body": {
+        "displayName": "正文",
+        "purpose": "详情正文和主要内容阅读。"
+      },
+      "helper": {
+        "displayName": "说明与标签",
+        "purpose": "字段、提示、状态与错误信息。"
+      },
+      "tab": {
+        "displayName": "详情页签",
+        "purpose": "既有五页签导航。"
+      },
+      "action-small": {
+        "displayName": "紧凑动作",
+        "purpose": "DSH 小尺寸按钮。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "action-menu",
+        "value": "0 6px 18px #0002",
+        "purpose": "所属业务区内的动作下拉菜单。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "history-search-layout",
+        "value": "180ms var(--ds-ease-in-out)",
+        "purpose": "历史搜索区域的展开和控件位置变化。"
+      },
+      {
+        "name": "history-search-opacity",
+        "value": "120ms var(--ds-ease-in-out)",
+        "purpose": "历史搜索输入与附属动作的透明度变化；减少动态效果时移除。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "workbench-container",
+        "value": "640px",
+        "purpose": "容器查询：历史与所选详情切换。"
+      },
+      {
+        "name": "cover-container",
+        "value": "500px",
+        "purpose": "容器查询：三列封面改为连续行。"
+      }
+    ],
+    "hostBinding": {
+      "theme": "DSH semantic CSS custom properties",
+      "font": "var(--dsw-font-markdown-base)",
+      "tonalRamps": "宿主运行时拥有颜色解析；本地源码未定义固定色阶，未合成色值。",
+      "previewScope": "下列片段是当前组件的静态视觉样例；动态行为以 React 源码为准。"
+    }
+  },
+  "components": [
+    {
+      "name": "主要动作",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "保存与选用等当前主要动作；沿用 DSH small primary。",
+      "html": "<button class=\"ds-button ds-primary\" type=\"button\">保存</button>",
+      "css": ".ds-button{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 10px;border:none;border-radius:var(--dsw-radius-sm);font-size:12px;line-height:18px;cursor:pointer}.ds-primary{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}.ds-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}.ds-button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-button:disabled{opacity:.4;cursor:not-allowed}"
+    },
+    {
+      "name": "次要动作",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "导入、预览与连接检查等次要动作；沿用 DSH small outline。",
+      "html": "<button class=\"ds-button ds-secondary\" type=\"button\">检查连接</button>",
+      "css": ".ds-button{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm);font-size:12px;line-height:18px;cursor:pointer;color:var(--dsw-alias-label-primary)}.ds-secondary{border:.5px solid var(--dsw-alias-border-l3);background:transparent}.ds-secondary:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.ds-button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-button:disabled{opacity:.4;cursor:not-allowed}"
+    },
+    {
+      "name": "无边框动作",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "返回与历史等附属动作；沿用 DSH small ghost。",
+      "html": "<button class=\"ds-button ds-ghost\" type=\"button\">返回</button>",
+      "css": ".ds-button{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 10px;border:none;border-radius:var(--dsw-radius-sm);font-size:12px;line-height:18px;cursor:pointer;color:var(--dsw-alias-label-primary)}.ds-ghost{background:transparent}.ds-ghost:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.ds-ghost:active:not(:disabled){background:var(--dsw-alias-interactive-bg-active)}.ds-button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-button:disabled{opacity:.4;cursor:not-allowed}"
+    },
+    {
+      "name": "设置字段",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "标签、输入与说明纵向分组；设置输入使用当前 38px 最小高度。",
+      "html": "<label class=\"ds-field\"><span>生图模型</span><input value=\"\" placeholder=\"输入模型名称\" /><span class=\"ds-helper\">使用服务提供的模型名称</span></label>",
+      "css": ".ds-field{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}.ds-field input{width:100%;min-width:0;min-height:38px;padding:7px 10px;border:1px solid var(--dsw-alias-border-l2,var(--dsw-alias-border-l1));border-radius:6px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);font:inherit}.ds-field input:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-field input[aria-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}.ds-helper{color:var(--dsw-alias-label-secondary)}"
+    },
+    {
+      "name": "详情页签",
+      "kind": "nav",
+      "refersTo": "detail-tab",
+      "description": "既有五页签的静态样例；选中业务色与底线共同表达当前页。",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\" type=\"button\">概览</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" type=\"button\">视频</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" type=\"button\">脚本</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" type=\"button\">字幕</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" type=\"button\">文章</button></div>",
+      "css": ".ds-tabs{display:flex;gap:20px;margin-top:4px;padding-left:2px;overflow-x:auto}.ds-tab{position:relative;flex:none;min-height:36px;padding:0 0 11px;border:none;background:transparent;font-size:13px;line-height:16px;font-weight:500;color:var(--dsw-alias-label-tertiary);cursor:pointer;white-space:nowrap}.ds-tab::after{content:'';position:absolute;right:0;bottom:1px;left:0;height:2px;border-radius:2px;background:transparent}.ds-tab[aria-selected=true]{color:var(--dsw-alias-state-business-primary)}.ds-tab[aria-selected=true]::after{background:var(--dsw-alias-state-business-primary)}.ds-tab:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+    },
+    {
+      "name": "设置分组导航",
+      "kind": "nav",
+      "description": "生图服务与常规设置的轻背景选中态。",
+      "html": "<nav class=\"ds-settings-tabs\" aria-label=\"设置分组\"><button type=\"button\" aria-current=\"page\">生图服务</button><button type=\"button\">常规</button></nav>",
+      "css": ".ds-settings-tabs{display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--dsw-alias-border-l1);padding-bottom:10px}.ds-settings-tabs button{border:0;background:none;color:var(--dsw-alias-label-secondary);padding:9px 16px;border-radius:6px;cursor:pointer;font:inherit;white-space:nowrap}.ds-settings-tabs [aria-current]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);font-weight:600}.ds-settings-tabs button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+    },
+    {
+      "name": "资产行",
+      "kind": "custom",
+      "description": "视频管理等资产列表使用连续行、文字与行内动作。",
+      "html": "<div class=\"ds-asset-row\"><div class=\"ds-row-copy\"><span class=\"ds-file-name\">视频文件.mp4</span><span class=\"ds-muted\">当前视频</span></div><button class=\"ds-row-action\" type=\"button\">操作</button></div>",
+      "css": ".ds-asset-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-width:0;padding:10px 0;border-bottom:1px solid var(--dsw-alias-border-l1);font-size:13px;color:var(--dsw-alias-label-primary)}.ds-row-copy{display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px}.ds-file-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ds-muted{color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}.ds-row-action{padding:5px 8px;cursor:pointer;border:0;border-radius:5px;color:var(--dsw-alias-label-secondary);background:transparent;font-size:13px}.ds-row-action:hover{background:var(--dsw-alias-interactive-bg-hover)}.ds-row-action:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "原生创作工具",
+    "overview": "这是一套在 Windows DSH Desktop 中完成内容整理与编辑的操作界面。视觉延续宿主的文字、主题和按钮语言，以简洁的 Beaver 式表单分组、连续历史列表和真实媒体预览组织任务。密度紧凑，标题克制，主要动作通过原生按钮与清晰文案建立层级。\n\n本文件记录当前源码中可复用的视觉规则。宿主提供字体与主题变量，插件不另建固定品牌色或字体栈。原生对话与业务区的分栏、业务区左侧历史与右侧详情，是承载这套视觉系统的现有布局。",
+    "keyCharacteristics": [
+      "继承宿主语义主题，使用文字层级、细分隔线与轻背景表达关系。",
+      "正文、说明与详情标题形成紧凑的三级文字关系。",
+      "表单纵向分组，次要与诊断信息通过折叠展开。",
+      "历史和资产以连续行组织，视频与封面保留真实比例。",
+      "预览和版本内容在所属业务区内展开。"
+    ],
+    "rules": [
+      {
+        "name": "The Host Theme Rule",
+        "body": "复用宿主语义变量；扩展界面时继续按角色取色，不从截图采样并写入固定色值。",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Hierarchy Rule",
+        "body": "用正文、说明、分组与详情标题的既有角色区分层级；同层内容保持一致的字号与字重。",
+        "section": "typography"
+      },
+      {
+        "name": "The Owning Container Rule",
+        "body": "响应式变化由实际业务容器决定；保留原生对话与业务区的关系，局部预览在所属业务区中展开。",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Surface Rule",
+        "body": "业务分组保持平面；轻投影服务于浮起的动作菜单。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** 使用宿主语义颜色、字体与原生按钮，让新增表单延续当前控件语言。",
+      "**Do** 按正文、说明、分组标题和详情标题角色建立紧凑层级。",
+      "**Do** 用连续行、分隔线和折叠组织历史、管理与诊断内容。",
+      "**Do** 按业务容器宽度切换封面与详情布局，并保留真实媒体比例。",
+      "**Do** 保留原生分栏、历史与详情关系，以及五个详情页签的现有顺序。"
+    ],
+    "donts": [
+      "**Don't** 从单张浅色截图推导固定主题色或自行指定宿主字体。",
+      "**Don't** 让局部预览遮住原生导航或对话区。",
+      "**Don't** 用装饰性大标题或密集卡片边框替换当前紧凑表单与连续行。"
+    ]
+  }
+}

@@ -1,17 +1,29 @@
-[data-plugin="dsh-creator-workbench"] .creatorVideoPanel { display: grid; gap: 16px; min-width: 0; container-type: inline-size; }
-[data-plugin="dsh-creator-workbench"] .creatorVideoPanel * { box-sizing: border-box; min-width: 0; }
-[data-plugin="dsh-creator-workbench"] .videoImportBox { padding: 14px; border: 1px solid var(--dsw-alias-outline-base, #8885); border-radius: 10px; }
-[data-plugin="dsh-creator-workbench"] .videoFileLabel,
-[data-plugin="dsh-creator-workbench"] .videoNameLabel { display: grid; gap: 8px; font-weight: 500; overflow-wrap: anywhere; }
-[data-plugin="dsh-creator-workbench"] .creatorVideoPanel input,
-[data-plugin="dsh-creator-workbench"] .creatorVideoPanel select { width: 100%; max-width: 100%; font: inherit; padding: 8px; border-radius: 6px; background: var(--dsw-alias-bg-base); color: inherit; border: 1px solid var(--dsw-alias-outline-base, #8885); }
-[data-plugin="dsh-creator-workbench"] .creatorVideoPanel input[type="file"] { padding: 8px 0; border: 0; }
-[data-plugin="dsh-creator-workbench"] .videoHint { font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); overflow-wrap: anywhere; margin: 8px 0; }
-[data-plugin="dsh-creator-workbench"] .videoError { color: var(--dsw-alias-state-error, #c33); overflow-wrap: anywhere; }
-[data-plugin="dsh-creator-workbench"] .creatorVideoPanel video { display: block; width: 100%; max-height: 65vh; background: #111; border-radius: 8px; }
-@container (max-width: 360px) { .creatorVideoPanel .oilActionBar { flex-wrap: wrap; } }
-
-.creatorVideoPanel .videoCandidate { display:flex; align-items:center; gap:12px; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--dsw-alias-outline-base,#8883); }
-.creatorVideoPanel .videoCandidate span { overflow-wrap:anywhere; flex:1; }
-.creatorVideoPanel .videoCandidate button { flex-shrink:0; }
-@container (max-width:360px) { .creatorVideoPanel .videoCandidate { flex-wrap:wrap; } }
+[data-plugin="dsh-creator-workbench"] .creatorVideoPanel {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding-block: 18px;
+}
+[data-plugin="dsh-creator-workbench"] .creatorVideoPanel video {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  background: #151619;
+  border-radius: 8px;
+  display: block;
+}
+[data-plugin="dsh-creator-workbench"] .videoImportConfirmation {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  border-radius: 8px;
+}
+[data-plugin="dsh-creator-workbench"] .videoImportConfirmation summary {
+  cursor: pointer;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+}

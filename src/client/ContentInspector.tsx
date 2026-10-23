@@ -2,7 +2,6 @@ import { CoverPanel } from "./CoverPanel.tsx";
 import { VideoPanel } from "./VideoPanel.tsx";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
-  IconBrowseOutlineRegular,
   IconCloseOutlineRegular,
   IconFolderOpenOutlineRegular,
   MarkdownText,
@@ -14,7 +13,6 @@ import { formatCount } from "../collectPublish.ts";
 import { isPublishMark } from "../publishRules.ts";
 import { rewriteArticleImages } from "../articleMarkdown.ts";
 import type { ArticleMediaResult, ContentDetail, PublishMark, PublishPlatform, SubtitleCue, WorkflowStage } from "../types.ts";
-import { CoverThumb, coverThumbRevision } from "./CoverThumb.tsx";
 import type { CreatorViewFace } from "./face.ts";
 import {
   useLibraryEpoch,
@@ -197,6 +195,8 @@ export function ContentInspector({
   const [syncHint, setSyncHint] = useState<string | undefined>(undefined);
   const [scriptDraft, setScriptDraft] = useState("");
   const [scriptSaved, setScriptSaved] = useState(true);
+  const [scriptError, setScriptError] = useState<string>();
+  const [scriptRetry, setScriptRetry] = useState(0);
   scriptSavedRef.current = scriptSaved;
   const [articleOrigin, setArticleOrigin] = useState<string | undefined>(undefined);
   const [publishMenu, setPublishMenu] = useState<PublishPlatform | null>(null);
@@ -209,6 +209,7 @@ export function ContentInspector({
     setSyncHint(undefined);
     setScriptDraft("");
     setScriptSaved(true);
+    setScriptError(undefined);
     setArticleOrigin(undefined);
     setBusy(undefined);
     expectSubtitlePreview.current = false;
@@ -303,6 +304,7 @@ export function ContentInspector({
     if (suspended || detail === undefined || scriptSaved) return;
     let cancelled = false;
     const folder = detail.folderPath;
+    setScriptError(undefined);
     const timer = window.setTimeout(() => {
       void setScript(detail.id, scriptDraft, folder).then((next) => {
         if (pendingScriptDrafts.get(folder) === scriptDraft && next.script === scriptDraft) pendingScriptDrafts.delete(folder);
@@ -310,11 +312,11 @@ export function ContentInspector({
         setDetail(next);
         setScriptSaved(scriptDraft === next.script);
       }, (cause: unknown) => {
-        if (!cancelled) setActionError(cause instanceof Error ? cause.message : t("empty.error" as CreatorKey));
+        if (!cancelled) setScriptError(cause instanceof Error ? cause.message : t("empty.error" as CreatorKey));
       });
     }, 700);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [detail?.id, detail?.folderPath, scriptDraft, scriptSaved, suspended]);
+  }, [detail?.id, detail?.folderPath, scriptDraft, scriptSaved, suspended, scriptRetry]);
 
   useEffect(() => {
     const running = detail?.burn.status === "running"
@@ -523,7 +525,7 @@ export function ContentInspector({
     >
       <header className="header">
         <div className="titleRow">
-          <div className="title">
+          <div className="title" title={detail?.title}>
             {detail?.title ?? (error === undefined ? t("empty.loading" as CreatorKey) : "")}
           </div>
           <div className="titleActions">
@@ -583,26 +585,6 @@ export function ContentInspector({
         {detail !== undefined && tab === "overview" && (
           <>
             <div className="lede">
-              <div className="coverPair">
-                <div className="coverHero">
-                  <CoverThumb
-                    id={detail.id}
-                    load={getCoverThumb}
-                    revision={coverThumbRevision(detail.covers)}
-                    fallback={<IconBrowseOutlineRegular className="coverFallback" size={22} />}
-                  />
-                </div>
-                {detail.covers["4x3"] !== undefined && (
-                  <div className="coverWide">
-                    <CoverThumb
-                      id={`${detail.id}::4x3`}
-                      load={getCoverThumb}
-                      revision={detail.covers["4x3"]}
-                      fallback={<IconBrowseOutlineRegular className="coverFallback" size={22} />}
-                    />
-                  </div>
-                )}
-              </div>
               <div className="ledeText">
                 <StatusPill tone={WORKFLOW_TONE[detail.workflow]}>
                   {t(STAGE_KEY[detail.workflow])}
@@ -642,7 +624,8 @@ export function ContentInspector({
               <JobNote tone="error">{actionError}</JobNote>
             )}
             {(detail.workflow === "publish" || anyPublishMarked || detail.hasArticle) && (
-              <>
+              <details className="creatorDisclosure">
+                <summary>发布资料与状态</summary>
                 <Surface
                   title={t("inspector.sync.title" as CreatorKey)}
                   hint={syncHint ?? t((platformSettingsPending
@@ -654,7 +637,7 @@ export function ContentInspector({
                   )}
                   <ActionBar>
                     <ActionButton
-                      tone="primary"
+                      tone="secondary"
                       onClick={onSyncPublish}
                       disabled={isPublishSyncDisabled(busy, platformSettingsPending, enabledPlatforms ?? [])}
                     >
@@ -729,7 +712,7 @@ export function ContentInspector({
                     </StatusPill>
                   </button>
                 </Surface>
-              </>
+              </details>
             )}
             {detail.tags.length > 0 && (
               <Surface title={t("detail.tags" as CreatorKey)}>
@@ -749,16 +732,21 @@ export function ContentInspector({
           </>
         )}
         {detail !== undefined && tab === "script" && (
+          <>
+          <div className="scriptStatus" role="status">{scriptError ? <><span className="creatorError">保存失败：{scriptError}</span><ActionButton onClick={() => setScriptRetry((n) => n + 1)}>重试保存</ActionButton></> : scriptSaved ? "已保存" : "保存中…"}</div>
           <textarea
+            aria-label="脚本正文"
             className="scriptEditor"
             value={scriptDraft}
             placeholder={t("inspector.script.placeholder" as CreatorKey)}
             onChange={(event) => {
               pendingScriptDrafts.set(detail.folderPath, event.target.value);
               setScriptDraft(event.target.value);
+              setScriptError(undefined);
               setScriptSaved(event.target.value === detail.script);
             }}
           />
+          </>
         )}
         {detail !== undefined && tab === "article" && (
           detail.article.trim() === ""

@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-23T13:24:02.9941339Z",
+  "sourceRoot": ".",
+  "method": "scan",
+  "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
+  "authority": "Confirmed native creator-tool direction, PRODUCT.md, current working-tree code, and actual supplied application captures",
+  "hostValues": "Font family and resolved theme colors belong to the DSH host. CSS variable references are preserved; no fixed palette or tonal ramps were synthesized.",
+  "sourceFiles": [
+    {
+      "path": "PRODUCT.md",
+      "sha256": "0b76264d9a669ca317d7f6d50207147cfc2cb268a778a747e6ecf8fb2a895bde"
+    },
+    {
+      "path": "src/client/InternalUi.css",
+      "sha256": "2e483d22eb304e2122ee52f9e76f5361d0b15d233a5dfe30fb11186a25d4a946"
+    },
+    {
+      "path": "src/client/CreatorWorkbench.css",
+      "sha256": "5a9ed31788a43270a0cbac31eb4647061e4bbdf859e26b4009b2b9024aca4f62"
+    },
+    {
+      "path": "src/client/CoverPanel.css",
+      "sha256": "09c35af8a1a86090565599cb4fcf7c1eae0434174859943a08cb7616dec44921"
+    },
+    {
+      "path": "src/client/VideoPanel.css",
+      "sha256": "e9af6f65edc23f4f6a2d7ad7c84e415e5e32b6b789354b6092ee81eb22846a2e"
+    },
+    {
+      "path": "src/client/CreatorSettingsCard.css",
+      "sha256": "d213e1e1776553dd40e7843d55da6edbd1aa95efb4d17ebe993172f4c38170fb"
+    },
+    {
+      "path": "src/client/ContentInspector.css",
+      "sha256": "0adacfeafb2ccc79913c84b8830a7f41b013fd08a14d0815d584a8f8afc532b6"
+    },
+    {
+      "path": "src/client/ui/ActionButton.tsx",
+      "sha256": "bd01ed3cecb7a58b7c4d7259539d9c10d51700ea083ca6b9acf221330da6c867"
+    },
+    {
+      "path": "src/client/ui/ActionButton.css",
+      "sha256": "7b1dfd737819f230f16dd5ba21a1fcb8746ebbb63391a0246215a3dab8810695"
+    },
+    {
+      "path": "src/client/ui/SectionPanel.tsx",
+      "sha256": "d72aa272097a5e464bacbd51934b1c6d046f388ec92ea0e2c80510f0062d6485"
+    },
+    {
+      "path": "src/client/CreatorWorkbench.tsx",
+      "sha256": "543998e9959fae8107879110d2b2b363f731b253d94e9be24d37d4571de49919"
+    },
+    {
+      "path": "src/client/ContentInspector.tsx",
+      "sha256": "e622c64e97215fc4090e72514531e87a1931f8842167012c38897e8357f9250e"
+    },
+    {
+      "path": "src/client/CoverPanel.tsx",
+      "sha256": "98e9ea0411f62d34dc347fad012aa5598ca50b1f2485f6cca02b50cae5628739"
+    },
+    {
+      "path": "src/client/VideoPanel.tsx",
+      "sha256": "0d1b5f390cb31448b3bb531e83633c74283da558f3eb7af84370347dfa224170"
+    },
+    {
+      "path": "src/client/CreatorSettingsCard.tsx",
+      "sha256": "d81d7c49f3c564ee1895ae5d3c086acd94184141b4312b018e6a14607b0d959e"
+    },
+    {
+      "path": "src/client/sidebar/ContentSidebarPanel.css",
+      "sha256": "231d29ab28e0025ef851201f1c59d8ece75913a6b9db7e3afc54cc4119d8f17a"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/Button.module.css",
+      "sha256": "d5e324be7782f28b320ebac3e5b48e3a3f95a6c8d90656c086a3a933e0b2c7a5"
+    }
+  ],
+  "renderedEvidence": [
+    {
+      "path": ".impeccable/review/01-overview.jpg",
+      "sha256": "71ea8b1c2560394834fa54ecdb3aa3227b170cfc2e6f63eaa1311bb025fdbe0f"
+    },
+    {
+      "path": ".impeccable/review/02-image-settings.jpg",
+      "sha256": "f63cac90e989e998a3ed56ef3df9df5a91ce1da79ddbf4777026cd69bb1839cf"
+    },
+    {
+      "path": ".impeccable/review/07-covers-wide.jpg",
+      "sha256": "1380f5e6a02447babc6cdb2e57041e1b094f870c0184ead52bfe59106c8ec630"
+    },
+    {
+      "path": ".impeccable/review/09-cover-preview.jpg",
+      "sha256": "3a6941f9e6c2903572c8d6d1942d51f551339a2276f1b34f663462d0cf42a4da"
+    },
+    {
+      "path": ".impeccable/review/13-compact-covers-sidebar.jpg",
+      "sha256": "68cb091c769c40c95ac675cae8782f3e65d21def9ab1b94fc4a15647d64bf860"
+    },
+    {
+      "path": ".impeccable/review/14-general-settings.jpg",
+      "sha256": "d19f45f0bcd8a0aa99478dd6220eea99c31527f54bb75f71cae8b124c4d0f4a4"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "2b66869345f5b863094f4172d66e1c40ef13ffe41eab4d0dd39cb96d94280150"
+    },
+    {
+      "path": ".impeccable/design.json",
+      "sha256": "44e05d5d12bb8fdf552aefc72ddd58298872345b21abffbc0eea9c1a290330ec"
+    }
+  ],
+  "evidenceMap": {
+    "theme": [
+      "src/client/InternalUi.css",
+      "src/client/CreatorWorkbench.css",
+      "node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/Button.module.css"
+    ],
+    "typography": [
+      "src/client/InternalUi.css",
+      "src/client/CreatorSettingsCard.css",
+      "node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/Button.module.css"
+    ],
+    "responsiveLayout": [
+      "src/client/CreatorWorkbench.css",
+      "src/client/CoverPanel.css"
+    ],
+    "navigation": [
+      "src/client/ContentInspector.tsx",
+      "src/client/ContentInspector.css"
+    ],
+    "stateAndFocus": [
+      "src/client/ui/SectionPanel.tsx",
+      "src/client/CreatorSettingsCard.tsx",
+      "src/client/CoverPanel.tsx"
+    ],
+    "motion": [
+      "src/client/sidebar/ContentSidebarPanel.css"
+    ]
+  }
+}

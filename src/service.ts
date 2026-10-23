@@ -1,6 +1,6 @@
 import { CoverWorkflow } from "./covers/workflow.ts";
 import type { CoverAction, CoverScope, CoverState, ImageSettings } from "./covers/types.ts";
-import { readImageSettings, saveImageSettings, checkImageConnection, saveImageCheck, safeImageError } from "./covers/provider.ts";
+import { readImageSettings, saveImageSettings, beginImageUpdate, completeImageUpdate, checkImageConnection, saveImageCheck, safeImageError } from "./covers/provider.ts";
 import { atomicJson } from "./covers/files.ts";
 import { resolveVideoSelection, sameVideoName } from "./videoSelection.ts";
 import type { JobRegistry } from "@deepseek-ai/dsh-jobs";
@@ -799,9 +799,14 @@ export class CreatorWorkbenchService extends TypertRemoteService {
   async getCoverImage(request: CoverScope & { versionId: string }, signal: AbortSignal): Promise<{ mime: string; base64: string }> { signal.throwIfAborted(); return this.covers.image(request, request.versionId); }
   async getImageSettings(_request: Record<string, never>, signal: AbortSignal): Promise<ImageSettings> { signal.throwIfAborted(); return readImageSettings(this.dataDir); }
   async setImageSettings(request: { apiBase: string; model: string }, signal: AbortSignal): Promise<ImageSettings> { signal.throwIfAborted(); return saveImageSettings(this.dataDir, request); }
+  async beginImageUpdate(request: { apiBase: string; model: string; revision: string; hasNewKey: boolean }, signal: AbortSignal): Promise<ImageSettings> { signal.throwIfAborted(); return beginImageUpdate(this.dataDir, request); }
+  async completeImageUpdate(request: { token: string; keyUpdated: boolean }, signal: AbortSignal): Promise<ImageSettings> { signal.throwIfAborted(); if (!await resolveCreatorSecret(this.ctx, "cover")) throw new Error("请先保存生图 API Key。"); return completeImageUpdate(this.dataDir, request.token, request.keyUpdated); }
   async checkImageService(_request: Record<string, never>, signal: AbortSignal): Promise<ImageSettings> {
+    const settings = await readImageSettings(this.dataDir);
     const key = await resolveCreatorSecret(this.ctx, "cover"); if (!key) throw new Error("请先保存生图 API Key。");
-    try { const result = await checkImageConnection(await readImageSettings(this.dataDir), key, signal); return saveImageCheck(this.dataDir, result); }
+    const latest = await readImageSettings(this.dataDir);
+    if (settings.pending || latest.pending || settings.revision !== latest.revision) throw new Error("生图设置更新未完成或已变化，请先保存。");
+    try { const result = await checkImageConnection(settings, key, signal); return saveImageCheck(this.dataDir, result); }
     catch (error) { throw new Error(safeImageError(error, key)); }
   }
 

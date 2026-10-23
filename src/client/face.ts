@@ -23,6 +23,8 @@ export interface CreatorViewFace {
   getCoverImage: (request: CoverScope & { versionId: string }) => Promise<{ mime: string; base64: string }>;
   getImageSettings: () => Promise<ImageSettings>;
   setImageSettings: (settings: { apiBase: string; model: string }) => Promise<ImageSettings>;
+  beginImageUpdate: (settings: { apiBase: string; model: string; revision: string; hasNewKey: boolean }) => Promise<ImageSettings>;
+  completeImageUpdate: (request: { token: string; keyUpdated: boolean }) => Promise<ImageSettings>;
   checkImageService: () => Promise<ImageSettings>;
   prepareCoverDraft: (detail: ContentDetail, runId: string, append?: boolean) => Promise<void>;
   ready: () => boolean;

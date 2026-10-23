@@ -27,7 +27,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm check
 node scripts/check-workbench-package.mjs
 npm pack --ignore-scripts --pack-destination .artifacts
-node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.2.0.tgz
+node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.3.0.tgz
 ```
 
 `pnpm check` 包含类型检查、构建、依赖边界检查与测试。构建仅写当前仓库的 lib，不直接修改 Desktop。
@@ -40,7 +40,7 @@ node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.2.0.
 导入通过 Desktop 的文件路径桥接和宿主后台任务执行，视频字节不经过 JSON Remote。
 
 参见 [使用指南](docs/usage.md)、[文件约定](docs/files.md) 与 [模块边界](docs/implementation.md)。
-本轮 0.2.0 提供视频管理和 Agent 封面流程；[当前验证记录](docs/native-covers.md) 区分本机已测操作和待配置的真实 AI 链路，Change 尚未关闭。多平台草稿及公众号增强仍按后续阶段实施。
+0.2.0 已完成视频管理和 Agent 封面真实三画幅流程，见 [原生封面验证](docs/native-covers.md)。0.3.0 保留左右结构、历史侧栏、五个页签及原有流程，整理视频、封面和统一 API 表单，见 [界面优化验证](docs/ui-refinement.md)。多平台草稿及公众号增强仍按后续阶段实施。
 外部能力可继续使用 oil-cover、video-publisher、oil-video-article；最终发表由人确认。
 
 ## 来源与许可

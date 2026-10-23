@@ -2,7 +2,7 @@ import { z } from "zod";
 export const coverRatioSchema = z.enum(["3x4", "4x3", "16x9"]);
 export const coverScopeSchema = z.object({ id: z.string().min(1), folderPath: z.string().min(1) });
 const slot = z.object({ status: z.enum(["pending", "running", "completed", "failed", "cancelled", "unconfirmed"]), versionId: z.string(), prompt: z.string(), error: z.string().optional() });
-export const imageSettingsSchema = z.object({ apiBase: z.string(), model: z.string(), revision: z.string(), checked: z.object({ revision: z.string(), connection: z.string(), generation: z.string(), edit: z.string() }).optional() });
+export const imageSettingsSchema = z.object({ apiBase: z.string(), model: z.string(), revision: z.string(), pending: z.object({ token: z.string(), apiBase: z.string(), model: z.string(), needsKey: z.boolean() }).optional(), checked: z.object({ revision: z.string(), connection: z.string(), generation: z.string(), edit: z.string() }).optional() });
 export const coverVersionSchema = z.object({ id: z.string(), ratio: coverRatioSchema, file: z.string(), mime: z.string(), width: z.number(), height: z.number(), source: z.enum(["import", "generated", "legacy"]), createdAt: z.number(), video: z.string().optional(), runId: z.string().optional(), review: z.enum(["pending", "pass", "needs_changes"]), reviewNote: z.string().optional() });
 export const coverRunSchema = z.object({
   purpose: z.enum(["cover", "service_test"]).optional(),

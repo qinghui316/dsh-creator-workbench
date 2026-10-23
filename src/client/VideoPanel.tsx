@@ -7,33 +7,72 @@ import { ActionBar, ActionButton } from "./ui/ActionButton.tsx";
 import "./VideoPanel.css";
 
 const importsByFolder = new Map<string, VideoImportState>();
-type Props = Pick<CreatorViewFace, "startVideoImport" | "getVideoImport" | "cancelVideoImport" | "selectVideo" | "getVideoPlayback" | "setVideoVisibility"> & {
-  detail: ContentDetail; t: (key: CreatorKey) => string;
+type Props = Pick<
+  CreatorViewFace,
+  | "startVideoImport"
+  | "getVideoImport"
+  | "cancelVideoImport"
+  | "selectVideo"
+  | "getVideoPlayback"
+  | "setVideoVisibility"
+> & {
+  detail: ContentDetail;
+  t: (key: CreatorKey) => string;
 };
-
 export function VideoPanel({ detail, t, ...face }: Props) {
   const [removed, setRemoved] = useState<string>();
   const [source, setSource] = useState<string>();
   const [name, setName] = useState("");
-  const [task, setTask] = useState<VideoImportState | undefined>(() => importsByFolder.get(detail.folderPath));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
-  const [url, setUrl] = useState<string>();
+  const [task, setTask] = useState<VideoImportState | undefined>(() =>
+    importsByFolder.get(detail.folderPath),
+  );
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState<string>(),
+    [url, setUrl] = useState<string>();
+  const fileInput = useRef<HTMLInputElement>(null),
+    player = useRef<HTMLVideoElement>(null);
   const alive = useRef(true);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  const report = (cause: unknown) => { if (alive.current) setError(cause instanceof Error ? cause.message : String(cause)); };
-
+  const playbackRequest = useRef(0);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      player.current?.pause();
+    };
+  }, []);
+  useEffect(() => {
+    if (!removed) return;
+    const timer = setTimeout(() => setRemoved(undefined), 10_000);
+    return () => clearTimeout(timer);
+  }, [removed]);
+  const report = (cause: unknown) => {
+    if (alive.current)
+      setError(cause instanceof Error ? cause.message : String(cause));
+  };
   useEffect(() => {
     let active = true;
+    const ticket = ++playbackRequest.current;
+    player.current?.pause();
     setUrl(undefined);
-    setError(undefined);
     if (detail.videoSelection !== "selected") return;
-    void face.getVideoPlayback(detail.id).then((value) => {
-      if (active) setUrl(value.found ? value.url : undefined);
-    }, (cause) => { if (active) report(cause); });
-    return () => { active = false; };
-  }, [detail.folderPath, detail.selectedVideo, detail.videos?.find((v) => v.name === detail.selectedVideo)?.modifiedAt]);
-
+    void face.getVideoPlayback(detail.id).then(
+      (value) => {
+        if (active && ticket === playbackRequest.current)
+          setUrl(value.found ? value.url : undefined);
+      },
+      (cause) => {
+        if (active) report(cause);
+      },
+    );
+    return () => {
+      active = false;
+      player.current?.pause();
+    };
+  }, [
+    detail.folderPath,
+    detail.selectedVideo,
+    detail.videos?.find((v) => v.name === detail.selectedVideo)?.modifiedAt,
+  ]);
   useEffect(() => {
     if (task?.status !== "running") return;
     let active = true;
@@ -44,71 +83,270 @@ export function VideoPanel({ detail, t, ...face }: Props) {
         importsByFolder.set(detail.folderPath, next);
         if (!active) return;
         setTask(next);
-        if (next.status === "running") timer = setTimeout(() => { void poll(); }, 300);
-        else { bumpLibrary(); if (next.status === "completed") setSource(undefined); }
-      } catch (cause) { if (active) { report(cause); setTask(undefined); bumpLibrary(); } }
+        if (next.status === "running")
+          timer = setTimeout(() => {
+            void poll();
+          }, 300);
+        else {
+          bumpLibrary();
+          if (next.status === "completed") setSource(undefined);
+        }
+      } catch (cause) {
+        if (active) {
+          report(cause);
+          setTask(undefined);
+          bumpLibrary();
+        }
+      }
     };
     void poll();
-    return () => { active = false; clearTimeout(timer); };
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [task?.token, task?.status, detail.folderPath]);
-
   const visibility = async (file: string, hidden: boolean) => {
-    setBusy(true); setError(undefined);
-    if (hidden && file === detail.selectedVideo) setUrl(undefined);
-    try { await face.setVideoVisibility(detail.id, file, detail.folderPath, hidden); if (alive.current) setRemoved(hidden ? file : undefined); }
-    catch (cause) { report(cause); } finally { if (alive.current) setBusy(false); }
+    setBusy(true);
+    setError(undefined);
+    if (hidden && file === detail.selectedVideo) {
+      playbackRequest.current++;
+      player.current?.pause();
+      setUrl(undefined);
+    }
+    try {
+      await face.setVideoVisibility(detail.id, file, detail.folderPath, hidden);
+      if (alive.current) setRemoved(hidden ? file : undefined);
+    } catch (cause) {
+      report(cause);
+    } finally {
+      if (alive.current) setBusy(false);
+    }
   };
   const running = task?.status === "running";
-  return <section className="creatorVideoPanel" aria-label={t("video.title")}>
-    <div className="videoImportBox">
-      <label className="videoFileLabel">{t("video.import")}
-        <input type="file" accept=".mp4,.mov,video/mp4,video/quicktime" disabled={busy || running} onChange={(event) => {
+  return (
+    <section className="creatorVideoPanel" aria-label={t("video.title")}>
+      <div className="creatorSectionHeading">
+        <h3>视频</h3>
+        <ActionButton
+          tone={detail.videoSelection === "selected" ? "secondary" : "primary"}
+          disabled={busy || running}
+          onClick={() => fileInput.current?.click()}
+        >
+          导入视频
+        </ActionButton>
+      </div>
+      <input
+        ref={fileInput}
+        hidden
+        type="file"
+        aria-label="选择导入视频"
+        accept=".mp4,.mov,video/mp4,video/quicktime"
+        disabled={busy || running}
+        onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
-          if (file === undefined) return;
+          if (!file) return;
           try {
-            const bridge = (globalThis as typeof globalThis & { __DSH_HOST_PATHS__?: { pathFor: (file: File) => string } }).__DSH_HOST_PATHS__;
-            const path = bridge?.pathFor(file);
+            const path = (
+              globalThis as typeof globalThis & {
+                __DSH_HOST_PATHS__?: { pathFor: (f: File) => string };
+              }
+            ).__DSH_HOST_PATHS__?.pathFor(file);
             if (!path) throw new Error(t("video.desktopRequired"));
-            setSource(path); setName(file.name); setError(undefined);
-          } catch (cause) { report(cause); }
-        }} />
+            setSource(path);
+            setName(file.name);
+            setError(undefined);
+          } catch (cause) {
+            report(cause);
+          }
+        }}
+      />
+      {source && (
+        <div className="videoImportConfirmation">
+          <p className="creatorFileName" title={name}>
+            待导入：{name}
+          </p>
+          <details>
+            <summary>修改文件名</summary>
+            <label className="creatorField">
+              保存文件名
+              <input
+                value={name}
+                disabled={busy || running}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+          </details>
+          <ActionBar>
+            <ActionButton
+              tone="primary"
+              disabled={busy || running || !name.trim()}
+              onClick={() => {
+                setBusy(true);
+                setError(undefined);
+                void face
+                  .startVideoImport(detail.id, source, name, detail.folderPath)
+                  .then((next) => {
+                    importsByFolder.set(detail.folderPath, next);
+                    if (alive.current) {
+                      setTask(next);
+                      if (next.status === "completed") {
+                        setSource(undefined);
+                        bumpLibrary();
+                      }
+                    }
+                  }, report)
+                  .finally(() => {
+                    if (alive.current) setBusy(false);
+                  });
+              }}
+            >
+              确认导入
+            </ActionButton>
+            {!running && (
+              <ActionButton
+                tone="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setSource(undefined);
+                  setError(undefined);
+                }}
+              >
+                取消
+              </ActionButton>
+            )}
+          </ActionBar>
+        </div>
+      )}
+      {task && (
+        <div className="creatorInlineStatus" role="status">
+          <span>
+            {t(`video.${task.status}`)}
+            {task.status === "failed" ? "：" + (task.error ?? "") : ""}
+          </span>
+          {running && (
+            <ActionButton
+              onClick={() => {
+                void face.cancelVideoImport(task.token).then((next) => {
+                  if (alive.current) setTask(next);
+                  bumpLibrary();
+                }, report);
+              }}
+            >
+              取消导入
+            </ActionButton>
+          )}
+        </div>
+      )}
+      <label className="creatorField">
+        当前视频
+        <select
+          value={detail.selectedVideo ?? ""}
+          disabled={busy || running || !detail.videos?.length}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (!value) return;
+            setBusy(true);
+            setError(undefined);
+            void face
+              .selectVideo(detail.id, value, detail.folderPath)
+              .then(() => bumpLibrary(), report)
+              .finally(() => {
+                if (alive.current) setBusy(false);
+              });
+          }}
+        >
+          <option value="" disabled>
+            {t(`video.${detail.videoSelection ?? "empty"}`)}
+          </option>
+          {detail.videos?.map((v) => (
+            <option key={v.name} value={v.name}>
+              {v.name}
+            </option>
+          ))}
+        </select>
       </label>
-      <p className="videoHint">{t("video.importHint")}</p>
-      {source !== undefined && <label className="videoNameLabel">{t("video.importName")}
-        <input value={name} disabled={busy || running} onChange={(event) => { setName(event.target.value); }} />
-      </label>}
-      <ActionBar>
-        {source !== undefined && <ActionButton tone="primary" disabled={busy || running || name.trim() === ""} onClick={() => {
-          setBusy(true); setError(undefined);
-          void face.startVideoImport(detail.id, source, name, detail.folderPath).then((next) => {
-            importsByFolder.set(detail.folderPath, next);
-            if (alive.current) setTask(next);
-          }, report).finally(() => { if (alive.current) setBusy(false); });
-        }}>{t("video.start")}</ActionButton>}
-        {running && <ActionButton onClick={() => { void face.cancelVideoImport(task.token).then(setTask, report); }}>{t("video.cancel")}</ActionButton>}
-      </ActionBar>
-      {task !== undefined && <p role="status" className="videoHint">{t(`video.${task.status}`)}{task.status === "failed" ? `：${task.error ?? ""}` : ""}</p>}
-    </div>
-    <label className="videoNameLabel">{t("video.current")}
-      <select value={detail.selectedVideo ?? ""} disabled={busy || running || !detail.videos?.length} onChange={(event) => {
-        const value = event.target.value;
-        if (!value) return;
-        setBusy(true); setError(undefined);
-        void face.selectVideo(detail.id, value, detail.folderPath).then(() => { bumpLibrary(); }, report).finally(() => { if (alive.current) setBusy(false); });
-      }}>
-        <option value="" disabled={true}>{t(`video.${detail.videoSelection ?? "empty"}`)}</option>
-        {detail.videos?.map((video) => <option key={video.name} value={video.name}>{video.name} · {(video.size / 1048576).toFixed(1)} MB</option>)}
-      </select>
-    </label>
-    <div className="videoCandidates">
-      {(detail.videos ?? []).map((v) => <div className="videoCandidate" key={v.name}><span>{v.name}</span><button disabled={busy || running} onClick={() => { void visibility(v.name, true); }}>从列表移除</button></div>)}
-      {removed && <p role="status">已从列表移除，磁盘文件保留。 <button disabled={busy} onClick={() => { void visibility(removed, false); }}>撤销</button></p>}
-      {!!detail.hiddenVideos?.length && <details><summary>已移除视频（{detail.hiddenVideos.length}）</summary>{detail.hiddenVideos.map((v) => <div className="videoCandidate" key={v.name}><span>{v.name}{v.missing ? " · 文件已找不到" : ""}</span><button disabled={busy || running || v.missing} onClick={() => { void visibility(v.name, false); }}>恢复显示</button></div>)}</details>}
-    </div>
-    {detail.videoSelection !== "selected" && <p className="videoHint">{t(`video.${detail.videoSelection ?? "empty"}`)}</p>}
-    {error !== undefined && <p role="alert" className="videoError">{error}</p>}
-    {url !== undefined && <video key={url} controls={true} playsInline={true} preload="metadata" src={url}
-      onError={(event) => { const code = event.currentTarget.error?.code; setError(`${t("video.playbackError")} (${code ?? "?"})`); }} />}
-  </section>;
+      {detail.videoSelection !== "selected" && (
+        <p className="creatorMuted">
+          {t(`video.${detail.videoSelection ?? "empty"}`)}
+        </p>
+      )}
+      {url && (
+        <video
+          ref={player}
+          key={url}
+          controls
+          playsInline
+          preload="metadata"
+          src={url}
+          onError={() =>
+            setError("视频编码暂时无法播放。文件已保留，可选择其他兼容视频。")
+          }
+        />
+      )}
+      {error && (
+        <p className="creatorError" role="alert">
+          {error}
+        </p>
+      )}
+      {removed && (
+        <div className="creatorInlineStatus" role="status">
+          <span>已从列表移除，磁盘文件保留</span>
+          <ActionButton
+            tone="ghost"
+            disabled={busy}
+            onClick={() => {
+              void visibility(removed, false);
+            }}
+          >
+            撤销
+          </ActionButton>
+        </div>
+      )}
+      <details className="creatorDisclosure">
+        <summary>管理视频 · {detail.videos?.length ?? 0}</summary>
+        {(detail.videos ?? []).map((v) => (
+          <div className="creatorAssetRow" key={v.name}>
+            <div className="creatorRowCopy">
+              <strong title={v.name}>{v.name}</strong>
+              <small>
+                {(v.size / 1048576).toFixed(1)} MB
+                {v.name === detail.selectedVideo ? " · 当前视频" : ""}
+              </small>
+            </div>
+            <ActionButton
+              tone="ghost"
+              disabled={busy || running}
+              onClick={() => {
+                void visibility(v.name, true);
+              }}
+            >
+              从列表移除
+            </ActionButton>
+          </div>
+        ))}
+        {!!detail.hiddenVideos?.length && (
+          <details className="creatorDisclosure">
+            <summary>已移除视频 · {detail.hiddenVideos.length}</summary>
+            {detail.hiddenVideos.map((v) => (
+              <div className="creatorAssetRow" key={v.name}>
+                <div className="creatorRowCopy">
+                  <strong>{v.name}</strong>
+                  {v.missing && <small>文件已找不到</small>}
+                </div>
+                <ActionButton
+                  disabled={busy || running || v.missing}
+                  onClick={() => {
+                    void visibility(v.name, false);
+                  }}
+                >
+                  恢复
+                </ActionButton>
+              </div>
+            ))}
+          </details>
+        )}
+      </details>
+    </section>
+  );
 }

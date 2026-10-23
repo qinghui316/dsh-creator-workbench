@@ -1,0 +1,232 @@
+[data-plugin="dsh-creator-workbench"] .creatorSectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+[data-plugin="dsh-creator-workbench"] .creatorSectionHeading :is(h3, h4) {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 600;
+}
+[data-plugin="dsh-creator-workbench"] .creatorField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+[data-plugin="dsh-creator-workbench"]
+  :is(
+    .creatorField input,
+    .creatorField select,
+    .creatorField textarea,
+    .creatorDisclosure textarea
+  ) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--dsw-alias-border-l2, var(--dsw-alias-border-l1));
+  border-radius: 6px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+  font: inherit;
+}
+[data-plugin="dsh-creator-workbench"] .creatorField input[aria-invalid="true"] {
+  border-color: var(--dsw-alias-state-error-primary);
+}
+[data-plugin="dsh-creator-workbench"]
+  :is(input, select, textarea, summary, button):focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+[data-plugin="dsh-creator-workbench"] :is(button, summary) {
+  white-space: nowrap;
+}
+[data-plugin="dsh-creator-workbench"] .creatorFileName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-plugin="dsh-creator-workbench"] .creatorMuted {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+[data-plugin="dsh-creator-workbench"] .creatorError {
+  margin: 0;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+[data-plugin="dsh-creator-workbench"] .creatorInlineStatus {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+[data-plugin="dsh-creator-workbench"] .creatorDisclosure {
+  min-width: 0;
+  margin: 12px 0 0;
+}
+[data-plugin="dsh-creator-workbench"] .creatorDisclosure > summary {
+  cursor: pointer;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 24px;
+}
+[data-plugin="dsh-creator-workbench"] .creatorDisclosure[open] > summary {
+  margin-bottom: 12px;
+}
+[data-plugin="dsh-creator-workbench"] .creatorAssetRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  font-size: 13px;
+}
+[data-plugin="dsh-creator-workbench"] .creatorRowCopy {
+  flex: 1;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+[data-plugin="dsh-creator-workbench"] .creatorActionMenu {
+  position: relative;
+}
+[data-plugin="dsh-creator-workbench"] .creatorActionMenu > summary {
+  display: block;
+  padding: 5px 8px;
+  cursor: pointer;
+  border-radius: 5px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  list-style: none;
+}
+[data-plugin="dsh-creator-workbench"]
+  .creatorActionMenu
+  > summary::-webkit-details-marker {
+  display: none;
+}
+[data-plugin="dsh-creator-workbench"] .creatorActionMenu > summary:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+[data-plugin="dsh-creator-workbench"] .creatorActionMenu[open] > div {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  top: 100%;
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  min-width: 120px;
+  padding: 5px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px #0002;
+  background: var(--dsw-alias-bg-base);
+}
+[data-plugin="dsh-creator-workbench"] .creatorSectionPanel {
+  min-width: 0;
+}
+[data-plugin="dsh-creator-workbench"] .creatorPrewrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 22px;
+}
+[data-plugin="dsh-creator-workbench"] .creatorCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tabs {
+  gap: 20px;
+  overflow-x: auto;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab {
+  flex: none;
+  min-height: 36px;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .body {
+  font-size: 14px;
+  line-height: 22px;
+  padding: 18px 20px 28px;
+  scrollbar-width: thin;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"]
+  .body::-webkit-scrollbar {
+  width: 6px;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .lede {
+  margin-bottom: 12px;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .ledeText {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .stepper {
+  margin-bottom: 20px;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .scriptStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .scriptEditor {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 320px;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 24px;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .article {
+  max-width: 760px;
+  margin: auto;
+  overflow-wrap: anywhere;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .article img {
+  max-width: 100%;
+  height: auto;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .article pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .cue {
+  min-width: 0;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .cueText {
+  overflow-wrap: anywhere;
+}
