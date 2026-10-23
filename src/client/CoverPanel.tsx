@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ContentDetail } from "../types.ts";
-import { COVER_RATIOS, type CoverAction, type CoverRatio, type CoverRun, type CoverState, type CoverVersion } from "../covers/types.ts";
+import { COVER_RATIOS, coverRunReview, type CoverAction, type CoverRatio, type CoverRun, type CoverState, type CoverVersion } from "../covers/types.ts";
 import type { CreatorViewFace } from "./face.ts";
 import { useLibraryEpoch } from "./contentSelection.ts";
 import "./CoverPanel.css";
@@ -48,6 +48,17 @@ export function CoverPanel({ detail, ...face }: CoverFace & { detail: ContentDet
     if (run) { setSelectedRunId(run.id); await draft(run); }
   };
   const latest = state.runs.find((r) => r.id === selectedRunId) ?? state.runs[state.runs.length - 1];
+  const runLabel = (run: CoverRun) => {
+    if (run.status !== "completed") return labels[run.status];
+    const review = coverRunReview(run, state.versions);
+    return review === "pass" ? "制作完成，质检通过" : review === "needs_changes" ? "图片需要修改" : labels.completed;
+  };
+  const slotLabel = (run: CoverRun, ratio: CoverRatio) => {
+    const slot = run.slots[ratio];
+    if (slot?.status !== "completed") return labels[slot?.status ?? run.status];
+    const version = state.versions.find((v) => v.id === slot.versionId && v.runId === run.id && v.ratio === ratio);
+    return version && version.review !== "pending" ? labels[version.review] : labels.completed;
+  };
   return <section className="creatorCoverPanel" aria-label="封面制作与版本">
     <header><h3>封面</h3><button disabled={busy || !detail.selectedVideo} onClick={() => { void begin([...COVER_RATIOS]); }}>让 Agent 制作封面</button></header>
     <button disabled={busy || !detail.selectedVideo} onClick={async () => { if (!detail.selectedVideo) return; const result = await apply({ ...scope, action: "test", video: detail.selectedVideo }); if (result) setSelectedRunId(result.runs[result.runs.length - 1]?.id); }}>测试生图：1 张，可能计费</button>
@@ -78,11 +89,11 @@ export function CoverPanel({ detail, ...face }: CoverFace & { detail: ContentDet
         </div>)}</details>
       </article>;
     })}</div>
-    {!!state.runs.length && <label>制作记录<select value={latest?.id ?? ""} onChange={(e) => { setSelectedRunId(e.target.value); setAck(false); }}>{[...state.runs].reverse().map((run) => <option value={run.id} key={run.id}>{new Date(run.createdAt).toLocaleString()} · {run.purpose === "service_test" ? "服务测试" : run.video.name} · {labels[run.status]}</option>)}</select></label>}
-    {latest && <details open className="coverRun"><summary>最近制作 · {labels[latest.status]}</summary>
+    {!!state.runs.length && <label>制作记录<select value={latest?.id ?? ""} onChange={(e) => { setSelectedRunId(e.target.value); setAck(false); }}>{[...state.runs].reverse().map((run) => <option value={run.id} key={run.id}>{new Date(run.createdAt).toLocaleString()} · {run.purpose === "service_test" ? "服务测试" : run.video.name} · {runLabel(run)}</option>)}</select></label>}
+    {latest && <details open className="coverRun"><summary>最近制作 · {runLabel(latest)}</summary>
       <p>视频：{latest.video.name}</p>{latest.error && <p role="alert">{latest.error}</p>}
       {latest.analysis && <details><summary>选帧与方案</summary><p>{latest.analysis}</p></details>}
-      {latest.ratios.map((ratio) => <div key={ratio} className="coverVersion"><span>{ratio.replace("x", ":")}：{labels[latest.slots[ratio]?.status ?? latest.status]}</span>{latest.slots[ratio]?.error && <p>{latest.slots[ratio]?.error}</p>}
+      {latest.ratios.map((ratio) => <div key={ratio} className="coverVersion"><span>{ratio.replace("x", ":")}：{slotLabel(latest, ratio)}</span>{latest.slots[ratio]?.error && <p>{latest.slots[ratio]?.error}</p>}
         {latest.slots[ratio] && ["failed", "cancelled", "unconfirmed"].includes(latest.slots[ratio]!.status) && <button disabled={busy || (latest.slots[ratio]?.status === "unconfirmed" && !ack)} onClick={() => { void apply({ ...scope, action: "retry", runId: latest.id, ratios: [ratio], acknowledgeUnknown: ack }); }}>仅重试此画幅</button>}
       </div>)}
       {latest.status === "unconfirmed" && <label><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />我已核对服务端结果；重新请求可能再次计费</label>}
