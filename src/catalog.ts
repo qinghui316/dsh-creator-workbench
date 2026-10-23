@@ -1,4 +1,5 @@
-import { validVideoName, resolveVideoSelection, currentVideoPath } from "./videoSelection.ts";
+import { selectedCoverPaths } from "./covers/workflow.ts";
+import { validVideoName, resolveVideoSelection, currentVideoPath, sameVideoName } from "./videoSelection.ts";
 import { videoFile } from "./videoFiles.ts";
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -194,13 +195,15 @@ async function scanFolder(
   const names = entries.map((entry) => entry.name);
   const { date, title: folderTitle } = folderDateAndTitle(folderName);
 
-  const covers: ContentSummary["covers"] = {};
+  let covers: ContentSummary["covers"] = {};
   const cover3x4 = names.find((name) => name.endsWith("_3x4.png"));
   const cover4x3 = names.find((name) => name.endsWith("_4x3.png"));
   const cover16x9 = names.find((name) => name.endsWith("_16x9.png"));
   if (cover3x4 !== undefined) covers["3x4"] = join(folderPath, cover3x4);
   if (cover4x3 !== undefined) covers["4x3"] = join(folderPath, cover4x3);
   if (cover16x9 !== undefined) covers["16x9"] = join(folderPath, cover16x9);
+
+  covers = await selectedCoverPaths(folderPath, covers);
 
   const subtitles: ContentSummary["subtitles"] = {};
   const srt = names.find((name) => name.endsWith(".srt"));
@@ -216,7 +219,7 @@ async function scanFolder(
     else if (await fileExists(fallback)) subtitles.transcript = fallback;
   }
 
-  const videos: NonNullable<ContentSummary["videos"]> = [];
+  let videos: NonNullable<ContentSummary["videos"]> = [];
   for (const entry of entries) {
     if (!entry.isFile() || !validVideoName(entry.name)) continue;
     const path = await videoFile(folderPath, entry.name).catch(() => undefined);
@@ -225,6 +228,9 @@ async function scanFolder(
     videos.push({ name: entry.name, path, size: info.size, modifiedAt: info.mtimeMs });
   }
   videos.sort((a, b) => a.name.localeCompare(b.name, "zh"));
+  const hiddenNames = overlay.hiddenVideos?.[libraryRoot]?.[folderName] ?? [];
+  const hiddenVideos = hiddenNames.map((name) => videos.find((v) => sameVideoName(v.name, name, process.platform === "win32")) ?? { name, path: join(folderPath, name), size: 0, modifiedAt: 0, missing: true });
+  videos = videos.filter((v) => !hiddenNames.some((name) => sameVideoName(v.name, name, process.platform === "win32")));
   const selection = resolveVideoSelection(videos, overlay.videoSelections?.[libraryRoot]?.[folderName]);
   const selected = videos.find((video) => video.name === selection.selectedVideo);
   const videoRaw = selected?.path;
@@ -273,6 +279,7 @@ async function scanFolder(
     covers,
     subtitles,
     videos,
+    hiddenVideos,
     ...selection,
     hasPublishPackage: packageJson !== undefined,
     hasArticle: articlePath !== undefined,

@@ -41,6 +41,32 @@ export function pickCreatorDirectory(ctx: Services): Promise<string | null> {
   const navigation = ctx.get("uiWorkspace") as { pickDirectory: () => Promise<string | null> };
   return navigation.pickDirectory();
 }
+
+/** Write only through the host's session-addressed input API; never auto-send. */
+export async function prepareCoverDraft(ctx: Services, content: { id: string; folderPath: string }, runId: string, picker: () => Promise<string | null>, append = false): Promise<void> {
+  const workbenches = desktopWorkbenchesOf(ctx);
+  const expectedSelection = loadCreatorUiState(browserCreatorStorage()).selectedId;
+  if (expectedSelection !== content.id) throw new Error("内容已切换，请重新发起。");
+  const binding = contentBindingForSession(workbenches);
+  const sessionId = binding?.contentId === content.id && binding.folder === content.folderPath
+    ? workbenches.currentSession() : await startContentSession(workbenches, content, picker);
+  if (!sessionId) throw new Error("已取消会话创建，制作请求尚未发送。");
+  if (loadCreatorUiState(browserCreatorStorage()).selectedId !== expectedSelection) throw new Error("内容已切换，未写入旧制作请求。");
+  if (!workbenches.isActive() || workbenches.currentSession() !== sessionId || !workbenches.ownsSession(sessionId)) throw new Error("会话已切换，请重新发起。");
+  const sessions = ctx.get("sessions") as { scope: (id: string) => { get: (name: string) => unknown; bail: (event: string, request: unknown) => unknown } | undefined } | undefined;
+  const scoped = sessions?.scope(sessionId);
+  const conversation = scoped?.get("conversation") as { input: { for: (scope: unknown) => { state: { getSnapshot: () => { draft: string; draftRev: number; phase: string; occurrences: unknown[]; attachmentIds: unknown[] } }; setDraft: (text: string) => void; focus: () => void } } } | undefined;
+  if (!scoped || !conversation) throw new Error("宿主原生会话输入尚未就绪，请稍后重试。");
+  const input = conversation.input.for(scoped), state = input.state.getSnapshot();
+  if (state.phase !== "plain") throw new Error("会话输入正在处理请求，请稍后重试。");
+  const text = `请使用创作工作台的原生 Agent 封面流程。先调用 creator_prepare_cover 查看真实候选画面，并读取返回的 oil-cover 规则；完成选帧、标题、逐画幅提示词后调用 creator_generate_cover。分析后直接生成，不增加方案审批。等待任务结果后读取图片、逐画幅质检，再保存结论和当前使用版本。\n本次固定输入：${JSON.stringify({ id: content.id, folderPath: content.folderPath, runId })}\n不要改用其他内容、其他视频或外部视觉分析服务；不要读取或输出 API Key。`;
+  if (state.draft || state.occurrences.length || state.attachmentIds.length) {
+    if (!append) throw new Error("当前会话已有草稿，原内容已保留。请点击‘追加制作请求’。");
+    const applied = scoped.bail("slash/input-insert-text", { text: `\n\n${text}`, span: { start: state.draft.length, end: state.draft.length, draftRev: state.draftRev } });
+    if (!applied) throw new Error("草稿已变化，未插入，请重试。");
+  } else input.setDraft(text);
+  input.focus();
+}
 const recentBindings = new WeakMap<CreatorWorkbenchService, Map<string, { contentId: string; folder: string; requiresNewSession?: boolean }>>();
 
 /** Never adopt a native or another workbench's saved session. No auto-send. */

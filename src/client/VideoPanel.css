@@ -10,3 +10,8 @@
 [data-plugin="dsh-creator-workbench"] .videoError { color: var(--dsw-alias-state-error, #c33); overflow-wrap: anywhere; }
 [data-plugin="dsh-creator-workbench"] .creatorVideoPanel video { display: block; width: 100%; max-height: 65vh; background: #111; border-radius: 8px; }
 @container (max-width: 360px) { .creatorVideoPanel .oilActionBar { flex-wrap: wrap; } }
+
+.creatorVideoPanel .videoCandidate { display:flex; align-items:center; gap:12px; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--dsw-alias-outline-base,#8883); }
+.creatorVideoPanel .videoCandidate span { overflow-wrap:anywhere; flex:1; }
+.creatorVideoPanel .videoCandidate button { flex-shrink:0; }
+@container (max-width:360px) { .creatorVideoPanel .videoCandidate { flex-wrap:wrap; } }

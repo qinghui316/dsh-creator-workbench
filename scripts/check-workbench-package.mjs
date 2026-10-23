@@ -10,7 +10,7 @@ const read = (path) => tarball
   : readFileSync(resolve(path), "utf8");
 const fail = (condition, message) => { if (!condition) throw new Error(message); };
 const manifest = JSON.parse(read("package.json"));
-fail(manifest.name === "dsh-creator-workbench" && manifest.version === "0.1.0", "Unexpected package identity");
+fail(manifest.name === "dsh-creator-workbench" && manifest.version === "0.2.0", "Unexpected package identity");
 fail(manifest.repository?.url === "git+https://github.com/qinghui316/dsh-creator-workbench.git", "Repository must be the real Fork");
 fail(manifest.main === "./lib/index.js" && manifest.exports?.["./client"] === "./lib/client.js", "Missing runtime entry");
 fail(manifest.dsh?.bundle?.patch === "./cordis.patch.yml", "Missing plugin patch");

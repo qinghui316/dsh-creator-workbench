@@ -30,28 +30,27 @@ describe("creator background jobs", () => {
         subtitleJob: { status: "idle" },
         coverJob: { status: "idle" },
       })),
-      startCoverGenerate: vi.fn(async () => ({})),
-      waitForMediaJob: vi.fn(async () => ({ status: "done", output: "/tmp/cover.png" })),
+      startSubtitleGenerate: vi.fn(async () => ({})),
+      waitForMediaJob: vi.fn(async () => ({ status: "done", output: "/tmp/transcript.json" })),
       cancelMediaJob: vi.fn(async () => undefined),
     };
     const registered = setup(service);
     expect([...registered.tools.keys()]).toEqual([
       "creator_burn_subtitles",
       "creator_generate_subtitles",
-      "creator_generate_cover",
     ]);
-    const result = await registered.tools.get("creator_generate_cover")?.execute(
-      { id: "demo", title: "封面标题" },
+    const result = await registered.tools.get("creator_generate_subtitles")?.execute(
+      { id: "demo" },
       { signal: new AbortController().signal },
     );
     expect(result).toEqual({ kind: "background", jobId: "creator-media-1" });
     await expect(registered.hooks()?.done).resolves.toEqual({
       status: "completed",
-      detail: "coverJob",
-      result: "/tmp/cover.png",
+      detail: "subtitleJob",
+      result: "/tmp/transcript.json",
     });
-    expect(service.startCoverGenerate).toHaveBeenCalledWith(
-      { id: "demo", title: "封面标题" },
+    expect(service.startSubtitleGenerate).toHaveBeenCalledWith(
+      { id: "demo" },
       expect.any(AbortSignal),
     );
   });
@@ -63,24 +62,24 @@ describe("creator background jobs", () => {
         subtitleJob: { status: "idle" },
         coverJob: { status: "idle" },
       })),
-      startCoverGenerate: vi.fn(async () => ({})),
+      startSubtitleGenerate: vi.fn(async () => ({})),
       waitForMediaJob: vi.fn((_id, _field, signal: AbortSignal) => new Promise((_resolve, reject) => {
         signal.addEventListener("abort", () => { reject(signal.reason); }, { once: true });
       })),
       cancelMediaJob: vi.fn(async () => undefined),
     };
     const registered = setup(service);
-    await registered.tools.get("creator_generate_cover")?.execute(
+    await registered.tools.get("creator_generate_subtitles")?.execute(
       { id: "demo" },
       { signal: new AbortController().signal },
     );
     registered.hooks()?.cancel("user stopped");
     await expect(registered.hooks()?.done).resolves.toEqual({
       status: "killed",
-      detail: "coverJob",
+      detail: "subtitleJob",
       result: "demo: cancelled",
     });
-    expect(service.cancelMediaJob).toHaveBeenCalledWith("demo", "coverJob");
+    expect(service.cancelMediaJob).toHaveBeenCalledWith("demo", "subtitleJob");
   });
 
   it("rejects a duplicate job for the same content and media field", async () => {
@@ -90,12 +89,12 @@ describe("creator background jobs", () => {
         subtitleJob: { status: "idle" },
         coverJob: { status: "idle" },
       })),
-      startCoverGenerate: vi.fn(async () => ({})),
+      startSubtitleGenerate: vi.fn(async () => ({})),
       waitForMediaJob: vi.fn(() => new Promise(() => undefined)),
       cancelMediaJob: vi.fn(async () => undefined),
     };
     const registered = setup(service);
-    const tool = registered.tools.get("creator_generate_cover");
+    const tool = registered.tools.get("creator_generate_subtitles");
     await tool?.execute({ id: "demo" }, { signal: new AbortController().signal });
     await expect(tool?.execute({ id: "demo" }, { signal: new AbortController().signal }))
       .rejects.toThrow("already running");

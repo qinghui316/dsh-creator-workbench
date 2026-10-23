@@ -59,7 +59,10 @@ export function decodeOverlay(value: unknown): OverlayStore {
   const store = emptyOverlay();
   store.items = items;
   if (typeof raw.videoSelections === "object" && raw.videoSelections !== null) {
-    store.videoSelections = Object.fromEntries(Object.entries(raw.videoSelections).filter(([, v]) => typeof v === "object" && v !== null).map(([root, v]) => [root, Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, name]) => typeof name === "string"))])) as Record<string, Record<string, string>>;
+    store.videoSelections = Object.fromEntries(Object.entries(raw.videoSelections).filter(([, v]) => typeof v === "object" && v !== null).map(([root, v]) => [root, Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, name]) => typeof name === "string" || name === null))])) as Record<string, Record<string, string | null>>;
+  }
+  if (typeof raw.hiddenVideos === "object" && raw.hiddenVideos !== null) {
+    store.hiddenVideos = Object.fromEntries(Object.entries(raw.hiddenVideos).filter(([, v]) => typeof v === "object" && v !== null).map(([root, value]) => [root, Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([, names]) => Array.isArray(names)).map(([id, names]) => [id, (names as unknown[]).filter((n): n is string => typeof n === "string" && !/[\\/]/.test(n))]))]));
   }
   if (typeof raw.libraryRoot === "string" && raw.libraryRoot.length > 0) {
     store.libraryRoot = raw.libraryRoot;

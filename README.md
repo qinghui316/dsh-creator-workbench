@@ -1,16 +1,21 @@
 # 创作工作台
 
-运行在 Windows DSH Desktop 内的本地视频内容工作台。先完成视频资料管理，再逐步接入封面、平台草稿和公众号工作流。
+运行在 Windows DSH Desktop 内的本地视频内容工作台。管理本地视频与封面，使用 Harness 原生 Agent 分析画面，并调用自己配置的生图服务。
 
 ![创作工作台](assets/readme/hero.svg)
 
-选择资料库 → 创建或选择一期内容 → 导入视频 → 选择当前视频 → 预览、刷新与重新打开。
+选择资料库 → 创建或选择一期内容 → 导入视频 → 选择当前视频 → 预览、从列表移除或恢复 → 导入已有封面或让 Agent 制作封面。
 
 - 支持 MP4、MOV，包括大写扩展名；来源不限，独立字幕可选。
 - 导入时复制文件，保留原文件；同名不覆盖，可修改导入名称重试。
 - 多个视频时明确选择，选择按资料库保存；选中文件消失时提示重新选择。
 - 左侧使用 Harness 原生对话，右侧管理内容。未开始对话也可以管理视频，需要时点击「在资料目录开始对话」。
-- 外部 Skill、凭据或模型缺失只影响对应增强能力，基础片库和视频导入独立可用。
+- 从列表移除视频仅改变产品显示，磁盘文件保留；移除当前视频后明确清空选择，可随时恢复显示。
+- 三画幅封面支持导入、预览、版本选择和单画幅重做；新图片通过检查后再选用，原版本保留。
+- 点击「让 Agent 制作封面」准备原生会话草稿，发送后由当前 Agent 看图分析并生成；没有单独的视觉模型设置。
+- 生图设置为服务根地址、模型和 API Key，使用 OpenAI 兼容 images 接口。凭据存入 Harness；不会自动借用聊天或旧厂商 Key。
+- 外部 Skill、凭据或模型缺失只影响对应增强能力，片库、视频管理和已有封面导入独立可用。
+- 网络请求结果未确认时不自动重发。工作台显示真实任务状态，重试前需要核对。
 
 ## 本地开发
 
@@ -22,7 +27,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm check
 node scripts/check-workbench-package.mjs
 npm pack --ignore-scripts --pack-destination .artifacts
-node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.1.0.tgz
+node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.2.0.tgz
 ```
 
 `pnpm check` 包含类型检查、构建、依赖边界检查与测试。构建仅写当前仓库的 lib，不直接修改 Desktop。
@@ -35,7 +40,7 @@ node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.1.0.
 导入通过 Desktop 的文件路径桥接和宿主后台任务执行，视频字节不经过 JSON Remote。
 
 参见 [使用指南](docs/usage.md)、[文件约定](docs/files.md) 与 [模块边界](docs/implementation.md)。
-封面自主服务配置、多平台草稿及公众号增强按后续阶段实施，当前不宣称这些能力已经在 Windows 验收通过。
+本轮 0.2.0 提供视频管理和 Agent 封面流程；[当前验证记录](docs/native-covers.md) 区分本机已测操作和待配置的真实 AI 链路，Change 尚未关闭。多平台草稿及公众号增强仍按后续阶段实施。
 外部能力可继续使用 oil-cover、video-publisher、oil-video-article；最终发表由人确认。
 
 ## 来源与许可

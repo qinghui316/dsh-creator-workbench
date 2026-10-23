@@ -68,6 +68,12 @@ describe("proposeOrganizeMoves", () => {
 });
 
 describe("remapOverlayItems", () => {
+  it("keeps removed videos and explicit clear after organizing only their own library", () => {
+    const state = { schemaVersion: 1 as const, items: {}, videoSelections: { library: { old: null }, other: { old: "keep.mp4" } }, hiddenVideos: { library: { old: ["hidden.mp4"] }, other: { old: ["other.mp4"] } } };
+    const next = remapOverlayItems(state, [{ from: "old", to: "new", reason: "add-date" }], "library");
+    expect(next.videoSelections).toEqual({ library: { new: null }, other: { old: "keep.mp4" } });
+    expect(next.hiddenVideos).toEqual({ library: { new: ["hidden.mp4"] }, other: { old: ["other.mp4"] } });
+  });
   it("keeps later overlay writes that arrived under the old folder id", () => {
     const remapped = remapOverlayItems({
       schemaVersion: 1,

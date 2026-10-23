@@ -45,6 +45,9 @@ describe("creator setup inspection", () => {
     await Promise.all(files.map((path) => writeFile(path, "")));
     await chmod(join(bin, "ego-browser"), 0o755);
 
+    await mkdir(join(coverRoot, "references"), { recursive: true });
+    await writeFile(join(coverRoot, "references", "cover-rules.md"), "rules");
+    await writeFile(join(coverRoot, "references", "agent-native-flow.md"), "native flow");
     const result = await inspectCreatorSetup({
       libraryRoot,
       dataDir: join(root, "data"),
@@ -181,6 +184,9 @@ describe("inspectCreatorSetup windows and mac paths", () => {
       writeFile(join(bin, "ego-browser.EXE"), ""),
     ]);
 
+    await mkdir(join(coverRoot, "references"), { recursive: true });
+    await writeFile(join(coverRoot, "references", "cover-rules.md"), "rules");
+    await writeFile(join(coverRoot, "references", "agent-native-flow.md"), "native flow");
     const result = await inspectCreatorSetup({
       libraryRoot,
       dataDir: join(root, "data"),

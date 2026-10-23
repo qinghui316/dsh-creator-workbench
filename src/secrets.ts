@@ -1,7 +1,8 @@
+import { IMAGE_CREDENTIAL } from "./covers/types.ts";
 import type { CreatorSecrets, SecretKind, SecretView } from "./types.ts";
 
 export const SUBTITLE_KEY_REFS = ["DASHSCOPE_API_KEY", "BAILIAN_API_KEY"] as const;
-export const COVER_KEY_REFS = ["ZENMUX_API_KEY"] as const;
+export const COVER_KEY_REFS = [IMAGE_CREDENTIAL] as const;
 
 export function refsFor(kind: SecretKind): readonly string[] {
   return kind === "subtitle" ? SUBTITLE_KEY_REFS : COVER_KEY_REFS;
@@ -56,5 +57,5 @@ export function viewFromDescribe(
 export function missingSecretMessage(kind: SecretKind): string {
   return kind === "subtitle"
     ? "先到设置 → 插件 → 内容工作台 填写百炼 API Key"
-    : "先到设置 → 插件 → 内容工作台 填写 ZenMux API Key";
+    : "先到工作台的数据与设置填写生图服务 API Key";
 }

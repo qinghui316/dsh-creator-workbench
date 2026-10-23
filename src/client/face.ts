@@ -1,3 +1,4 @@
+import type { CoverScope, CoverAction, CoverState, ImageSettings } from "../covers/types.ts";
 import type {
   VideoImportState,
   ContentDetail,
@@ -17,6 +18,13 @@ import type {
 } from "../types.ts";
 
 export interface CreatorViewFace {
+  getCoverState: (scope: CoverScope) => Promise<CoverState>;
+  coverAction: (request: CoverAction) => Promise<CoverState>;
+  getCoverImage: (request: CoverScope & { versionId: string }) => Promise<{ mime: string; base64: string }>;
+  getImageSettings: () => Promise<ImageSettings>;
+  setImageSettings: (settings: { apiBase: string; model: string }) => Promise<ImageSettings>;
+  checkImageService: () => Promise<ImageSettings>;
+  prepareCoverDraft: (detail: ContentDetail, runId: string, append?: boolean) => Promise<void>;
   ready: () => boolean;
   captureNavigation: () => () => boolean;
   listContents: (query: string, filter: ContentFilter) => Promise<ListContentsResult>;
@@ -26,6 +34,7 @@ export interface CreatorViewFace {
   startVideoImport: (id: string, sourcePath: string, name: string, folderPath: string) => Promise<VideoImportState>;
   getVideoImport: (token: string) => Promise<VideoImportState>;
   cancelVideoImport: (token: string) => Promise<VideoImportState>;
+  setVideoVisibility: (id: string, name: string, folderPath: string, hidden: boolean) => Promise<ContentDetail>;
   selectVideo: (id: string, name: string, folderPath: string) => Promise<ContentDetail>;
   getVideoPlayback: (id: string) => Promise<VideoPlaybackResult>;
   getArticleMedia: (id: string) => Promise<ArticleMediaResult>;

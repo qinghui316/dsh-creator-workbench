@@ -8,10 +8,11 @@ export function validVideoName(name: string): boolean {
     && /\.(?:mp4|mov)$/i.test(name);
 }
 
-export function resolveVideoSelection(candidates: readonly VideoCandidate[], saved?: string): {
+export function resolveVideoSelection(candidates: readonly VideoCandidate[], saved?: string | null): {
   videoSelection: VideoSelectionState;
   selectedVideo?: string;
 } {
+  if (saved === null) return { videoSelection: "cleared" };
   if (saved !== undefined) {
     return candidates.some((video) => video.name === saved)
       ? { videoSelection: "selected", selectedVideo: saved }
@@ -23,4 +24,9 @@ export function resolveVideoSelection(candidates: readonly VideoCandidate[], sav
 
 export function currentVideoPath(item: { videos?: VideoCandidate[]; selectedVideo?: string }): string | undefined {
   return item.videos?.find((video) => video.name === item.selectedVideo)?.path;
+}
+
+/** Windows names identify the same on-disk file regardless of case. */
+export function sameVideoName(a: string, b: string, windows = true): boolean {
+  return windows ? a.toLowerCase() === b.toLowerCase() : a === b;
 }

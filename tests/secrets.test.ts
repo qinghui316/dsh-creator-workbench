@@ -22,10 +22,10 @@ describe("viewFromDescribe", () => {
 
   it("stays missing when no ref is configured", () => {
     expect(viewFromDescribe("cover", {
-      ZENMUX_API_KEY: { configured: false, writable: true },
+      DSH_CREATOR_IMAGE_API_KEY: { configured: false, writable: true },
     })).toEqual({
       kind: "cover",
-      ref: "ZENMUX_API_KEY",
+      ref: "DSH_CREATOR_IMAGE_API_KEY",
       configured: false,
       writable: true,
     });
@@ -43,6 +43,6 @@ describe("emptySecrets", () => {
 describe("missingSecretMessage", () => {
   it("points at the plugin settings card", () => {
     expect(missingSecretMessage("subtitle")).toContain("百炼");
-    expect(missingSecretMessage("cover")).toContain("ZenMux");
+    expect(missingSecretMessage("cover")).toContain("生图");
   });
 });

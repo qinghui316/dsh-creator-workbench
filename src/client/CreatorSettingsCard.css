@@ -209,3 +209,12 @@
   justify-content: space-between;
   gap: 8px;
 }
+
+.creatorImageSettings { display:grid; gap:12px; border:0; padding:0 0 18px; margin:0 0 16px; border-bottom:1px solid var(--dsw-alias-border-l2); min-width:0; }
+.creatorImageSettings label { display:grid; gap:6px; }
+.creatorImageSettings input { width:100%; min-width:0; box-sizing:border-box; background:var(--dsw-alias-bg-base); color:var(--dsw-alias-label-primary); padding:9px 10px; border:1px solid var(--dsw-alias-border-l2); border-radius:6px; font:inherit; }
+.creatorImageSettings p { font-size:12px; line-height:1.6; overflow-wrap:anywhere; color:var(--dsw-alias-label-secondary); }
+.creatorImageActions { display:flex; gap:8px; flex-wrap:wrap; }
+.creatorCoverPanel button,.creatorImageSettings button,.creatorVideoPanel button { font:inherit; cursor:pointer; color:var(--dsw-alias-label-primary); background:var(--dsw-alias-bg-layer-2); border:1px solid var(--dsw-alias-border-l2); border-radius:6px; padding:7px 10px; line-height:1.45; }
+.creatorCoverPanel button:disabled,.creatorImageSettings button:disabled,.creatorVideoPanel button:disabled { cursor:default; opacity:.5; }
+.creatorCoverPanel button:focus-visible,.creatorCoverPanel select:focus-visible,.creatorImageSettings input:focus-visible,.creatorImageSettings button:focus-visible,.creatorVideoPanel button:focus-visible { outline:2px solid var(--dsw-alias-brand-primary); outline-offset:2px; }

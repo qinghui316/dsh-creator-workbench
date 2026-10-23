@@ -1,3 +1,4 @@
+import { registerCoverTools } from "./covers/tools.ts";
 import type { Context } from "@deepseek-ai/cordis";
 
 import { Config } from "./config.ts";
@@ -33,6 +34,7 @@ export function apply(ctx: Context, config: Config): void {
   });
   ctx.inject(["tools", "attachments"], (visualCtx) => {
     registerVisualReviewTools(visualCtx as never, service);
+    registerCoverTools(visualCtx, service.covers);
   });
   ctx.inject(["systemPrompt"], (promptCtx) => {
     registerLibraryPrompt(promptCtx as never, service);

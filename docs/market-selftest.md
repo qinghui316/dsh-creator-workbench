@@ -1,4 +1,6 @@
-# Stage A 本地自测清单
+# 本地自测清单
+
+当前 0.2.0 的逐项结果见 [视频管理与原生封面验证](native-covers.md)。真实 AI 链路和部分最终界面检查尚未通过，不能以阶段 A 或已安装包替代。以下保留阶段 A 的原始要求与证据位置。
 
 目标：Windows x64，DSH Desktop 0.12.1 / Harness 0.2.1-rc.2。工作台 dsh-creator-workbench 0.1.0。
 本清单说明验收要求；具体包哈希、命令退出状态、安装记录和截图保存在项目 Harness 的 windows-video-import Change 中。历史证据不代替后续版本复测。

@@ -179,6 +179,7 @@ export function spawnPython(
   const env = { ...process.env };
   delete env.DASHSCOPE_API_KEY;
   delete env.ZENMUX_API_KEY;
+  delete env.DSH_CREATOR_IMAGE_API_KEY;
   if (extraEnv !== undefined) Object.assign(env, extraEnv);
   return spawn(python, [script, ...args], {
     env,

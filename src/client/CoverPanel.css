@@ -1,0 +1,19 @@
+[data-plugin="dsh-creator-workbench"] .creatorCoverPanel { container-type:inline-size; display:grid; gap:14px; min-width:0; padding:16px; border:1px solid var(--dsw-alias-outline-base,#8884); border-radius:10px; margin:16px 0; }
+.creatorCoverPanel header,.creatorCoverPanel .coverVersion { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:space-between; }
+.creatorCoverPanel h3,.creatorCoverPanel h4 { margin:0; }
+.creatorCoverPanel .coverRatioGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.creatorCoverPanel .coverRatio { display:flex; flex-direction:column; gap:10px; min-width:0; padding:12px; background:var(--dsw-alias-bg-base); border:1px solid var(--dsw-alias-outline-base,#8883); border-radius:8px; }
+.creatorCoverPanel label { display:grid; gap:6px; min-width:0; font-size:12px; }
+.creatorCoverPanel select,.creatorCoverPanel input[type="file"] { width:100%; min-width:0; max-width:100%; }
+.creatorCoverPanel p,.creatorCoverPanel span,.creatorCoverPanel summary { overflow-wrap:anywhere; }
+.creatorCoverPanel p { white-space:pre-wrap; line-height:1.6; margin:4px 0; }
+.creatorCoverPanel .coverHint { font-size:12px; color:var(--dsw-alias-label-secondary); }
+.creatorCoverPanel .coverError { color:var(--dsw-alias-state-error,#c33); }
+.creatorCoverPanel .coverPreview { padding:0; border:0; background:transparent; cursor:zoom-in; }
+.creatorCoverPanel img { display:block; width:100%; height:auto; max-height:280px; object-fit:contain; }
+.creatorCoverPanel .coverVersion { padding:8px 0; border-bottom:1px solid var(--dsw-alias-outline-base,#8883); font-size:12px; }
+.creatorCoverPanel .coverVersion p { width:100%; }
+.creatorCoverPanel .coverZoom { position:fixed; z-index:100; inset:24px; background:var(--dsw-alias-bg-base,#fff); box-shadow:0 0 0 100vmax #0009; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+.creatorCoverPanel .coverZoom img { flex:1; min-height:0; max-height:none; }
+.creatorCoverPanel .coverZoom button { align-self:flex-end; }
+@container(max-width:700px) { .creatorCoverPanel .coverRatioGrid { grid-template-columns:1fr; } }

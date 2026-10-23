@@ -124,7 +124,8 @@ describe("creatorGuideText", () => {
     expect(guide).toContain("bash ~/.agents/skills/oil-subtitle/setup.sh");
     expect(guide).toContain("git clone https://github.com/oil-oil/oil-cover ~/.agents/skills/oil-cover");
     expect(guide).toContain("bailian.console.aliyun.com");
-    expect(guide).toContain("zenmux.ai");
+    expect(guide).toContain("所选服务的地址、模型和 API Key");
+    expect(guide).not.toContain("zenmux.ai");
     expect(guide).toContain("不要让用户把 Key 明文发到对话里");
   });
 

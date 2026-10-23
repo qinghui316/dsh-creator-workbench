@@ -87,12 +87,11 @@ async function coverCapability(
   path: string,
   platform: NodeJS.Platform,
 ): Promise<CreatorCapability> {
-  try {
-    const resolved = await resolveCoverSkill(path, platform);
-    return capability("ready", false, "已发现封面工作流。", resolved.root);
-  } catch {
-    return capability("missing", false, "未发现 oil-cover；封面生成不可用。", path);
-  }
+  const rules = join(path, "references", "cover-rules.md");
+  const flow = join(path, "references", "agent-native-flow.md");
+  const ready = await Promise.all([rules, flow].map((file) => access(file, constants.R_OK).then(() => true, () => false)));
+  return ready.every(Boolean) ? capability("ready", false, "已发现 oil-cover 原生 Agent 流程和视觉规则；看图能力由当前 Harness 模型决定。", path)
+    : capability("missing", false, "未发现 oil-cover 原生流程与视觉规则；已有封面管理仍可使用。", path);
 }
 
 function credentialCapability(secret: CreatorSecrets[keyof CreatorSecrets], label: string): CreatorCapability {
@@ -181,7 +180,7 @@ function recommendationsOf(capabilities: CreatorCapabilities): string[] {
   }
   if (capabilities.subtitleCredential.state !== "ready") recommendations.push("字幕 Key：到百炼控制台（https://bailian.console.aliyun.com）申请 DASHSCOPE_API_KEY，在设置页填写。");
   if (capabilities.coverSkill.state !== "ready") recommendations.push("封面：git clone https://github.com/oil-oil/oil-cover ~/.agents/skills/oil-cover");
-  if (capabilities.coverCredential.state !== "ready") recommendations.push("封面 Key：到 ZenMux（https://zenmux.ai）控制台申请 ZENMUX_API_KEY，在设置页填写。");
+  if (capabilities.coverCredential.state !== "ready") recommendations.push("封面：在数据与设置中填写所选生图服务的地址、模型和 API Key；分析使用 Harness 当前 Agent。");
   if (capabilities.publishSync.state !== "ready") {
     recommendations.push(
       capabilities.publishSync.detail.includes("PATH")

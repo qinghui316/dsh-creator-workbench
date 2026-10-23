@@ -1,3 +1,4 @@
+import { ImageServiceSettings } from "./ImageServiceSettings.tsx";
 import { useEffect, useState } from "react";
 import { IconChevronDownOutlineRegular } from "@deepseek-ai/dsh-client-ui-primitives";
 
@@ -15,7 +16,7 @@ import { StatusPill, type StatusTone } from "./ui/StatusPill.tsx";
 import "./CreatorSettingsCard.css";
 
 export type CreatorSettingsCardProps =
-  Pick<CreatorViewFace, "ready" | "getSettings" | "getCapabilities" | "setLibraryRoot" | "setProfile" | "setScriptRules" | "pickDirectory">
+  Pick<CreatorViewFace, "ready" | "getSettings" | "getCapabilities" | "getImageSettings" | "setImageSettings" | "checkImageService" | "setLibraryRoot" | "setProfile" | "setScriptRules" | "pickDirectory">
   & { credentials: CredentialsClient | undefined; t: (key: CreatorKey) => string };
 
 const EMPTY_SECRETS: CreatorSecrets = {
@@ -62,7 +63,7 @@ export function CreatorSettingsCard({
   setScriptRules,
   pickDirectory,
   getCapabilities,
-  credentials,
+  credentials, getImageSettings, setImageSettings, checkImageService,
 }: CreatorSettingsCardProps) {
   const profileEpoch = useProfileEpoch();
   const [open, setOpen] = useState(false);
@@ -187,6 +188,10 @@ export function CreatorSettingsCard({
             setKeyFailed(true);
             return;
           }
+          if (item.kind === "cover") {
+            const configured = await getImageSettings();
+            if (configured.apiBase && configured.model) await setImageSettings(configured);
+          }
         }
         setSecrets((current) => current.map((item) => (
           item.nextValue.trim() === ""
@@ -232,6 +237,7 @@ export function CreatorSettingsCard({
       </button>
       {open && (
         <div className="body">
+          <ImageServiceSettings face={{ getImageSettings, setImageSettings, checkImageService }} />
           {capabilities !== undefined && (
             <div className="field">
               <span className="fieldLabel">{t("settings.capabilities" as CreatorKey)}</span>

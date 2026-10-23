@@ -77,13 +77,14 @@ export interface ContentSubtitles {
   transcript?: string;
 }
 
-export type VideoSelectionState = "empty" | "choose" | "selected" | "missing";
-export interface VideoCandidate { name: string; path: string; size: number; modifiedAt: number }
+export type VideoSelectionState = "empty" | "choose" | "selected" | "missing" | "cleared";
+export interface VideoCandidate { name: string; path: string; size: number; modifiedAt: number; missing?: boolean }
 export interface VideoImportRequest { id: string; folderPath: string; sourcePath: string; name?: string }
 export interface VideoImportState { token: string; id: string; name: string; status: "running" | "completed" | "failed" | "cancelled"; jobId?: string; error?: string }
 
 export interface ContentSummary {
   videos?: VideoCandidate[];
+  hiddenVideos?: VideoCandidate[];
   selectedVideo?: string;
   videoSelection?: VideoSelectionState;
   id: string;
@@ -266,7 +267,8 @@ export interface SyncPublishResult {
 
 export interface OverlayStore {
   schemaVersion: 1;
-  videoSelections?: Record<string, Record<string, string>>;
+  videoSelections?: Record<string, Record<string, string | null>>;
+  hiddenVideos?: Record<string, Record<string, string[]>>;
   libraryRoot?: string;
   profile?: CreatorProfile;
   scriptRules?: string;

@@ -1,3 +1,4 @@
+import { coverScopeSchema, coverActionSchema, coverStateSchema, imageSettingsSchema } from "./covers/schemas.ts";
 import type { InvocationDescriptor } from "@deepseek-ai/dsh-typert-protocol";
 import { z } from "zod";
 
@@ -70,6 +71,13 @@ function invocation(
 }
 
 export const CREATOR_WORKBENCH_INVOCATIONS: readonly InvocationDescriptor[] = [
+  invocation("setVideoVisibility", z.object({ id: z.string().min(1), folderPath: z.string().min(1), name: z.string().min(1), hidden: z.boolean() }), contentDetailSchema),
+  invocation("getCoverState", coverScopeSchema, coverStateSchema),
+  invocation("coverAction", coverActionSchema, coverStateSchema),
+  invocation("getCoverImage", coverScopeSchema.extend({ versionId: z.string() }), z.object({ mime: z.string(), base64: z.string() })),
+  invocation("getImageSettings", emptyObjectSchema, imageSettingsSchema),
+  invocation("setImageSettings", z.object({ apiBase: z.string(), model: z.string() }), imageSettingsSchema),
+  invocation("checkImageService", emptyObjectSchema, imageSettingsSchema),
   invocation("selectVideo", selectVideoRequestSchema, contentDetailSchema),
   invocation("startVideoImport", videoImportRequestSchema, videoImportStateSchema),
   invocation("getVideoImport", videoImportTokenSchema, videoImportStateSchema),

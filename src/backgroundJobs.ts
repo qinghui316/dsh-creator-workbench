@@ -166,32 +166,4 @@ export function registerCreatorJobTools(ctx: JobToolsContext, service: CreatorWo
     },
   }));
 
-  ctx.tools.register(defineTool({
-    name: "creator_generate_cover",
-    description:
-      "Generate 3x4 / 4x3 / 16x9 covers as a Harness background job. "
-      + "Extract and pass the cover headline first; use job_output with wait=true or job_kill for control.",
-    parameters: {
-      id: { type: "string", required: true, description: "Folder id." },
-      title: { type: "string", description: "Cover headline extracted from the episode." },
-    },
-    output: backgroundOutput(),
-    presentCall: (args) => present("Generate cover", args),
-    execute: async (args, exec) => {
-      if (args.id.trim() === "") throw new Error("id is required");
-      exec.signal.throwIfAborted();
-      await assertMediaIdle(service, args.id, ["coverJob"], exec.signal);
-      const request = {
-        id: args.id,
-        ...(typeof args.title === "string" && args.title.trim() !== "" ? { title: args.title } : {}),
-      };
-      const jobId = startExclusiveJob(ctx.jobs, active, `${args.id}:coverJob`, {
-        kind: "creator-media",
-        label: `Generate cover: ${args.id}`,
-        ...(exec.agent === undefined ? {} : { owner: exec.agent.session.id }),
-      }, () => mediaHooks(service, args.id, "coverJob", (signal) =>
-        service.startCoverGenerate(request, signal)));
-      return { kind: "background" as const, jobId };
-    },
-  }));
 }

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, stat } from "node:fs/promises";
@@ -25,16 +26,10 @@ export async function coverThumb(
   const dest = join(dir, thumbName(id, sourcePath));
   const cached = await stat(dest).catch(() => undefined);
   if (cached === undefined || cached.mtimeMs < source.mtimeMs) {
-    const result = spawnSync("sips", [
-      "-s",
-      "format",
-      "jpeg",
-      "-Z",
-      "360",
-      sourcePath,
-      "--out",
-      dest,
-    ], { encoding: "utf8" });
+    const executable = process.platform === "darwin" ? "sips" : existsSync("C:/ffmpeg/bin/ffmpeg.exe") ? "C:/ffmpeg/bin/ffmpeg.exe" : "ffmpeg";
+    const args = process.platform === "darwin" ? ["-s", "format", "jpeg", "-Z", "360", sourcePath, "--out", dest]
+      : ["-v", "error", "-y", "-i", sourcePath, "-frames:v", "1", "-vf", "scale=360:-2", dest];
+    const result = spawnSync(executable, args, { encoding: "utf8", windowsHide: true });
     if (result.status !== 0) return empty;
   }
 

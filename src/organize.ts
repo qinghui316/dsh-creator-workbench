@@ -110,14 +110,18 @@ export function proposeOrganizeMoves(
   return { moves, unchanged };
 }
 
-export function remapOverlayItems(overlay: OverlayStore, moves: readonly OrganizeMove[]): OverlayStore {
+export function remapOverlayItems(overlay: OverlayStore, moves: readonly OrganizeMove[], libraryRoot?: string): OverlayStore {
   if (moves.length === 0) return overlay;
   const map = new Map(moves.map((move) => [move.from, move.to]));
   const items: OverlayStore["items"] = {};
   for (const [id, item] of Object.entries(overlay.items)) {
     items[map.get(id) ?? id] = item;
   }
-  return { ...overlay, items };
+  const remapScoped = <T>(roots: Record<string, Record<string, T>>) => {
+    if (!libraryRoot || !roots[libraryRoot]) return roots;
+    return { ...roots, [libraryRoot]: Object.fromEntries(Object.entries(roots[libraryRoot]).map(([id, value]) => [map.get(id) ?? id, value])) };
+  };
+  return { ...overlay, items, ...(overlay.videoSelections ? { videoSelections: remapScoped(overlay.videoSelections) } : {}), ...(overlay.hiddenVideos ? { hiddenVideos: remapScoped(overlay.hiddenVideos) } : {}) };
 }
 
 export async function previewOrganize(
@@ -161,5 +165,5 @@ export async function applyOrganize(
     await rmdir(staging).catch(() => undefined);
   }
 
-  return { preview, overlay: remapOverlayItems(overlay, preview.moves) };
+  return { preview, overlay: remapOverlayItems(overlay, preview.moves, libraryRoot) };
 }

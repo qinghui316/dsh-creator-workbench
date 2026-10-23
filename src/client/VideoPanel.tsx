@@ -7,11 +7,12 @@ import { ActionBar, ActionButton } from "./ui/ActionButton.tsx";
 import "./VideoPanel.css";
 
 const importsByFolder = new Map<string, VideoImportState>();
-type Props = Pick<CreatorViewFace, "startVideoImport" | "getVideoImport" | "cancelVideoImport" | "selectVideo" | "getVideoPlayback"> & {
+type Props = Pick<CreatorViewFace, "startVideoImport" | "getVideoImport" | "cancelVideoImport" | "selectVideo" | "getVideoPlayback" | "setVideoVisibility"> & {
   detail: ContentDetail; t: (key: CreatorKey) => string;
 };
 
 export function VideoPanel({ detail, t, ...face }: Props) {
+  const [removed, setRemoved] = useState<string>();
   const [source, setSource] = useState<string>();
   const [name, setName] = useState("");
   const [task, setTask] = useState<VideoImportState | undefined>(() => importsByFolder.get(detail.folderPath));
@@ -51,6 +52,12 @@ export function VideoPanel({ detail, t, ...face }: Props) {
     return () => { active = false; clearTimeout(timer); };
   }, [task?.token, task?.status, detail.folderPath]);
 
+  const visibility = async (file: string, hidden: boolean) => {
+    setBusy(true); setError(undefined);
+    if (hidden && file === detail.selectedVideo) setUrl(undefined);
+    try { await face.setVideoVisibility(detail.id, file, detail.folderPath, hidden); if (alive.current) setRemoved(hidden ? file : undefined); }
+    catch (cause) { report(cause); } finally { if (alive.current) setBusy(false); }
+  };
   const running = task?.status === "running";
   return <section className="creatorVideoPanel" aria-label={t("video.title")}>
     <div className="videoImportBox">
@@ -94,6 +101,11 @@ export function VideoPanel({ detail, t, ...face }: Props) {
         {detail.videos?.map((video) => <option key={video.name} value={video.name}>{video.name} · {(video.size / 1048576).toFixed(1)} MB</option>)}
       </select>
     </label>
+    <div className="videoCandidates">
+      {(detail.videos ?? []).map((v) => <div className="videoCandidate" key={v.name}><span>{v.name}</span><button disabled={busy || running} onClick={() => { void visibility(v.name, true); }}>从列表移除</button></div>)}
+      {removed && <p role="status">已从列表移除，磁盘文件保留。 <button disabled={busy} onClick={() => { void visibility(removed, false); }}>撤销</button></p>}
+      {!!detail.hiddenVideos?.length && <details><summary>已移除视频（{detail.hiddenVideos.length}）</summary>{detail.hiddenVideos.map((v) => <div className="videoCandidate" key={v.name}><span>{v.name}{v.missing ? " · 文件已找不到" : ""}</span><button disabled={busy || running || v.missing} onClick={() => { void visibility(v.name, false); }}>恢复显示</button></div>)}</details>}
+    </div>
     {detail.videoSelection !== "selected" && <p className="videoHint">{t(`video.${detail.videoSelection ?? "empty"}`)}</p>}
     {error !== undefined && <p role="alert" className="videoError">{error}</p>}
     {url !== undefined && <video key={url} controls={true} playsInline={true} preload="metadata" src={url}

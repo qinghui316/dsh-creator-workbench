@@ -1,3 +1,4 @@
+import { CoverPanel } from "./CoverPanel.tsx";
 import { VideoPanel } from "./VideoPanel.tsx";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
@@ -155,11 +156,13 @@ export function ContentInspector({
   ready,
   getContent,
   getCoverThumb,
+  getCoverState, coverAction, getCoverImage, prepareCoverDraft,
   getVideoPlayback,
   startVideoImport,
   getVideoImport,
   cancelVideoImport,
   selectVideo,
+  setVideoVisibility,
   getArticleMedia,
   getSubtitleText,
   getSettings,
@@ -375,27 +378,6 @@ export function ContentInspector({
   const currentStep: PipelineStepId = publishStepDone
     ? "publish"
     : (PIPELINE_STEPS[stageIndex]?.id ?? "topic");
-
-  const onGenerateCover = (): void => {
-    if (detail === undefined) return;
-    if (detail.videoRaw === undefined && detail.videoSubtitled === undefined) {
-      setActionError(t("inspector.cover.needVideo" as CreatorKey));
-      return;
-    }
-    if (!detail.secrets.cover.configured) {
-      setActionError(t("inspector.cover.needKey" as CreatorKey));
-      return;
-    }
-    setActionError(undefined);
-    setBusy("cover");
-    void startCoverGenerate(detail.id).then((next) => {
-      setDetail(next);
-      setBusy(undefined);
-    }, (cause: unknown) => {
-      setActionError(cause instanceof Error ? cause.message : t("empty.error" as CreatorKey));
-      setBusy(undefined);
-    });
-  };
 
   const onGenerateSubtitle = (): void => {
     if (detail === undefined) return;
@@ -643,7 +625,8 @@ export function ContentInspector({
                 );
               })}
             </div>
-            <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} />
+            <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} setVideoVisibility={setVideoVisibility} />
+            <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} />
             {hasVideo && (
               <Surface title={t("inspector.make" as CreatorKey)}>
                 <div className="workList">
@@ -651,19 +634,7 @@ export function ContentInspector({
                     name={t("inspector.track.subtitle" as CreatorKey)}
                     {...subtitleStatus()}
                   />
-                  <WorkRow
-                    name={t("inspector.track.cover" as CreatorKey)}
-                    {...coverStatus()}
-                    actions={(
-                      <ActionButton
-                        tone={hasAnyCover ? "secondary" : "primary"}
-                        onClick={onGenerateCover}
-                        disabled={busy !== undefined || detail.coverJob.status === "running"}
-                      >
-                        {t((hasAnyCover ? "inspector.cover.regenerate" : "inspector.cover.generate") as CreatorKey)}
-                      </ActionButton>
-                    )}
-                  />
+
                 </div>
               </Surface>
             )}
@@ -772,7 +743,10 @@ export function ContentInspector({
           </>
         )}
         {detail !== undefined && tab === "video" && (
-          <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} />
+          <>
+          <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} setVideoVisibility={setVideoVisibility} />
+            <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} />
+          </>
         )}
         {detail !== undefined && tab === "script" && (
           <textarea

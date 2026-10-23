@@ -1,3 +1,4 @@
+import type { CoverScope, CoverAction, CoverState, ImageSettings } from "../covers/types.ts";
 import type { Context as ClientContext } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-client-ui-workspace/client";
 import type {} from "@deepseek-ai/dsh-client-locale/client";
@@ -35,7 +36,7 @@ import { credentialsOf } from "./credentialsApi.ts";
 import type { CreatorViewFace } from "./face.ts";
 import { en, NS, type CreatorKey, zh } from "./locales.ts";
 import { CreatorWorkbench } from "./CreatorWorkbench.tsx";
-import { captureWorkbenchNavigation, desktopWorkbenchesOf, pickCreatorDirectory } from "./workbench.ts";
+import { captureWorkbenchNavigation, desktopWorkbenchesOf, pickCreatorDirectory, prepareCoverDraft } from "./workbench.ts";
 declare module "@deepseek-ai/dsh-client-ui-slots" {
   interface LocaleNamespaceMap {
     "dsh.creator.workbench": CreatorKey;
@@ -49,9 +50,16 @@ interface RemoteAnswer<T> {
 }
 
 interface CreatorWorkbenchRemote {
+  getCoverState: (request: CoverScope) => Promise<RemoteAnswer<CoverState>>;
+  coverAction: (request: CoverAction) => Promise<RemoteAnswer<CoverState>>;
+  getCoverImage: (request: CoverScope & { versionId: string }) => Promise<RemoteAnswer<{ mime: string; base64: string }>>;
+  getImageSettings: (request: Record<string, never>) => Promise<RemoteAnswer<ImageSettings>>;
+  setImageSettings: (request: { apiBase: string; model: string }) => Promise<RemoteAnswer<ImageSettings>>;
+  checkImageService: (request: Record<string, never>) => Promise<RemoteAnswer<ImageSettings>>;
   startVideoImport: (request: { id: string; folderPath: string; sourcePath: string; name?: string }) => Promise<RemoteAnswer<VideoImportState>>;
   getVideoImport: (request: { token: string }) => Promise<RemoteAnswer<VideoImportState>>;
   cancelVideoImport: (request: { token: string }) => Promise<RemoteAnswer<VideoImportState>>;
+  setVideoVisibility: (request: { id: string; folderPath: string; name: string; hidden: boolean }) => Promise<RemoteAnswer<ContentDetail>>;
   selectVideo: (request: { id: string; folderPath: string; name: string }) => Promise<RemoteAnswer<ContentDetail>>;
 
   listContents: (request: { query: string; filter: ContentFilter }) => Promise<RemoteAnswer<ListContentsResult>>;
@@ -90,7 +98,7 @@ function unwrap<T>(answer: RemoteAnswer<T>, fallback: string): T {
   return answer.value;
 }
 
-export const inject = ["locale", "remote", "uiWorkspace", "desktopWorkbenches"];
+export const inject = ["locale", "remote", "uiWorkspace", "desktopWorkbenches", "sessions", "conversation"];
 
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-creator-workbench: dictionaries");
@@ -104,6 +112,13 @@ export function apply(ctx: ClientContext): void {
     ctx.get("remote.creatorWorkbench") as CreatorWorkbenchRemote | undefined;
 
   const face = (): CreatorViewFace => ({
+    getCoverState: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.getCoverState(request), "封面读取失败"); },
+    coverAction: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); const state = unwrap(await r.coverAction(request), "封面操作失败"); bumpLibrary(); return state; },
+    getCoverImage: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.getCoverImage(request), "图片读取失败"); },
+    getImageSettings: async () => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.getImageSettings({}), "生图设置读取失败"); },
+    setImageSettings: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.setImageSettings(request), "生图设置保存失败"); },
+    checkImageService: async () => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.checkImageService({}), "连接检查失败"); },
+    prepareCoverDraft: async (detail, runId, append) => { await prepareCoverDraft(ctx, detail, runId, () => pickCreatorDirectory(ctx), append); },
     ready: () => remoteOf() !== undefined,
     captureNavigation: () => captureWorkbenchNavigation(desktopWorkbenchesOf(ctx)),
     listContents: async (query, filter) => {
@@ -222,6 +237,10 @@ export function apply(ctx: ClientContext): void {
       const remote = remoteOf();
       if (remote === undefined) throw new Error("remote unavailable");
       return unwrap(await remote.cancelVideoImport({ token }), "取消失败");
+    },
+    setVideoVisibility: async (id, name, folderPath, hidden) => {
+      const remote = remoteOf(); if (!remote) throw new Error("remote unavailable");
+      const next = unwrap(await remote.setVideoVisibility({ id, name, folderPath, hidden }), "移除或恢复失败"); bumpLibrary(); return next;
     },
     selectVideo: async (id, name, folderPath) => {
       const remote = remoteOf();

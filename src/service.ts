@@ -1,3 +1,8 @@
+import { CoverWorkflow } from "./covers/workflow.ts";
+import type { CoverAction, CoverScope, CoverState, ImageSettings } from "./covers/types.ts";
+import { readImageSettings, saveImageSettings, checkImageConnection, saveImageCheck, safeImageError } from "./covers/provider.ts";
+import { atomicJson } from "./covers/files.ts";
+import { resolveVideoSelection, sameVideoName } from "./videoSelection.ts";
 import type { JobRegistry } from "@deepseek-ai/dsh-jobs";
 import { VideoImports } from "./videoImport.ts";
 import { contentFolder, videoFile } from "./videoFiles.ts";
@@ -141,6 +146,7 @@ export class CreatorWorkbenchService extends TypertRemoteService {
   watchClose: (() => void) | undefined;
   watchedRoot: string | undefined;
   imports = new VideoImports();
+  covers: CoverWorkflow;
   importJobs: JobRegistry | undefined;
   previews = new Map<string, { url: string; port: number; pid: number }>();
   videos = new Map<string, { url: string; path: string; close: () => void }>();
@@ -152,10 +158,20 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     this.dataDir = resolveUserPath(resolveDataDir(config));
     this.subtitleSkillDirConfig = config.subtitleSkillDir;
     this.coverSkillDirConfig = config.coverSkillDir;
+    this.covers = new CoverWorkflow({ dataDir: this.dataDir,
+      resolve: async (scope) => {
+        const detail = await this.getContent({ id: scope.id }, new AbortController().signal);
+        if (detail.folderPath !== scope.folderPath) throw new Error("资料位置已切换，请重新打开内容。");
+        const { libraryRoot } = await this.scanned();
+        return { folder: await contentFolder(libraryRoot, detail.folderPath), ...(detail.selectedVideo ? { selectedVideo: detail.selectedVideo } : {}), title: detail.title, script: detail.script, transcript: detail.subtitles.srt ? (await readSubtitleText(detail)).slice(0, 30000) : "" };
+      }, key: () => resolveCreatorSecret(this.ctx, "cover"), jobs: () => this.importJobs,
+      changed: () => this.invalidateCatalog(), skill: () => this.coverSkillDir(),
+    });
     void loadOverlay(this.dataDir).then((overlay) => { this.rememberOverlay(overlay); });
     ctx.effect(() => async () => {
       this.stopWatch();
       this.imports.dispose();
+      this.covers.dispose();
       await this.stopServers();
     }, "creator-workbench: library watch");
   }
@@ -513,10 +529,11 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     if (!request.apply) {
       return previewOrganize(libraryRoot, overlay, request.ids);
     }
+    if ([...this.covers.active.keys()].some((folder) => dirname(folder) === libraryRoot)) throw new Error("资料库中有封面任务正在运行，请等待或取消后再整理目录。");
     const result = await applyOrganize(libraryRoot, overlay, request.ids);
     await withOverlayLock(this.dataDir, async () => {
       const latest = await loadOverlay(this.dataDir);
-      await saveOverlay(this.dataDir, remapOverlayItems(latest, result.preview.moves));
+      await saveOverlay(this.dataDir, remapOverlayItems(latest, result.preview.moves, libraryRoot));
     });
     this.invalidateCatalog();
     return result.preview;
@@ -773,24 +790,19 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     }, signal);
   }
 
-  async startCoverGenerate(request: IdRequest & { title?: string }, signal: AbortSignal): Promise<ContentDetail> {
-    signal.throwIfAborted();
-    const item = await this.find(request.id);
-    if (item === undefined) throw new Error(`content not found: ${request.id}`);
-    if (item.coverJob.status === "running" && jobPidMatches(item.coverJob.pid, ["generate_oil_cover.py"])) {
-      return this.getContent({ id: request.id }, signal);
-    }
-    const key = await resolveCreatorSecret(this.ctx, "cover");
-    if (key === undefined) throw new Error(missingSecretMessage("cover"));
-    const skill = await this.coverSkill();
-    const launch = await pickCoverLaunch(item, request.title);
-    return this.startTrackedJob(request.id, "coverJob", {
-      python: skill.python,
-      script: skill.script,
-      args: launch.args,
-      output: launch.output,
-      env: secretEnv("cover", key),
-    }, signal);
+  async startCoverGenerate(_request: IdRequest & { title?: string }, _signal: AbortSignal): Promise<ContentDetail> {
+    throw new Error("请使用‘让 Agent 制作封面’；由 Harness 当前 Agent 分析后调用新的封面工具。");
+  }
+
+  async getCoverState(request: CoverScope, signal: AbortSignal): Promise<CoverState> { signal.throwIfAborted(); return this.covers.state(request); }
+  async coverAction(request: CoverAction, signal: AbortSignal): Promise<CoverState> { return this.covers.action(request, signal); }
+  async getCoverImage(request: CoverScope & { versionId: string }, signal: AbortSignal): Promise<{ mime: string; base64: string }> { signal.throwIfAborted(); return this.covers.image(request, request.versionId); }
+  async getImageSettings(_request: Record<string, never>, signal: AbortSignal): Promise<ImageSettings> { signal.throwIfAborted(); return readImageSettings(this.dataDir); }
+  async setImageSettings(request: { apiBase: string; model: string }, signal: AbortSignal): Promise<ImageSettings> { signal.throwIfAborted(); return saveImageSettings(this.dataDir, request); }
+  async checkImageService(_request: Record<string, never>, signal: AbortSignal): Promise<ImageSettings> {
+    const key = await resolveCreatorSecret(this.ctx, "cover"); if (!key) throw new Error("请先保存生图 API Key。");
+    try { const result = await checkImageConnection(await readImageSettings(this.dataDir), key, signal); return saveImageCheck(this.dataDir, result); }
+    catch (error) { throw new Error(safeImageError(error, key)); }
   }
 
   async startChainedJob(
@@ -940,12 +952,15 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     return items.find((item) => item.id === id);
   }
 
-  async saveVideoSelection(libraryRoot: string, id: string, name: string): Promise<void> {
+  async saveVideoSelection(libraryRoot: string, id: string, name: string, allowRestore = true): Promise<void> {
     await withOverlayLock(this.dataDir, async () => {
       const overlay = await loadOverlay(this.dataDir);
+      if (!allowRestore && ((overlay.libraryRoot ?? this.libraryRoot) !== libraryRoot || overlay.hiddenVideos?.[libraryRoot]?.[id]?.some((n) => sameVideoName(n, name, process.platform === "win32")))) throw new Error("资料库或视频可见性已变化，请刷新后重选。");
       overlay.videoSelections ??= {};
       overlay.videoSelections[libraryRoot] ??= {};
       overlay.videoSelections[libraryRoot]![id] = name;
+      const hidden = overlay.hiddenVideos?.[libraryRoot]?.[id];
+      if (hidden) overlay.hiddenVideos![libraryRoot]![id] = hidden.filter((n) => !sameVideoName(n, name, process.platform === "win32"));
       await saveOverlay(this.dataDir, overlay);
       this.invalidateCatalog();
     });
@@ -958,9 +973,35 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     if (item === undefined) throw new Error("内容已找不到，请刷新片库。");
     if (item.folderPath !== request.folderPath) throw new Error("资料库已切换，请重新打开对应内容。");
     const folder = await contentFolder(libraryRoot, item.folderPath);
+    if (!item.videos?.some((v) => sameVideoName(v.name, request.name, process.platform === "win32"))) throw new Error("请先恢复这个视频，再选择使用。");
     await videoFile(folder, request.name);
     signal.throwIfAborted();
-    await this.saveVideoSelection(libraryRoot, request.id, request.name);
+    await this.saveVideoSelection(libraryRoot, request.id, request.name, false);
+    return this.getContent({ id: request.id }, signal);
+  }
+
+  async setVideoVisibility(request: { id: string; name: string; folderPath: string; hidden: boolean }, signal: AbortSignal): Promise<ContentDetail> {
+    signal.throwIfAborted();
+    const { libraryRoot, items } = await this.scanned();
+    const item = items.find((v) => v.id === request.id);
+    if (!item || item.folderPath !== request.folderPath) throw new Error("资料库或内容已切换，请重新打开。");
+    const folder = await contentFolder(libraryRoot, item.folderPath);
+    if (!request.hidden) await videoFile(folder, request.name);
+    else if (!item.videos?.some((v) => sameVideoName(v.name, request.name, process.platform === "win32"))) throw new Error("视频已不在当前列表，请刷新。");
+    await withOverlayLock(this.dataDir, async () => {
+      signal.throwIfAborted();
+      const overlay = await loadOverlay(this.dataDir);
+      overlay.hiddenVideos ??= {}; overlay.hiddenVideos[libraryRoot] ??= {};
+      if ((overlay.libraryRoot ?? this.libraryRoot) !== libraryRoot) throw new Error("资料库已切换，请重新打开。");
+      const names = overlay.hiddenVideos[libraryRoot]![request.id] ?? [];
+      const candidates = [...(item.videos ?? []), ...(item.hiddenVideos ?? []).filter((v) => !v.missing)].filter((v) => !names.some((n) => sameVideoName(n, v.name, process.platform === "win32")));
+      const selected = resolveVideoSelection(candidates, overlay.videoSelections?.[libraryRoot]?.[request.id]).selectedVideo;
+      overlay.hiddenVideos[libraryRoot]![request.id] = [...names.filter((n) => !sameVideoName(n, request.name, process.platform === "win32")), ...(request.hidden ? [request.name] : [])];
+      if (request.hidden && selected && sameVideoName(selected, request.name, process.platform === "win32")) {
+        overlay.videoSelections ??= {}; overlay.videoSelections[libraryRoot] ??= {}; overlay.videoSelections[libraryRoot]![request.id] = null;
+      }
+      await saveOverlay(this.dataDir, overlay); this.invalidateCatalog();
+    });
     return this.getContent({ id: request.id }, signal);
   }
 
@@ -970,9 +1011,20 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     const item = items.find((entry) => entry.id === request.id);
     if (item === undefined) throw new Error("内容已找不到，请刷新片库。");
     if (item.folderPath !== request.folderPath) throw new Error("资料库已切换，请重新打开对应内容。");
-    if (this.importJobs === undefined) throw new Error("后台任务服务尚未就绪，请等待工作台加载完成后重试。");
     await contentFolder(libraryRoot, item.folderPath);
+    const source = await realpath(request.sourcePath).catch(() => "");
+    let existing: NonNullable<typeof item.hiddenVideos>[number] | undefined;
+    for (const candidate of item.hiddenVideos ?? []) {
+      const actual = await realpath(candidate.path).catch(() => "");
+      if (!candidate.missing && actual && source && sameVideoName(actual, source, process.platform === "win32")) { existing = candidate; break; }
+    }
+    if (existing && (!request.name || sameVideoName(existing.name, request.name, process.platform === "win32"))) {
+      await this.setVideoVisibility({ id: request.id, name: existing.name, folderPath: item.folderPath, hidden: false }, signal);
+      await this.saveVideoSelection(libraryRoot, request.id, existing.name);
+      return { token: `restored-${Date.now()}`, id: request.id, name: existing.name, status: "completed" };
+    }
     signal.throwIfAborted();
+    if (this.importJobs === undefined) throw new Error("后台任务服务尚未就绪，请等待工作台加载完成后重试。");
     return this.imports.start(this.importJobs, { ...request, folder: item.folderPath, libraryRoot }, async (name) => {
       await this.saveVideoSelection(libraryRoot, request.id, name);
     });
@@ -1037,7 +1089,7 @@ function envForGenerateStep(
   const key = kind === "subtitle"
     ? "DASHSCOPE_API_KEY"
     : kind === "cover"
-      ? "ZENMUX_API_KEY"
+      ? "DSH_CREATOR_IMAGE_API_KEY"
       : undefined;
   if (key === undefined || env === undefined || env[key] === undefined) return undefined;
   return { [key]: env[key] };

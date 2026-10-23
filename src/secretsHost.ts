@@ -1,3 +1,4 @@
+import { IMAGE_CREDENTIAL } from "./covers/types.ts";
 import { emptySecretView, refsFor, viewFromDescribe } from "./secrets.ts";
 import type { CreatorSecrets, SecretKind } from "./types.ts";
 
@@ -61,5 +62,5 @@ export async function resolveCreatorSecret(
 }
 
 export function secretEnv(kind: SecretKind, value: string): Record<string, string> {
-  return { [kind === "subtitle" ? "DASHSCOPE_API_KEY" : "ZENMUX_API_KEY"]: value };
+  return { [kind === "subtitle" ? "DASHSCOPE_API_KEY" : IMAGE_CREDENTIAL]: value };
 }
