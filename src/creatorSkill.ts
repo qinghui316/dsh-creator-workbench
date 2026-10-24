@@ -28,7 +28,7 @@ export const CREATOR_WORKBENCH_SKILL = {
 ## 配置
 
 - 内容目录和 \`enabledPlatforms\` 通过 \`creator_setup\` 配置；这里不配置创作者名称或平台主页。
-- 脚本规则（人设）通过 \`creator_script_rules\` 配置：写或改 script.md 前先读；用户第一次让你写脚本而没有规则时，主动问清语气、结构、禁忌和目标观众再存下；之后把新的长期偏好合并进现有规则，不要整体覆盖。
+- 脚本规则（人设）通过 \`creator_script_rules\` 配置：写或改 script.md 前先读；用户第一次让你写脚本而没有规则时，根据本次要求写作，缺少必要信息时只问一个问题；用户明确长期偏好后再保存；之后把新的长期偏好合并进现有规则，不要整体覆盖。
 - 候选内容目录不存在时，让用户在内容工作台的系统目录选择器中明确新建或选择目录；用户确认后再重新调用 \`creator_setup\` 预览。不要在默认位置或推测路径创建目录。
 - 第一次带配置字段调用时保持 \`apply=false\`，把精确变更展示给用户。
 - 只有用户确认后，才使用同一组字段和 \`apply=true\`。
@@ -45,8 +45,19 @@ export const CREATOR_WORKBENCH_SKILL = {
 ## 整理与发布安全
 
 - 调用 \`creator_organize_library\` 时先预览，向用户列出改名前后；确认后才传 \`apply=true\`。它不删除文件。
-- 发布默认准备草稿。上传、账号登录和最终发表属于外部发布能力；最终发表必须由用户明确确认。
+- 发布默认准备草稿。上传和账号登录复用外部能力；最后点击发表始终由用户手动完成。
 - 自动发布（\`video-publisher\` skill）和已发布数据回收（\`creator_sync_publish\`）只处理 \`enabledPlatforms\` 中的平台，都依赖 Ego Browser 和已登录的创作者后台；\`enabledPlatforms\` 为空时不执行发布或同步，先配置并确认启用平台。能力检查显示缺失时明确告诉用户这两项不可用，其余功能照常。
+
+## 统一创作与平台发布
+
+- 一个项目一个目录，不设置项目模式。脚本、文章、视频、配图和平台材料可独立制作、互相复用。已有上下文足够时连续执行用户的要求。
+- 先用 creator_production_state 读取项目状态。独立文章调用 creator_production_action 的 prepare-article，source.kind 选 topic/materials/article 并提供已知 text/files/articleId；视频转文章选 video。随后 creator_prepare_article 读取输入和 WeWrite，再 creator_save_article 保存源稿与 HTML。
+- 配图可调用 generate-images，items 每项含 prompt、ratio（3x4/4x3/16x9/1x1）、purpose（cover/illustration/card）、可选 references（已登记图片 ID）。等待实际 job，使用 creator_read_images 检查产物；retry-images 只重试指定未完成项。
+- 正常文件工具写出的本项目 Markdown/HTML 使用 register-article 登记，已有图片使用 import-image 登记。文章内配图须是本项目真实截图或已登记图片，并使用相对路径；save-article 传对应 imageIds。
+- 各平台发布材料独立：save-publication 的 input 包含 platform、type（video/images/article）、title、body、tags、imageIds，以及需要的 video/articleId/articleFile/coverImageId/coverFiles/category/source。更新需要原 publicationId 与 expectedRevision，冲突保留用户编辑。
+- 图文支持小红书、抖音、B站；公众号用 article，视频号只用 video。小红书、抖音用有序图片组和独立正文，B站通过图文编辑器处理正文与图片；HTML 是文章阅读和公众号排版成品。
+- upload-publication 需要已保存材料版本及用户明确发布授权。上传任务固定账号、类型和材料；中断先 inspect-upload/resume-upload，不能为绕开阻塞而新建。最终点击发表始终由用户操作。
+- 自然语言操作直接执行；右侧按钮才需要把请求放入项目原生会话。项目目录与会话只用于定位，不限制其他会话处理明确项目；不要反复创建工作区。
 
 ## 当前视频
 
@@ -55,7 +66,7 @@ export const CREATOR_WORKBENCH_SKILL = {
 
 ## 推进工作
 
-每次只推进当前缺失的下一步：创建或选择内容 → 导入视频并选择当前视频 → 封面与发布材料 → 发布草稿 → 用户最终发表 → 同步数据。独立字幕可选。
+根据用户要求制作脚本、文章、视频或图片，再为所需平台准备独立发布材料、上传草稿及同步作品数据。脚本与文章可独立完成；视频转文章才需要真实转写与画面。
 
 - \`creator_import_video\`、\`creator_generate_subtitles\` 返回 Harness job id。用 \`job_output\` 的 \`wait=true\` 等待并查看完成结果，用 \`job_kill\` 取消，不轮询文件夹冒充任务控制器。字幕使用火山录音文件识别或导入已有 SRT/ASS；不运行 Mac 专属安装、MLX 或烧录入口。
 - 上传、公众号和数据使用 \`creator_production_state\` / \`creator_production_action\` 的工作台入口，复用锁定版本外部 Skill。账号、精确视频、封面和任务在启动时绑定，不直接运行绕过账号检查的脚本。用户接管浏览器后停止；中断优先检查并恢复原任务；上传完成、草稿就绪和已发表分别记录。

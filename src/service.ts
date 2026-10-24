@@ -4,6 +4,8 @@ import { projectProduction } from "./production/projection.ts";
 import { removedContentIds, setContentHidden } from "./contentVisibility.ts";
 import { restoreProjectSessionMembership } from "./projectSessionsHost.ts";
 import type { ContentScope, ProductionAction, ProductionSettingsAction, ProductionSettingsView, ProductionState } from "./production/types.ts";
+import { creationImage } from "./production/creations.ts";
+import { inside as creationFile } from "./production/storage.ts";
 import { resolveWorkbenchCredential, workbenchCredentialConfigured, saveWorkbenchCredential } from "./secretsHost.ts";
 import type { CoverAction, CoverScope, CoverState, ImageSettings } from "./covers/types.ts";
 import { readImageSettings, saveImageSettings, beginImageUpdate, completeImageUpdate, checkImageConnection, saveImageCheck, safeImageError } from "./covers/provider.ts";
@@ -17,7 +19,7 @@ import { contentFolder, videoFile } from "./videoFiles.ts";
 import type { VideoImportRequest, VideoImportState } from "./types.ts";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
-import { readdir, realpath, stat } from "node:fs/promises";
+import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative } from "node:path";
 
 import type { Context } from "@deepseek-ai/cordis";
@@ -338,7 +340,7 @@ export class CreatorWorkbenchService extends TypertRemoteService {
       return { tasks: [], removed: false };
     }
     const production = await readState(folder), cover = await readCoverState(folder);
-    const tasks = production.tasks.filter((t) => ["queued", "running", "waiting-agent"].includes(t.status)).map((t) => t.step ?? ({ upload: "上传视频", article: "文章制作", asr: "语音转文字", metrics: "同步数据", wechat: "公众号草稿" }[t.kind]));
+    const tasks = production.tasks.filter((t) => ["queued", "running", "waiting-agent"].includes(t.status)).map((t) => t.step ?? ({ upload: "上传视频", article: "文章制作", asr: "语音转文字", metrics: "同步数据", wechat: "公众号草稿", images: "制作图片" }[t.kind]));
     tasks.push(...cover.runs.filter((r) => ["preparing", "running"].includes(r.status) || r.status === "waiting_agent" && Boolean(r.deliveredAt || r.frames.length)).map((r) => r.status === "waiting_agent" ? "封面制作请求" : "封面制作"));
     const imports = [...this.imports.tasks.values()].filter((t) => t.folder === folder && t.state.status === "running");
     tasks.push(...imports.map(() => "导入视频"));
@@ -777,6 +779,17 @@ export class CreatorWorkbenchService extends TypertRemoteService {
   async getProductionSettings(_request: Record<string, never>, signal: AbortSignal): Promise<ProductionSettingsView> { signal.throwIfAborted(); return this.production.settings(); }
   async productionSettingsAction(request: ProductionSettingsAction, signal: AbortSignal): Promise<ProductionSettingsView> { return this.production.settingsAction(request, signal); }
   async getProductionState(request: ContentScope, signal: AbortSignal): Promise<ProductionState> { signal.throwIfAborted(); return this.production.state(request); }
+  async getCreationImage(request: ContentScope & { imageId: string }, signal: AbortSignal): Promise<{ mime: string; base64: string }> {
+    await this.production.host.resolve(request); signal.throwIfAborted(); const { image, file } = await creationImage(request.folderPath, request.imageId);
+    return { mime: image.mime, base64: (await readFile(file)).toString("base64") };
+  }
+  async getCreationText(request: ContentScope & { file: string }, signal: AbortSignal): Promise<{ text: string }> {
+    const detail = await this.production.host.resolve(request), state = await readState(detail.folderPath); signal.throwIfAborted();
+    const file = await creationFile(detail.folderPath, request.file);
+    const allowed = [...state.articles.map(a => a.file), ...(state.publications ?? []).map(p => p.bodyFile), ...(detail.articlePath ? [detail.articlePath] : [])];
+    if (!(await Promise.all(allowed.map(name => creationFile(detail.folderPath, name).catch(() => "")))).includes(file)) throw new Error("请选择本项目已登记的正文。");
+    return { text: await readFile(file, "utf8") };
+  }
   async productionAction(request: ProductionAction, signal: AbortSignal): Promise<ProductionState> { return this.production.action(request, signal); }
   async getProductionPreview(request: ContentScope & { taskId?: string; articleFile?: string }, signal: AbortSignal): Promise<{ html: string; path: string }> { signal.throwIfAborted(); return this.production.preview(request, request, signal); }
 

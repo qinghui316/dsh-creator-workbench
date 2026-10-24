@@ -75,6 +75,8 @@ export const CREATOR_WORKBENCH_INVOCATIONS: readonly InvocationDescriptor[] = [
   invocation("getProductionSettings", emptyObjectSchema, productionSettingsSchema),
   invocation("productionSettingsAction", productionSettingsActionSchema, productionSettingsSchema),
   invocation("getProductionState", scopeSchema, productionStateSchema),
+  invocation("getCreationImage", scopeSchema.extend({ imageId: z.string() }), z.object({ mime: z.string(), base64: z.string() })),
+  invocation("getCreationText", scopeSchema.extend({ file: z.string() }), z.object({ text: z.string() })),
   invocation("productionAction", productionActionSchema, productionStateSchema),
   invocation("getProductionPreview", scopeSchema.extend({ taskId: z.string().uuid().optional(), articleFile: z.string().optional() }), z.object({ html: z.string(), path: z.string() })),
   invocation("setVideoVisibility", z.object({ id: z.string().min(1), folderPath: z.string().min(1), name: z.string().min(1), hidden: z.boolean() }), contentDetailSchema),

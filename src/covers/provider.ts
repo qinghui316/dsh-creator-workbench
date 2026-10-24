@@ -3,6 +3,7 @@ import { readFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { atomicJson, coverLock, imageKind, MAX_IMAGE_BYTES } from "./files.ts";
 import type { ImageSettings, CoverRatio } from "./types.ts";
+import type { ImageRatio } from "../production/types.ts";
 
 export { IMAGE_CREDENTIAL } from "./types.ts";
 export const emptyImageSettings = (): ImageSettings => ({ apiBase: "", model: "", revision: "" });
@@ -62,13 +63,13 @@ async function readLimited(response: Response, limit: number): Promise<Uint8Arra
   finally { await reader.cancel().catch(() => undefined); }
   return Buffer.concat(chunks);
 }
-export async function requestImage(settings: ImageSettings, key: string, input: { ratio: CoverRatio; prompt: string; mode: "reference" | "text"; references: Array<{ data: Uint8Array; name: string }> }, signal: AbortSignal): Promise<Uint8Array> {
+export async function requestImage(settings: ImageSettings, key: string, input: { ratio: ImageRatio; prompt: string; mode: "reference" | "text"; references: Array<{ data: Uint8Array; name: string }> }, signal: AbortSignal): Promise<Uint8Array> {
   if (settings.pending) throw new ImageRequestError("生图设置更新未完成，请继续保存。", false);
   const timeout = AbortSignal.timeout(180_000), combined = AbortSignal.any([signal, timeout]);
-  const size = { "3x4": "960x1280", "4x3": "1280x960", "16x9": "1280x720" }[input.ratio];
+  const size = { "3x4": "960x1280", "4x3": "1280x960", "16x9": "1280x720", "1x1": "1024x1024" }[input.ratio];
   let body: string | FormData; const headers: Record<string, string> = { Authorization: `Bearer ${key}` };
   if (input.mode === "reference") {
-    if (!input.references.length) throw new ImageRequestError("参考图制作需要先选择视频画面。", false);
+    if (!input.references.length) throw new ImageRequestError("参考图制作需要先选择图片。", false);
     const form = new FormData(); form.set("model", settings.model); form.set("prompt", input.prompt); form.set("size", size); form.set("n", "1");
     for (const file of input.references) form.append("image[]", new Blob([Buffer.from(file.data)], { type: imageKind(file.data).mime }), file.name);
     body = form;

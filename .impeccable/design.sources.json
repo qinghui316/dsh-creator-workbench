@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-23T13:24:02.9941339Z",
+  "generatedAt": "2026-10-24T15:57:30.836Z",
   "sourceRoot": ".",
   "method": "scan",
   "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
-  "authority": "Confirmed native creator-tool direction, PRODUCT.md, current working-tree code, and actual supplied application captures",
+  "authority": "Confirmed Windows native Operate direction, PRODUCT.md and current working-tree code; existing captures are retained as historical shell/style evidence.",
   "hostValues": "Font family and resolved theme colors belong to the DSH host. CSS variable references are preserved; no fixed palette or tonal ramps were synthesized.",
   "sourceFiles": [
     {
       "path": "PRODUCT.md",
-      "sha256": "0b76264d9a669ca317d7f6d50207147cfc2cb268a778a747e6ecf8fb2a895bde"
+      "sha256": "e979344008a15113792a0e0b8574b98683bf119ee70e09c7a4202c6adaa4bae9"
     },
     {
       "path": "src/client/InternalUi.css",
-      "sha256": "2e483d22eb304e2122ee52f9e76f5361d0b15d233a5dfe30fb11186a25d4a946"
+      "sha256": "2596b93cb46fd02f8123e6c265abd6d71730422735203cccdc31d3a5655d1cfa"
     },
     {
       "path": "src/client/CreatorWorkbench.css",
-      "sha256": "5a9ed31788a43270a0cbac31eb4647061e4bbdf859e26b4009b2b9024aca4f62"
+      "sha256": "a96dc43911f604f35c864802e375f11dd5e909544d5e9dca0d71405aecf31bd8"
     },
     {
       "path": "src/client/CoverPanel.css",
-      "sha256": "09c35af8a1a86090565599cb4fcf7c1eae0434174859943a08cb7616dec44921"
+      "sha256": "b68640434bfcbae9c49fef4dff6f6dacb43cb2265aae9610168f776643d8cecc"
     },
     {
       "path": "src/client/VideoPanel.css",
@@ -33,7 +33,7 @@
     },
     {
       "path": "src/client/ContentInspector.css",
-      "sha256": "0adacfeafb2ccc79913c84b8830a7f41b013fd08a14d0815d584a8f8afc532b6"
+      "sha256": "fec70d9696638dd60af1188a3b928cb1bd09c6c635e5d31393f55efe1084cb91"
     },
     {
       "path": "src/client/ui/ActionButton.tsx",
@@ -49,31 +49,55 @@
     },
     {
       "path": "src/client/CreatorWorkbench.tsx",
-      "sha256": "543998e9959fae8107879110d2b2b363f731b253d94e9be24d37d4571de49919"
+      "sha256": "9424d3e8b2d8fab878fef9341ae23211a9af187715d5d235ac7299211127410a"
     },
     {
       "path": "src/client/ContentInspector.tsx",
-      "sha256": "e622c64e97215fc4090e72514531e87a1931f8842167012c38897e8357f9250e"
+      "sha256": "f627a2cf900c46a1da70e8633a27b6b644cd0170b618b096cbba4fdabcc3772c"
     },
     {
       "path": "src/client/CoverPanel.tsx",
-      "sha256": "98e9ea0411f62d34dc347fad012aa5598ca50b1f2485f6cca02b50cae5628739"
+      "sha256": "2428734ea953d1c6021da8d30bfeb5e6f6fe0d4c6f2653831fb38f17dce3098f"
     },
     {
       "path": "src/client/VideoPanel.tsx",
-      "sha256": "0d1b5f390cb31448b3bb531e83633c74283da558f3eb7af84370347dfa224170"
+      "sha256": "bc68a5c450f71aacb350889f5a3e5c9bdc3332c6a3056fb0a560de0e7084fdf5"
     },
     {
       "path": "src/client/CreatorSettingsCard.tsx",
-      "sha256": "d81d7c49f3c564ee1895ae5d3c086acd94184141b4312b018e6a14607b0d959e"
+      "sha256": "cfbcfdc48c0537996c876b970ae4c2b097ab394ce9ead0d2359cc959fbc300b6"
     },
     {
       "path": "src/client/sidebar/ContentSidebarPanel.css",
-      "sha256": "231d29ab28e0025ef851201f1c59d8ece75913a6b9db7e3afc54cc4119d8f17a"
+      "sha256": "39ae4d4b2275129d1ca63f67e1013bcb0c9e2fc9672adba996630a91891aa95b"
     },
     {
       "path": "node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/Button.module.css",
       "sha256": "d5e324be7782f28b320ebac3e5b48e3a3f95a6c8d90656c086a3a933e0b2c7a5"
+    },
+    {
+      "path": "src/client/CreationPanel.tsx",
+      "sha256": "f85cd973a35a008afaf55dede3f022ca19aa235b3951de6d44c6941068d89e09"
+    },
+    {
+      "path": "src/client/CreationPanel.css",
+      "sha256": "d7e0926c5d1fc881b9b1abe8e7747a5c4f95e7cd03eb720d3bdf6662c301528a"
+    },
+    {
+      "path": "src/client/ProductionPanel.tsx",
+      "sha256": "8bf0b26cdfcdb0054100a49ebc4f2479591f8bd6ddb04de82f0575ea603ab0a6"
+    },
+    {
+      "path": "src/client/ProductionPanel.css",
+      "sha256": "00e4120f318ee23a5b6eee3a935a7565d4570cbee25ed1230378edf6253c1f13"
+    },
+    {
+      "path": "src/production/creations.ts",
+      "sha256": "f17b13db5e0d58c3b02be4bb989af336d1e5c0e59bc21ab409e5c1aef9392508"
+    },
+    {
+      "path": "src/production/publicationArticle.ts",
+      "sha256": "b1f2a21a7aecaa7a9883a51bf038fe73fff515c45f9e62d163c7f3bdb93f59bd"
     }
   ],
   "renderedEvidence": [
@@ -105,11 +129,11 @@
   "artifacts": [
     {
       "path": "DESIGN.md",
-      "sha256": "2b66869345f5b863094f4172d66e1c40ef13ffe41eab4d0dd39cb96d94280150"
+      "sha256": "d0eef90b9755b12d23a520013b23b8c0807ea76d312b9190595aa3b23fac8d7b"
     },
     {
       "path": ".impeccable/design.json",
-      "sha256": "44e05d5d12bb8fdf552aefc72ddd58298872345b21abffbc0eea9c1a290330ec"
+      "sha256": "b3f26d0b2ccdfed49da2b1876fe311845e08f477432c8f206414c1bff1efe93a"
     }
   ],
   "evidenceMap": {
@@ -125,7 +149,9 @@
     ],
     "responsiveLayout": [
       "src/client/CreatorWorkbench.css",
-      "src/client/CoverPanel.css"
+      "src/client/ContentInspector.tsx",
+      "src/client/CoverPanel.css",
+      "src/client/CreationPanel.css"
     ],
     "navigation": [
       "src/client/ContentInspector.tsx",
@@ -138,6 +164,30 @@
     ],
     "motion": [
       "src/client/sidebar/ContentSidebarPanel.css"
+    ],
+    "sharedAssetsAndPlatformMaterials": [
+      "src/client/CreationPanel.tsx",
+      "src/client/CreationPanel.css",
+      "src/client/ProductionPanel.tsx",
+      "src/client/ProductionPanel.css",
+      "src/production/creations.ts",
+      "src/production/publicationArticle.ts"
+    ],
+    "requestAndSaveFeedback": [
+      "src/client/ContentInspector.tsx",
+      "src/client/InternalUi.css",
+      "src/client/CreationPanel.tsx",
+      "src/client/ProductionPanel.tsx"
     ]
-  }
+  },
+  "generator": "Impeccable v4.1.1 reference/document.md Step 4b schema; shipped parseDesignMd validates and extracts narrative. This version ships no sidecar generator CLI.",
+  "scope": "Visual and implemented interaction documentation only. No installation, paid-generation or remote-upload acceptance is inferred.",
+  "renderedEvidenceScope": "历史截图仅支持既有宿主外观；0.5 图片、平台材料和脚本请求规则据当前源码提取，新增截图单独记录于本次 Change 证据。",
+  "reviewEvidence": [
+    {
+      "path": ".impeccable/review/v050/finish-review-final.md",
+      "sha256": "249bf8e5e1c44904ac880108e260ca3ebec1951e6a3fbda8a780561af308d210"
+    }
+  ],
+  "styleResolution": "Final native finish review resolves the current cascade for title and body inset values. Source-only duplicate selectors are not treated as the effective rendered style."
 }

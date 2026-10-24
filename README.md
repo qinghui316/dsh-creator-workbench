@@ -1,15 +1,16 @@
 # 创作工作台
 
-运行在 Windows DSH Desktop 内的本地视频内容工作台。管理本地视频与封面，使用 Harness 原生 Agent 分析画面，并调用自己配置的生图服务。
+运行在 Windows DSH Desktop 内的本地创作工作台。在同一个项目中写脚本、文章、制作图片或导入视频，使用 Harness 原生 Agent，并为各平台分别准备发布材料。
 
 ![创作工作台](assets/readme/hero.svg)
 
-选择资料库 → 创建或选择一期内容 → 导入视频 → 选择当前视频 → 预览与管理视频 → 导入已有封面或让 Agent 制作封面。
+选择资料库 → 创建或选择项目 → 制作需要的内容 → 准备各平台材料 → 上传、核对并手动发表。创建时只需标题；文章与图文可以独立完成。见[统一创作与平台发布](docs/unified-publishing.md)。
 
 - 支持 MP4、MOV，包括大写扩展名；来源不限，独立字幕可选。
 - 导入时复制文件，保留原文件；同名不覆盖，可修改导入名称重试。
 - 多个视频时明确选择，选择按资料库保存；选中文件消失时提示重新选择。
 - 左侧使用 Harness 原生对话，右侧管理内容。未开始对话也可以管理视频，需要 AI 协助时点击「打开项目对话」进入当前项目目录。
+- 工作台内部左侧始终展示项目列表，右侧展示所选项目；窄窗口中的表单、封面和图片在各自容器内重排。
 - 从列表移除视频仅改变产品显示，磁盘文件保留；移除当前视频后明确清空选择，需要时重新导入原文件即可加入。
 - 三画幅封面支持导入、预览、版本选择和单画幅重做；新图片通过检查后再选用，原版本保留。
 - 点击「让 Agent 制作封面」准备原生会话草稿，发送后由当前 Agent 看图分析并生成；没有单独的视觉模型设置。
@@ -27,7 +28,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm check
 node scripts/check-workbench-package.mjs
 npm pack --ignore-scripts --pack-destination .artifacts
-node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.4.1.tgz
+node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.5.0.tgz
 ```
 
 `pnpm check` 包含类型检查、构建、依赖边界检查与测试。构建仅写当前仓库的 lib，不直接修改 Desktop。

@@ -7,6 +7,9 @@ export interface ProductionClient {
   action: (request: ProductionAction) => Promise<ProductionState>;
   preview: (request: ContentScope & { taskId?: string; articleFile?: string }) => Promise<{ html: string; path: string }>;
   prepareArticleDraft: (detail: ContentDetail, append?: boolean) => Promise<void>;
+  prepareRequest?: (detail: ContentDetail, text: string, append?: boolean) => Promise<void>;
+  image?: (request: ContentScope & { imageId: string }) => Promise<{ mime: string; base64: string }>;
+  text?: (request: ContentScope & { file: string }) => Promise<{ text: string }>;
 }
 export function localFilePath(file: File): string {
   const value = (globalThis as typeof globalThis & { __DSH_HOST_PATHS__?: { pathFor: (file: File) => string } }).__DSH_HOST_PATHS__?.pathFor(file);

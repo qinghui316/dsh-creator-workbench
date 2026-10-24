@@ -17,6 +17,16 @@ async function fixture() {
   return { folder, dataDir, task, detail, signal: new AbortController().signal, changed: vi.fn() };
 }
 describe("bounded account-bound metric lifecycle", () => {
+  it("reads a platform once and applies separate identities for multiple works", async () => {
+    const f = await fixture();
+    await updateState(f.folder, state => { state.metrics.push({ platform: "xiaohongshu", accountId: "account", remoteId: "second", publicationId: "images", recordId: "record-images", state: "ok", checkedAt: 1, views: 7 }); });
+    const snapshot = await metricsSnapshot(f.dataDir, f.folder, ["xiaohongshu"]); Object.assign(f.task, snapshot);
+    await updateState(f.folder, state => { Object.assign(state.tasks[0]!, snapshot); });
+    const collect = vi.fn(async () => [{ platform: "xiaohongshu" as const, remoteId: "post", title: "Video", views: 11 }, { platform: "xiaohongshu" as const, remoteId: "second", title: "Images", views: 22 }]);
+    await runMetricsTask({ ...f, collect });
+    const state = await readState(f.folder); expect(collect).toHaveBeenCalledOnce();
+    expect(state.metrics.map(m => m.views)).toEqual([11,22]); expect(state.metrics[1]).toMatchObject({ publicationId: "images", recordId: "record-images" });
+  });
   it("accepts exact zero metrics and marks publication only after the same account and work were verified", async () => {
     const f = await fixture(), published = vi.fn();
     await runMetricsTask({ ...f, published, collect: async () => [{ platform: "xiaohongshu", remoteId: "post", title: "测试", views: 0 }] });

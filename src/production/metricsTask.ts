@@ -8,18 +8,20 @@ import { safeError } from "./process.ts";
 import { browserControlStopped } from "./browser.ts";
 
 export const METRICS_PLATFORM_TIMEOUT_MS = 180_000;
-export async function metricsSnapshot(dataDir: string, folder: string, enabled: readonly PublishPlatform[], platform?: MetricsTarget["platform"]): Promise<{ metricsTargets: MetricsTarget[]; metricsKey: string }> {
+export async function metricsSnapshot(dataDir: string, folder: string, enabled: readonly PublishPlatform[], platform?: MetricsTarget["platform"], publicationId?: string): Promise<{ metricsTargets: MetricsTarget[]; metricsKey: string }> {
   const settings = await readSettings(dataDir), state = await readState(folder);
   if (platform && platform !== "official-account" && !enabled.includes(platform)) throw new Error("此平台尚未启用。");
-  const platforms = platform ? [platform] : enabled.filter((p) => Boolean(settings.accounts[p]));
-  const targets = platforms.map((p) => {
+  const publication = publicationId ? state.publications?.find((p) => p.id === publicationId && !p.hidden) : undefined;
+  if (publicationId && !publication) throw new Error("发布内容不存在。");
+  const platforms = platform ? [platform] : publication ? [publication.platform] : enabled.filter((p) => Boolean(settings.accounts[p]));
+  const targets: MetricsTarget[] = platforms.flatMap((p) => {
     const accountId = p === "official-account" ? settings.wechat.appid : settings.accounts[p]?.id;
     if (!accountId) throw new Error("请先连接对应的平台账号。");
-    const row = state.metrics.find((m) => m.platform === p && m.accountId === accountId);
-    return { platform: p, accountId, ...(row ? { remoteId: row.remoteId, ...(row.url ? { url: row.url } : {}) } : {}) };
+    const rows = state.metrics.filter((m) => m.platform === p && m.accountId === accountId && (!publicationId || m.publicationId === publicationId));
+    return rows.length ? rows.map((row) => ({ platform: p, accountId, remoteId: row.remoteId, ...(row.url ? { url: row.url } : {}), ...(row.publicationId ? { publicationId: row.publicationId } : {}), ...(row.recordId ? { recordId: row.recordId } : {}) })) : [{ platform: p, accountId, ...(publicationId ? { publicationId } : {}) }];
   });
   if (!targets.length) throw new Error("请先连接发布平台账号。");
-  targets.sort((a, b) => a.platform.localeCompare(b.platform));
+  targets.sort((a, b) => `${a.platform}:${a.publicationId ?? ""}:${a.remoteId ?? ""}`.localeCompare(`${b.platform}:${b.publicationId ?? ""}:${b.remoteId ?? ""}`));
   return { metricsTargets: targets, metricsKey: hashText(JSON.stringify(targets)) };
 }
 
@@ -38,14 +40,17 @@ export async function runMetricsTask(input: {
     if (actual !== target.accountId) throw new Error("平台账号已变化，本次结果未写回。请用当前账号重新同步。");
   };
   let stopped = false;
+  const platformReads = new Map<string, Promise<CollectedPost[]>>(), platformStarts = new Map<string, number>();
   for (const target of progress) {
     if (signal.aborted || stopped) { target.state = "cancelled"; target.endedAt = Date.now(); continue; }
     target.state = "running"; target.startedAt = Date.now(); await patch();
     const deadline = new AbortController(), current = AbortSignal.any([signal, deadline.signal]);
-    const timer = setTimeout(() => deadline.abort(new Error("同步超过 180 秒，已停止本次平台操作。")), input.timeoutMs ?? METRICS_PLATFORM_TIMEOUT_MS);
+    const platformKey = `${target.platform}:${target.accountId}`, started = platformStarts.get(platformKey) ?? Date.now(); platformStarts.set(platformKey, started);
+    const timer = setTimeout(() => deadline.abort(new Error("同步超过 180 秒，已停止本次平台操作。")), Math.max(1, (input.timeoutMs ?? METRICS_PLATFORM_TIMEOUT_MS) - (Date.now() - started)));
     try {
       await checkAccount(target);
-      const posts = await Promise.race([input.collect(target, current), new Promise<never>((_, reject) => { if (current.aborted) reject(current.reason); else current.addEventListener("abort", () => reject(current.reason), { once: true }); })]);
+      let reading = platformReads.get(platformKey); if (!reading) { reading = input.collect(target, current); platformReads.set(platformKey, reading); }
+      const posts = await Promise.race([reading, new Promise<never>((_, reject) => { if (current.aborted) reject(current.reason); else current.addEventListener("abort", () => reject(current.reason), { once: true }); })]);
       current.throwIfAborted();
       await locked(`settings:${input.dataDir}`, async () => {
         await checkAccount(target); current.throwIfAborted();
@@ -54,10 +59,13 @@ export async function runMetricsTask(input: {
           const owner = state.tasks.find((t) => t.id === task.id);
           if (!owner || !["running", "queued"].includes(owner.status)) throw new Error("任务已停止，结果未写回。");
           if (target.remoteId) {
-            const index = state.metrics.findIndex((m) => m.platform === target.platform && m.accountId === target.accountId && m.remoteId === target.remoteId);
+            const index = state.metrics.findIndex((m) => m.platform === target.platform && m.accountId === target.accountId && m.remoteId === target.remoteId && m.publicationId === target.publicationId && m.recordId === target.recordId);
             if (index < 0) throw new Error("作品关联已变化，本次结果未写回。");
             const next = refreshMetric(state.metrics[index]!, posts); state.metrics[index] = next;
-            if (next.state !== "ok") matchError = next.error; else published = next;
+            if (next.state !== "ok") matchError = next.error; else {
+              published = next;
+              for (const record of state.records ?? []) if (record.platform === next.platform && record.accountId === next.accountId && (next.recordId ? record.id === next.recordId : next.publicationId && record.publicationId === next.publicationId)) { record.state = "published"; record.remoteId = next.remoteId; if (next.url) record.url = next.url; record.updatedAt = Date.now(); }
+            }
           } else {
             const candidates = posts.filter((post) => post.remoteId).sort((a, b) => titleScore(input.detail.title, b.title) - titleScore(input.detail.title, a.title)).slice(0, 10).map((post) => ({ platform: target.platform, accountId: target.accountId, remoteId: post.remoteId!, title: post.title, ...(post.url ? { url: post.url } : {}) }));
             state.candidates = [...(state.candidates ?? []).filter((row) => row.platform !== target.platform || row.accountId !== target.accountId), ...candidates];
@@ -72,7 +80,7 @@ export async function runMetricsTask(input: {
       target.state = signal.aborted ? "cancelled" : browserControlStopped(error) ? "blocked" : "failed";
       if (target.state === "blocked" || deadline.signal.aborted) stopped = true;
       // Failed collection retains last good values, with an explicit failed check.
-      await updateState(folder, (state) => { const row = state.metrics.find((m) => m.platform === target.platform && m.accountId === target.accountId && m.remoteId === target.remoteId); if (row) { if (row.state !== "not-found") row.state = "error"; row.error = target.error!; row.checkedAt = Date.now(); } });
+      await updateState(folder, (state) => { const row = state.metrics.find((m) => m.platform === target.platform && m.accountId === target.accountId && m.remoteId === target.remoteId && m.publicationId === target.publicationId && m.recordId === target.recordId); if (row) { if (row.state !== "not-found") row.state = "error"; row.error = target.error!; row.checkedAt = Date.now(); } });
     } finally { clearTimeout(timer); target.endedAt = Date.now(); await patch(); }
   }
   await updateState(folder, (state) => {

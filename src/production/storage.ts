@@ -57,10 +57,18 @@ export async function readState(folder: string): Promise<ProductionState> {
   const info = await lstat(file).catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return undefined; throw error; });
   if (info && (!info.isFile() || info.isSymbolicLink())) throw new Error("任务记录必须为普通文件。");
   const state = await readJson(file, emptyProduction);
-  if (state.schemaVersion !== 1 || ![state.tasks, state.transcripts, state.articles, state.drafts, state.metrics].every(Array.isArray)) throw new Error("任务记录格式不受支持。"); return state;
+  if (![1, 2].includes(state.schemaVersion) || ![state.tasks, state.transcripts, state.articles, state.drafts, state.metrics].every(Array.isArray)) throw new Error("任务记录格式不受支持。"); return state;
 }
 export async function updateState<T>(folder: string, work: (state: ProductionState) => T | Promise<T>): Promise<T> {
-  return locked(folder, async () => { const state = await readState(folder), result = await work(state); await atomic(join(await owned(folder), "index.json"), state); return result; });
+  return locked(folder, async () => {
+    const state = await readState(folder), result = await work(state), dir = await owned(folder);
+    if (state.schemaVersion === 1) {
+      const previous = await readFile(join(dir, "index.json"), "utf8").catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return undefined; throw error; });
+      if (previous) await writeFile(join(dir, "index-v1.backup.json"), previous, { encoding: "utf8", flag: "wx" }).catch((error: NodeJS.ErrnoException) => { if (error.code !== "EEXIST") throw error; });
+      state.schemaVersion = 2;
+    }
+    await atomic(join(dir, "index.json"), state); return result;
+  });
 }
 export const emptySettings = (): ProductionSettings => ({ revision: randomUUID(), accounts: {}, accountHistory: [], observations: {}, browserPaused: false, wechat: { appid: "", theme: "claude-editorial", author: "" } });
 export async function readSettings(dataDir: string): Promise<ProductionSettings> {

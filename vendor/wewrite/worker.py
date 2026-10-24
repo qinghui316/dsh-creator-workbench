@@ -147,6 +147,27 @@ def submission_identity(article):
     return {"title": article.get("title", ""), "text": soup.get_text("", strip=True), "images": [img.get("src") for img in soup.find_all("img")]}
 
 
+def inspect_draft(config):
+    folder = Path(config["folder"]).resolve()
+    receipt_path = Path(config["receiptPath"]).resolve()
+    if folder not in receipt_path.parents:
+        raise ApiError("草稿回执目录无效。")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8")) if receipt_path.exists() else {}
+    if receipt and receipt.get("appid") != config["appid"]:
+        raise ApiError("草稿回执属于另一公众号。")
+    media_id = receipt.get("mediaId") or config.get("mediaId")
+    if not media_id or not (receipt.get("expected") or config.get("remoteHash")):
+        raise ApiError("缺少可核对的草稿回执，请先检查公众号后台；未重新提交。", unknown=True)
+    actual = draft_article(token_for(config), media_id)
+    matches = (submission_identity(actual) == receipt["expected"] if receipt.get("expected")
+               else remote_digest(actual) == config["remoteHash"])
+    if not matches:
+        raise ApiError("公众号草稿内容与提交记录不同，请核对后台修改。", code="DRAFT_CONFLICT")
+    receipt.update(appid=config["appid"], mediaId=media_id, remoteHash=remote_digest(actual), phase="verified")
+    atomic(receipt_path, receipt)
+    return {"mediaId": media_id, "remoteHash": receipt["remoteHash"], "title": actual.get("title", "")}
+
+
 def publish(config):
     rendered = render(config)
     cover = Path(config.get("cover", "")).resolve()
@@ -260,6 +281,8 @@ def main(config):
         return {"authenticated": True, "draftPermission": "待实际草稿操作验证", "metricsPermission": "待实际数据回收验证"}
     if operation == "publish":
         return publish(config)
+    if operation == "inspect":
+        return inspect_draft(config)
     if operation == "stats":
         return stats(config)
     raise ApiError("不支持的公众号操作。")

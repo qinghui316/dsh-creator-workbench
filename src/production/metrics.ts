@@ -7,7 +7,7 @@ export function refreshMetric(previous: MetricRecord, posts: readonly CollectedP
   const matches = posts.filter((post) => post.remoteId === previous.remoteId);
   if (matches.length !== 1) return { ...previous, checkedAt, state: "not-found", error: matches.length > 1 ? "存在多个匹配结果，请核对平台链接。" : "当前账号中未找到这条内容，请核对链接或发表状态。" };
   const post = matches[0]!;
-  const result: MetricRecord = { platform: previous.platform, accountId: previous.accountId, remoteId: previous.remoteId, checkedAt, syncedAt: checkedAt, state: "ok", ...(post.url ?? previous.url ? { url: post.url ?? previous.url! } : {}) };
+  const result: MetricRecord = { platform: previous.platform, accountId: previous.accountId, remoteId: previous.remoteId, checkedAt, syncedAt: checkedAt, state: "ok", ...(previous.publicationId ? { publicationId: previous.publicationId } : {}), ...(previous.recordId ? { recordId: previous.recordId } : {}), ...(post.url ?? previous.url ? { url: post.url ?? previous.url! } : {}) };
   for (const key of ["views", "likes", "comments"] as const) { const value = post[key]; if (typeof value === "number" && Number.isFinite(value) && value >= 0) result[key] = value; }
   return result;
 }

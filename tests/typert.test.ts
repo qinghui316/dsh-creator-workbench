@@ -16,6 +16,8 @@ describe("handwritten TYPERT", () => {
       "getProductionSettings",
       "productionSettingsAction",
       "getProductionState",
+      "getCreationImage",
+      "getCreationText",
       "productionAction",
       "getProductionPreview",
       "setVideoVisibility",

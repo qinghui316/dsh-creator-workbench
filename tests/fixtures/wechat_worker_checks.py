@@ -48,14 +48,23 @@ with tempfile.TemporaryDirectory(prefix="creator-wechat-protocol-") as temp:
         assert error.unknown
     receipt = json.loads(Path(config["receiptPath"]).read_text(encoding="utf-8"))
     assert receipt["mediaId"] == "draft-one" and receipt["phase"] == "submitted"
-    result = worker.publish(config)
+    result = worker.main(dict(config, operation="inspect"))
     assert result["mediaId"] == "draft-one"
     assert calls.count("cgi-bin/draft/add") == 1
     assert calls.count("cgi-bin/draft/update") == 0
 
+    # A missing result identity must never turn an inspection into another upload.
+    before = list(calls)
+    try:
+        worker.main(dict(config, operation="inspect", receiptPath=str(folder / "missing-receipt.json")))
+        raise AssertionError("Expected unknown draft result")
+    except worker.ApiError as error:
+        assert error.unknown
+    assert calls == before
+
     remote["content"] = "<p>Remote editor changes</p>"
     try:
-        worker.publish(config)
+        worker.main(dict(config, operation="inspect"))
         raise AssertionError("Expected remote conflict")
     except worker.ApiError as error:
         assert error.code == "DRAFT_CONFLICT"

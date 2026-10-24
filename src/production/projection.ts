@@ -20,7 +20,7 @@ export async function projectProduction<T extends ContentSummary>(item: T, dataD
     const file = await inside(item.folderPath, transcript.srtFile).catch(() => undefined), text = await inside(item.folderPath, transcript.textFile).catch(() => undefined);
     if (file && text) result.subtitles = { srt: file, transcript: text };
   }
-  if (article) { const file = await inside(item.folderPath, article.file).catch(() => undefined); if (file) { result.hasArticle = true; result.articlePath = file; } }
+  if (article) { const file = await inside(item.folderPath, article.file).catch(() => undefined); if (file) { result.hasArticle = true; result.articlePath = file; if (!current && result.workflow !== "live") result.workflow = "publish"; } }
   const job = [...state.tasks].reverse().find((task) => task.kind === "asr");
   if (job) result.subtitleJob = { status: ["running", "queued"].includes(job.status) ? "running" : job.status === "completed" ? "done" : ["failed", "unconfirmed", "blocked"].includes(job.status) ? "error" : "idle", startedAt: job.createdAt, ...(job.error ? { error: job.error } : {}) };
   return result;

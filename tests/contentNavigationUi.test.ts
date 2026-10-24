@@ -15,7 +15,9 @@ import { setSelectedContentId } from "../src/client/contentSelection.ts";
 import { zh, type CreatorKey } from "../src/client/locales.ts";
 import type { CreatorViewFace } from "../src/client/face.ts";
 import type { ContentDetail } from "../src/types.ts";
+import type { ProductionClient } from "../src/client/productionApi.ts";
 vi.mock("../src/client/ProductionPanel.tsx", () => ({ ProductionPanel: ({ onPublish }: { onPublish?: (platform: string, status: string) => void }) => h("button", { onClick: () => onPublish?.("bilibili", "draft") }, "标为草稿") }));
+vi.mock("../src/client/CreationPanel.tsx", () => ({ CreationPanel: ({ onPublish }: { onPublish?: (platform: string, status: string) => void }) => h("button", { onClick: () => onPublish?.("bilibili", "draft") }, "标为草稿") }));
 vi.mock("../src/client/VideoPanel.tsx", () => ({
   VideoPanel: () => h("div", null, "视频区域"),
 }));
@@ -48,6 +50,7 @@ function fixture() {
     subtitles: {},
     hasPublishPackage: false,
     hasArticle: false,
+    videoRaw: "E:/一期/video.mp4",
     tags: [],
     pipeline: "raw",
     workflow: "idle",
@@ -91,6 +94,17 @@ function fixture() {
   };
 }
 describe("original content navigation", () => {
+  it("distinguishes preparing an Agent script request from saving the script", async () => {
+    const { face } = fixture(); let complete!: () => void;
+    const prepareRequest = vi.fn(() => new Promise<void>(resolve => { complete = resolve; }));
+    setSelectedContentId("one");
+    render(h(ContentInspector, { ...face, production: { prepareRequest } as unknown as ProductionClient, t: (key: CreatorKey) => zh[key] }));
+    await screen.findByText("测试内容"); fireEvent.click(screen.getByRole("tab", { name: "脚本" }));
+    fireEvent.click(screen.getByRole("button", { name: "让 Agent 修改脚本" }));
+    expect((screen.getByRole("button", { name: "正在准备请求…" }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => complete()); await screen.findByText("请求已放入左侧对话，请发送。");
+    expect(screen.getByText("已保存")).toBeTruthy(); expect((screen.getByLabelText("脚本正文") as HTMLTextAreaElement).value).toBe("已有脚本");
+  });
   it("keeps the five named tabs in their original order with original overview/video locations", async () => {
     const { face } = fixture();
     setSelectedContentId("one");

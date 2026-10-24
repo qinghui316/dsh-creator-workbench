@@ -68,12 +68,16 @@
 
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tabs {
   display: flex;
+  flex: none;
+  overflow-x: auto;
   gap: 20px;
   margin-top: 4px;
   padding-left: 2px;
 }
 
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab {
+  flex: none;
+  white-space: nowrap;
   position: relative;
   padding: 0 0 11px;
   border: none;

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/production/publicationArticle.ts"
+        ],
+        "createdAt": "2026-10-24T15:29:29.188Z",
+        "reason": "Agent review: server-side image parsing expressions and validated file references, covered by publicationArticle.test.ts; no UI img nodes in this module."
+      }
+    ]
+  }
+}

@@ -18,14 +18,14 @@ export async function renderWechat(dataDir: string, folder: string, articleFile:
   if ((await readFile(article)).byteLength > 1024 * 1024) throw new Error("文章超过 1 MB，请精简后重试。");
   return wechatWorker(dataDir, { operation: "render", folder, article, theme }, signal);
 }
-export async function submitWechat(input: { dataDir: string; folder: string; dir: string; articleFile: string; cover: string; config: ProductionSettings["wechat"]; secret: string; previous?: WechatDraft; confirmRemoteChange?: boolean; signal: AbortSignal }): Promise<WechatDraft> {
+export async function submitWechat(input: { dataDir: string; folder: string; dir: string; articleFile: string; cover: string; config: ProductionSettings["wechat"]; secret: string; previous?: WechatDraft; confirmRemoteChange?: boolean; operation?: "publish" | "inspect"; signal: AbortSignal }): Promise<WechatDraft> {
   const article = await inside(input.folder, input.articleFile), sourceCover = await inside(input.folder, input.cover);
   const snapshot = join(input.dir, "submission-input.md"), cover = join(input.dir, `submission-cover${extname(sourceCover).toLowerCase()}`);
   try { await writeFile(snapshot, await readFile(article), { flag: "wx" }); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
   try { await writeFile(cover, await readFile(sourceCover), { flag: "wx" }); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
   const markdown = await readFile(snapshot, "utf8"), before = hashText(markdown);
   const result = await wechatWorker<{ mediaId: string; remoteHash: string; title: string }>(input.dataDir, {
-    operation: "publish", folder: input.folder, article, markdown, cover, appid: input.config.appid, secret: input.secret, author: input.config.author, theme: input.config.theme,
+    operation: input.operation ?? "publish", folder: input.folder, article, markdown, cover, appid: input.config.appid, secret: input.secret, author: input.config.author, theme: input.config.theme,
     receiptPath: join(input.dir, "wechat-receipt.json"), ...(input.previous ? { mediaId: input.previous.mediaId, remoteHash: input.previous.remoteHash } : {}), confirmRemoteChange: input.confirmRemoteChange === true,
   }, input.signal);
   if (!result.mediaId || !result.remoteHash) throw new WechatError("公众号草稿回执不完整，请核对后台。", true);

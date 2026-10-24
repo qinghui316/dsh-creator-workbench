@@ -1,3 +1,4 @@
+import { CreationPanel } from "./CreationPanel.tsx";
 import { CoverPanel } from "./CoverPanel.tsx";
 import { ProductionPanel } from "./ProductionPanel.tsx";
 import { VideoPanel } from "./VideoPanel.tsx";
@@ -159,6 +160,8 @@ export function ContentInspector({
   const [tab, setTab] = useState<InspectorTab>("overview");
   const [wide, setWide] = useState(false);
   const [actionError, setActionError] = useState<string | undefined>(undefined);
+  const [scriptRequest, setScriptRequest] = useState<"idle" | "preparing" | "ready" | "failed">("idle");
+  const [scriptRequestError, setScriptRequestError] = useState("");
 
   const [busy, setBusy] = useState<"subtitle" | "burn" | "cover" | "sync" | undefined>(undefined);
   const expectSubtitlePreview = useRef(false);
@@ -173,6 +176,7 @@ export function ContentInspector({
   useEffect(() => {
     setTab("overview");
     setActionError(undefined);
+    setScriptRequest("idle"); setScriptRequestError("");
 
     setScriptDraft("");
     setScriptSaved(true);
@@ -444,6 +448,15 @@ export function ContentInspector({
     tabRefs.current[target]?.focus();
   };
 
+  const prepareScript = async (append = false) => {
+    if (!detail || !production?.prepareRequest || scriptRequest === "preparing") return;
+    const current = captureContentSelection(), folder = detail.folderPath;
+    setScriptRequest("preparing"); setScriptRequestError("");
+    try {
+      await production.prepareRequest(detail, `请${detail.script ? "修改" : "编写"}本项目的口播脚本或拍摄提纲。先读取已有写稿偏好和选题，按我的要求完成并保存 script.md。`, append);
+      if (current() && loadedFolder.current === folder) setScriptRequest("ready");
+    } catch (error) { if (current() && loadedFolder.current === folder) { setScriptRequest("failed"); setScriptRequestError(error instanceof Error ? error.message : "脚本请求未准备好，请重试。"); } }
+  };
   return (
     <div
       ref={pane}
@@ -521,7 +534,7 @@ export function ContentInspector({
               </div>
             </div>
             <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} setVideoVisibility={setVideoVisibility} />
-            <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} {...(prepareCoverRequest ? { prepareCoverRequest } : {})} />
+            {(hasVideo || Object.keys(detail.covers).length > 0) && <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} {...(prepareCoverRequest ? { prepareCoverRequest } : {})} />}
             {hasVideo && (
               <Surface title={t("inspector.make" as CreatorKey)}>
                 <div className="workList">
@@ -536,7 +549,7 @@ export function ContentInspector({
             {actionError !== undefined && (
               <JobNote tone="error">{actionError}</JobNote>
             )}
-            {production && hasVideo && <ProductionPanel key={`publishing:${detail.folderPath}`} detail={detail} api={production} mode="publishing" openPath={openPath} enabledPlatforms={enabledPlatforms ?? []} onPublish={applyPublish} publishPending={publishPending} />}
+            {production && <CreationPanel key={`creations:${detail.folderPath}`} detail={detail} api={production} enabledPlatforms={enabledPlatforms ?? []} onPublish={applyPublish} publishPending={publishPending} openPath={openPath} />}
             {detail.tags.length > 0 && (
               <Surface title={t("detail.tags" as CreatorKey)}>
                 <div className="tags">
@@ -556,6 +569,9 @@ export function ContentInspector({
         )}
         {detail !== undefined && tab === "script" && (
           <>
+          {production?.prepareRequest && <ActionBar><ActionButton disabled={scriptRequest === "preparing"} onClick={() => void prepareScript()}>{scriptRequest === "preparing" ? "正在准备请求…" : detail.script ? "让 Agent 修改脚本" : "让 Agent 写脚本"}</ActionButton></ActionBar>}
+          {scriptRequest === "ready" && <p role="status" className="creatorMuted">请求已放入左侧对话，请发送。</p>}
+          {scriptRequestError && <div role="alert"><p className="creatorError">{scriptRequestError}</p>{scriptRequestError.includes("已有草稿") && <ActionButton onClick={() => void prepareScript(true)}>追加脚本请求</ActionButton>}</div>}
           <div className="scriptStatus" role="status">{scriptError ? <><span className="creatorError">保存失败：{scriptError}</span><ActionButton onClick={() => setScriptRetry((n) => n + 1)}>重试保存</ActionButton></> : scriptSaved ? "已保存" : "保存中…"}</div>
           <textarea
             aria-label="脚本正文"

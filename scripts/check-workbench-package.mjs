@@ -19,7 +19,7 @@ fail(!manifest.dependencies?.["@deepseek-ai/dsh-tools"], "Do not bundle a second
 fail(read("cordis.patch.yml").replaceAll("\r\n", "\n").trim() === "- insert:\n    - id: dsh-creator-workbench\n      name: dsh-creator-workbench", "Patch identity mismatch");
 const runtimeFiles = [
   "lib/index.js", "lib/client.js", "lib/typert.host.js", "lib/collect-publish.mjs",
-  "scripts/collect-publish.mjs", "scripts/ego-account.mjs", "scripts/ego-compat.mjs",
+  "scripts/collect-publish.mjs", "scripts/graphic-publisher.mjs", "scripts/ego-account.mjs", "scripts/ego-compat.mjs",
   "scripts/publisher-ego-bridge.mjs", "scripts/publisher-douyin-adapter.mjs", "scripts/publisher-xhs-details.mjs", "scripts/install-runtime.mjs",
   "scripts/publisher-bilibili-details.mjs",
   "scripts/publisher-bilibili-adapter.mjs",

@@ -1,6 +1,6 @@
 ---
 name: creator-wewrite
-description: 使用 WeWrite 为创作工作台的当前视频制作公众号文章、检查文字并交付排版 HTML。
+description: 使用 WeWrite 为项目选题、已有材料或视频制作文章、检查文字并交付排版 HTML。
 ---
 
 # WeWrite · 创作工作台
@@ -9,15 +9,15 @@ description: 使用 WeWrite 为创作工作台的当前视频制作公众号文�
 
 ## 本期输入
 
-`creator_prepare_article` 返回固定视频的实际转写、真实截图附件和本目录路径。先通读转写、查看画面。主题已经确定，直接从 WeWrite 的框架与写作阶段开始。
+`creator_prepare_article` 返回本次请求的明确来源与本目录路径。选题或资料来源直接通读材料；视频来源读取真实转写并查看实际截图。主题已经确定时，从 WeWrite 框架与写作阶段开始。独立写作无需视频或字幕。
 
-事实以本次视频、转写和已核对的来源为依据。脚本只作表达参考；无法确认的识别、画面或结果写清缺口。短视频按实际信息量成文，不为满足字数或评分编造经历、情绪、引语、数据和外部素材。
+事实以本次提供的材料、视频、转写和已核对的来源为依据。脚本只作表达参考；无法确认的识别、画面或结果写清缺口。短视频按实际信息量成文，不为满足字数或评分编造经历、情绪、引语、数据和外部素材。
 
 ## 写作与检查
 
 1. 读取 [WeWrite 写作流程](references/writing-workflow.md)，按其中的框架、内容增强、写作和定向检查执行。
 2. 按需读取原流程引用的 [框架](references/frameworks.md)、[内容增强](references/content-enhance.md)、[写作规范](references/writing-guide.md)、[SEO](references/seo-rules.md)。未指定写作人格时使用 [midnight-friend](personas/midnight-friend.yaml)；结构示范见 [种子范文](references/exemplar-seeds.yaml)。`{skill_dir}` 是本目录。
-3. 图片使用本次 `frame-*.jpg` 的相对名称，放在对应内容旁边。真实截图不合适时可以不用，不另造实拍证据。标题、摘要和正文遵守用户要求；只修复未通过的具体段落。
+3. 配图使用本次真实截图或本项目已登记图片的相对路径，放在对应内容旁边。需要插图、封面或系列图片时，可调用工作台 generate-images，再用 creator_read_images 检查实际产物，保存文章时传 imageIds。生成图作为插图，不冒充实拍证据。标题、摘要和正文遵守用户要求；只修复未通过的具体段落。
 4. 可用同目录 `scripts/humanness_score.py` 作辅助检查，评分不能替代事实核对。短测试素材及明确引用不为降分而改写成虚构内容。
 
 ## 成品与后续操作

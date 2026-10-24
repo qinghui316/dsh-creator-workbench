@@ -40,7 +40,9 @@ export async function makeUploadPackage(input: { dataDir: string; folder: string
     ...(platform === "bilibili" ? { bilibiliTitle: fields.title, bilibiliDescription: fields.description, bilibiliTags: fields.tags, bilibiliAllowedAutoTags: [], ...(fields.category ? { bilibiliCategory: fields.category } : {}) } : {}),
     ...(platform === "wechat_channels" ? { wechatTitle: fields.title, wechatDescription: `${fields.description}\n\n${fields.tags.map((t) => `#${t}`).join(" ")}`, wechatTags: fields.tags } : {}),
   };
-  await writeFile(file, JSON.stringify(metadata, null, 2), { encoding: "utf8", flag: "wx" });
+  const serialized = JSON.stringify(metadata, null, 2);
+  try { await writeFile(file, serialized, { encoding: "utf8", flag: "wx" }); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST" || await readFile(file, "utf8") !== serialized) throw new Error("原上传包与本次材料不一致，请检查原任务。"); }
   const checked = await runProcess(process.execPath, [join(root, "scripts", "check-package.mjs"), platform, file], { signal, env: nodeEnv });
   let verdict: { errors?: string[] }; try { verdict = JSON.parse(checked.stdout) as typeof verdict; } catch { throw new Error("上传材料检查没有返回有效结果。"); }
   if (checked.code !== 0 || verdict.errors?.length) throw new Error(`请补齐上传材料：${(verdict.errors ?? []).map((e) => safeError(e)).join("；")}`);

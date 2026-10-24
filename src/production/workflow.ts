@@ -1,3 +1,7 @@
+import { preparePublicationUpload, executePublicationUpload } from "./publicationUpload.ts";
+import { creationAction } from "./creationActions.ts";
+import { creationImage, hydrateCreations, readCreationSource } from "./creations.ts";
+import { reconcileImageItems } from "./imageTasks.ts";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
@@ -5,7 +9,7 @@ import type { JobOutcome, JobRegistry, JobSpec } from "@deepseek-ai/dsh-jobs";
 import type { ContentDetail, PublishPlatform } from "../types.ts";
 import { runCollectPublish, collectScriptPath } from "../collectEgo.ts";
 import { titleScore } from "../collectPublish.ts";
-import { ASR_CREDENTIAL, PRODUCTION_PLATFORMS, isActiveTask, sameMedia, type ContentScope, type ProductionAction, type ProductionSettingsAction, type ProductionSettingsView, type ProductionState, type ProductionTask, type TranscriptVersion } from "./types.ts";
+import { ASR_CREDENTIAL, PRODUCTION_PLATFORMS, isActiveTask, sameMedia, type ContentScope, type CreationSource, type ProductionAction, type ProductionSettingsAction, type ProductionSettingsView, type ProductionState, type ProductionTask, type TranscriptVersion } from "./types.ts";
 import { locked, atomic, hashFile, hashText, inside, mediaIdentity, owned, readSettings, readState, updateSettings, updateState, wechatCredential } from "./storage.ts";
 import { browserExecutable, prepareRuntime, resource, runtimeStatus } from "./runtime.ts";
 import { pauseBrowser, probeAccount, requireAccount, withBrowser, browserControlStopped } from "./browser.ts";
@@ -83,14 +87,16 @@ export class ProductionWorkflow {
   async state(scope: ContentScope): Promise<ProductionState> {
     const detail = await this.host.resolve(scope);
     const existing = await readState(detail.folderPath);
-    if (!existing.tasks.some((task) => ["running", "queued"].includes(task.status) && !this.active.has(task.id) && !this.pending.has(task.id))) return existing;
-    return updateState(detail.folderPath, async (state) => {
+    for (const task of existing.tasks) if (task.kind === "images" && ["running", "unconfirmed"].includes(task.status) && !this.active.has(task.id) && !this.pending.has(task.id)) await reconcileImageItems(detail.folderPath, task);
+    if (!existing.tasks.some((task) => ["running", "queued"].includes(task.status) && !this.active.has(task.id) && !this.pending.has(task.id))) return hydrateCreations(detail.folderPath, await readState(detail.folderPath));
+    const reconciled = await updateState(detail.folderPath, async (state) => {
       await this.host.resolve({ id: detail.id, folderPath: detail.folderPath });
       for (const task of state.tasks) if (["running", "queued"].includes(task.status) && !this.active.has(task.id) && !this.pending.has(task.id)) {
         task.status = "unconfirmed"; task.error = "任务运行时中断，请先核对已有成果，再继续处理。"; task.updatedAt = Date.now();
       }
       return structuredClone(state);
     });
+    return hydrateCreations(detail.folderPath, reconciled);
   }
   async newTask(detail: ContentDetail, kind: ProductionTask["kind"], extra: Partial<ProductionTask> = {}): Promise<{ task: ProductionTask; fresh: boolean }> {
     let reserved: string | undefined;
@@ -128,7 +134,7 @@ export class ProductionWorkflow {
         });
         this.pending.delete(task.id);
         if (!admitted || !jobs) return;
-        const jobId = jobs.start({ kind: "creator-media", label: `${{ upload: "上传视频", asr: "视频转文字", article: "准备文章", wechat: "公众号草稿", metrics: "同步数据" }[task.kind]}：${basename(folder)}`, ...(task.sessionId ? { owner: task.sessionId as NonNullable<JobSpec["owner"]> } : {}), run: () => ({ cancel: () => controller.abort(), done: (async (): Promise<JobOutcome> => {
+        const jobId = jobs.start({ kind: "creator-media", label: `${{ upload: "上传视频", asr: "视频转文字", article: "准备文章", wechat: "公众号草稿", metrics: "同步数据", images: "制作图片" }[task.kind]}：${basename(folder)}`, ...(task.sessionId ? { owner: task.sessionId as NonNullable<JobSpec["owner"]> } : {}), run: () => ({ cancel: () => controller.abort(), done: (async (): Promise<JobOutcome> => {
           try {
             controller.signal.throwIfAborted(); entry.executing = true;
             await run(controller.signal);
@@ -136,7 +142,7 @@ export class ProductionWorkflow {
             return { status: actual?.status === "cancelled" ? "killed" : actual && ["ready", "completed"].includes(actual.status) ? "completed" : "failed", result: `任务 ${task.id}：${actual?.status ?? "结果待核对"}。${actual?.error ?? "请查看工作台实际结果。"}` };
           } catch (error) {
             const unknown = error instanceof AsrError || error instanceof WechatError ? error.unknownOutcome : entry.executing && controller.signal.aborted && ["upload", "wechat"].includes(task.kind);
-            await this.patch(folder, task.id, { status: unknown ? "unconfirmed" : controller.signal.aborted ? "cancelled" : "failed", error: safeError(error) });
+            await this.patch(folder, task.id, { status: unknown ? "unconfirmed" : controller.signal.aborted ? "cancelled" : browserControlStopped(error) ? "blocked" : "failed", error: safeError(error) });
             return { status: controller.signal.aborted ? "killed" : "failed", result: safeError(error) };
           } finally { this.active.delete(task.id); this.host.changed(); }
         })() }) });
@@ -154,6 +160,14 @@ export class ProductionWorkflow {
   }
   async action(request: ProductionAction, signal: AbortSignal): Promise<ProductionState> {
     const detail = await this.host.resolve(request), folder = detail.folderPath; signal.throwIfAborted();
+    const creation = await creationAction(detail, request, signal, { dataDir: this.host.dataDir, key: this.host.key, changed: this.host.changed, assertAvailable: () => this.host.resolve(request), newTask: (kind, extra) => this.newTask(detail, kind, extra), launch: (task, work) => this.launch(folder, task, work) });
+    if (creation) return { ...await this.state(request), ...(typeof creation === "object" ? creation : {}) };
+    const publicationHost = { dataDir: this.host.dataDir, platforms: this.host.platforms, key: this.host.key, resolve: this.host.resolve, changed: this.host.changed, reserve: (id: string) => this.pending.add(id) };
+    if (request.action === "upload-publication") {
+      const { task, fresh, notice } = await preparePublicationUpload(detail, request.publicationId, request.expectedRevision, request.originalRightsConfirmed, publicationHost, signal, request.newUploadAfter);
+      if (fresh) await this.launch(folder, task, (current) => executePublicationUpload(folder, task, "create", current, publicationHost));
+      return { ...await this.state(request), ...(notice ? { uploadNotice: notice } : {}) };
+    }
     if (request.action === "upload" && !(await this.host.platforms()).includes(request.input.platform)) throw new Error("此平台尚未启用，请先在常规设置中选择显示的平台。");
     if (request.action === "cancel") {
       await updateState(folder, (state) => {
@@ -180,7 +194,13 @@ export class ProductionWorkflow {
         await this.executeUpload(folder, task, "create", current);
       });
     } else if (request.action === "resume-upload" || request.action === "inspect-upload") {
-      const task = (await readState(folder)).tasks.find((row) => row.id === request.taskId && row.kind === "upload"); if (!task?.video || !task.account) throw new Error("上传任务不存在或缺少原始身份。");
+      const task = (await readState(folder)).tasks.find((row) => row.id === request.taskId && row.kind === "upload");
+      if (task?.publicationId) {
+        if (task.status === "cancelled") await updateState(folder, state => { const stored = state.tasks.find(t => t.id === task.id)!; if (stored.status === "cancelled") stored.status = "blocked"; });
+        if (!this.active.has(task.id)) await this.launch(folder, task, (current) => executePublicationUpload(folder, task, request.action === "inspect-upload" ? "inspect" : "resume", current, publicationHost));
+        return this.state(request);
+      }
+      if (!task?.video || !task.account) throw new Error("上传任务不存在或缺少原始身份。");
       if (this.active.has(task.id)) return this.state(request);
       sameMediaIdentityError(task.video, await mediaIdentity(await inside(folder, task.video.name), signal));
       await this.launch(folder, task, (current) => this.executeUpload(folder, task, request.action === "inspect-upload" ? "inspect" : "resume", current));
@@ -200,25 +220,40 @@ export class ProductionWorkflow {
         await updateState(folder, (latest) => { latest.transcripts.push(version); }); await this.patch(folder, task.id, { status: "completed", transcriptId: version.id });
       });
     } else if (request.action === "prepare-article") {
-      const selected = await this.selected(detail, signal);
-      const { task } = await this.newTask(detail, "article", { video: selected.identity, status: "waiting-agent", ...(request.sessionId ? { sessionId: request.sessionId } : {}) });
-      if (task.video && !sameMedia(task.video, selected.identity)) throw new Error("已有文章请求绑定另一视频，请先处理或取消原请求。");
+      const selected = !request.source || request.source.kind === "video" ? await this.selected(detail, signal) : undefined;
+      const source = request.source ?? { kind: "video" as const, video: selected!.identity };
+      const { task } = await this.newTask(detail, "article", { ...(selected ? { video: selected.identity } : {}), source, status: "waiting-agent", ...(request.sessionId ? { sessionId: request.sessionId } : {}) });
+      if (task.video && selected && !sameMedia(task.video, selected.identity) || task.source && JSON.stringify(task.source) !== JSON.stringify(source)) throw new Error("已有文章请求使用另一份材料，请先处理或取消原请求。");
     } else if (request.action === "save-article") await this.commitArticle(request, signal);
     else if (request.action === "wechat-preview" || request.action === "wechat-draft") await this.wechatAction(detail, request, signal);
     else if (request.action === "associate-publication") {
       if ((await readState(folder)).tasks.some((t) => t.kind === "metrics" && isActiveTask(t))) throw new Error("正在同步，请等待或取消原任务后再更换作品关联。");
       validatePublication(request.platform, request.remoteId, request.url);
+      if (request.publicationId) {
+        const publication = (await readState(folder)).publications?.find((p) => p.id === request.publicationId && !p.hidden);
+        if (!publication || publication.platform !== request.platform) throw new Error("作品关联与发布内容的平台不符。");
+      }
       const settings = await readSettings(this.host.dataDir), accountId = request.platform === "official-account" ? settings.wechat.appid : settings.accounts[request.platform]?.id;
       if (!accountId) throw new Error("请先连接对应账号。");
       await updateState(folder, (state) => {
-        const old = state.metrics.find((row) => row.platform === request.platform && row.accountId === accountId);
+        let recordId = request.recordId;
+        if (request.publicationId && !recordId) {
+          const publication = state.publications?.find(p => p.id === request.publicationId && !p.hidden); if (!publication) throw new Error("发布内容已移除。");
+          const records = state.records ??= [];
+          const existing = records.find(r => r.publicationId === publication.id && r.accountId === accountId && r.remoteId === request.remoteId.trim());
+          recordId = existing?.id ?? randomUUID();
+          if (!existing) records.push({ id: recordId, publicationId: publication.id, revision: publication.revision, platform: publication.platform, type: publication.type, accountId, remoteId: request.remoteId.trim(), ...(request.url ? { url: request.url } : {}), state: "linked", updatedAt: Date.now() });
+        }
+        if (request.recordId && !state.records?.some(r => r.id === request.recordId && r.publicationId === request.publicationId && r.platform === request.platform && r.accountId === accountId)) throw new Error("作品记录不属于本次发布内容或账号。");
+        if (request.recordId) { const record = state.records!.find(r => r.id === request.recordId)!; record.remoteId = request.remoteId.trim(); record.state = "linked"; record.updatedAt = Date.now(); if (request.url) record.url = request.url; else delete record.url; }
+        const old = state.metrics.find((row) => row.platform === request.platform && row.accountId === accountId && (recordId ? row.recordId === recordId : request.publicationId ? row.publicationId === request.publicationId : !row.publicationId));
         if (old) { old.remoteId = request.remoteId.trim(); if (request.url) old.url = request.url; else delete old.url; old.state = "unassociated"; delete old.syncedAt; delete old.views; delete old.likes; delete old.comments; delete old.shares; }
-        else state.metrics.push({ platform: request.platform, accountId, remoteId: request.remoteId.trim(), ...(request.url ? { url: request.url } : {}), checkedAt: Date.now(), state: "unassociated" });
+        else state.metrics.push({ ...(request.publicationId ? { publicationId: request.publicationId } : {}), ...(recordId ? { recordId } : {}), platform: request.platform, accountId, remoteId: request.remoteId.trim(), ...(request.url ? { url: request.url } : {}), checkedAt: Date.now(), state: "unassociated" });
         state.candidates = (state.candidates ?? []).filter((row) => row.platform !== request.platform || row.accountId !== accountId);
       });
-      return this.action({ ...request, action: "refresh-metrics", platform: request.platform }, signal);
+      return this.action({ ...request, action: "refresh-metrics", platform: request.platform, ...(request.publicationId ? { publicationId: request.publicationId } : {}) }, signal);
     } else if (request.action === "refresh-metrics") {
-      const snapshot = await metricsSnapshot(this.host.dataDir, folder, await this.host.platforms(), request.platform);
+      const snapshot = await metricsSnapshot(this.host.dataDir, folder, await this.host.platforms(), request.platform, request.publicationId);
       const { task, fresh } = await this.newTask(detail, "metrics", snapshot); if (fresh) await this.launch(folder, task, (current) => this.refreshMetrics(folder, task, request.platform, current));
     }
     this.host.changed(); return this.state(request);
@@ -245,9 +280,16 @@ export class ProductionWorkflow {
   }
   async articleInputs(scope: ContentScope, taskId: string, sessionId: string | undefined, signal: AbortSignal): Promise<{ waiting?: string; jobId?: string; transcript?: string; frames?: Array<{ file: string; at: number; data: Buffer }>; task: ProductionTask; rules: string; outputDirectory: string }> {
     const detail = await this.host.resolve(scope), folder = detail.folderPath, state = await readState(folder), task = state.tasks.find((row) => row.id === taskId && row.kind === "article");
-    if (!task?.video || task.status === "cancelled" || task.status === "completed") throw new Error("文章请求已结束或不存在。");
+    if (!task || !task.video && !task.source || task.status === "cancelled" || task.status === "completed") throw new Error("文章请求已结束或不存在。");
     // Session identity is for navigation/job attribution, not permission to work on the exact task.
     if (sessionId && !task.sessionId) { task.sessionId = sessionId; await this.patch(folder, task.id, { sessionId }); }
+    if (!task.video) {
+      const outputDirectory = await owned(folder, task.id), skill = await resource("vendor", "wewrite", "SKILL.md");
+      const inputFile = join(outputDirectory, "article-inputs.json");
+      const text = await locked(`article-input:${folder}:${task.id}`, async () => { const existing = await readFile(inputFile, "utf8").catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return undefined; throw error; }); if (existing) { const saved = JSON.parse(existing) as { text?: string }; if (saved.text !== undefined) return saved.text; } const captured = await readCreationSource(folder, task.source!, state); await atomic(inputFile, { frames: [], source: task.source, text: captured }); return captured; });
+      const imageFiles = await Promise.all((state.images ?? []).filter((i) => !i.hidden).map(async (i) => ({ id: i.id, file: relative(outputDirectory, await inside(folder, i.file)), purpose: i.purpose })));
+      return { task, transcript: `项目：${detail.title}\n\n${text}`, frames: [], outputDirectory, rules: `读取 WeWrite Skill：${skill}。本次为独立写作，按用户需求完成正文、配图及 HTML；不要求视频。已登记图片：${JSON.stringify(imageFiles)}。保存时用这些相对路径和 imageIds。` };
+    }
     const video = await inside(folder, task.video.name); sameMediaIdentityError(task.video, await mediaIdentity(video, signal));
     const transcript = [...state.transcripts].reverse().find((entry) => sameMedia(entry.video, task.video!));
     const dir = await owned(folder, task.id), outputDirectory = dir;
@@ -266,12 +308,13 @@ export class ProductionWorkflow {
     // Old input manifests remain usable, but never revive their retired writing entry.
     return { task, transcript: prepared.transcript, frames: await Promise.all(prepared.frames.map(async (frame) => ({ ...frame, data: await readFile(await inside(folder, frame.file)) }))), rules: `${rules}\n\n${await readFile(skill, "utf8")}`, outputDirectory };
   }
-  async commitArticle(request: ContentScope & { taskId: string; markdown: string; sessionId?: string }, signal: AbortSignal): Promise<void> {
+  async commitArticle(request: ContentScope & { taskId: string; markdown: string; sessionId?: string; imageIds?: string[] }, signal: AbortSignal): Promise<void> {
     const detail = await this.host.resolve(request), folder = detail.folderPath, state = await readState(folder), task = state.tasks.find((row) => row.id === request.taskId && row.kind === "article");
-    if (!task?.video || !task.transcriptId || task.status !== "waiting-agent") throw new Error("请先读取本次文章的真实字幕和画面。");
-    sameMediaIdentityError(task.video, await mediaIdentity(await inside(folder, task.video.name), signal));
+    if (!task || task.video && !task.transcriptId || !task.video && !task.source || task.status !== "waiting-agent") throw new Error("请先读取本次文章的真实字幕和画面。");
+    if (task.video) sameMediaIdentityError(task.video, await mediaIdentity(await inside(folder, task.video.name), signal));
     const dir = await owned(folder, task.id), inputs = JSON.parse(await readFile(join(dir, "article-inputs.json"), "utf8")) as { frames: Array<{ file: string }> };
-    const version = await saveArticle({ folder, dir, video: task.video, transcriptId: task.transcriptId, frames: inputs.frames.map((frame) => frame.file), markdown: request.markdown });
+    const images = await Promise.all((request.imageIds ?? []).map((id) => creationImage(folder, id, state)));
+    const version = await saveArticle({ folder, dir, ...(task.video ? { video: task.video } : {}), ...(task.transcriptId ? { transcriptId: task.transcriptId } : {}), ...(task.source ? { source: task.source } : {}), imageIds: request.imageIds ?? [], frames: [...inputs.frames.map((frame) => frame.file), ...images.map(({ image }) => image.file)], markdown: request.markdown });
     await updateState(folder, (latest) => { latest.articles.push(version); });
     try {
       const settings = await readSettings(this.host.dataDir), result = await formatArticle(this.host.dataDir, folder, version.file, settings.wechat.theme, signal);
@@ -289,7 +332,7 @@ export class ProductionWorkflow {
       await this.preview(detail, { articleFile: article }, signal); return;
     }
     const secret = await this.host.key(wechatCredential(config.appid)); if (!secret || !config.appid) throw new Error("请先配置公众号 AppID 和 AppSecret。");
-    const cover = request.coverPath ?? detail.covers["4x3"] ?? detail.covers["16x9"] ?? detail.covers["3x4"]; if (!cover) throw new Error("请先准备公众号封面。");
+    const cover = request.coverPath; if (!cover) throw new Error("请先准备公众号封面。");
     const articleRelative = relative(folder, article);
     const previousTask = [...state.tasks].reverse().find((row) => row.kind === "wechat" && row.step === "draft" && row.wechatAppId === config.appid && row.articleFile === articleRelative);
     if (previousTask?.status === "unconfirmed" && !request.acknowledgeUnknown) throw new Error("上次草稿提交结果未确认，请先在公众号后台核对，再明确重试。");
@@ -340,7 +383,9 @@ export class ProductionWorkflow {
         const platform = target.platform;
         return withBrowser(this.host.dataDir, current, async (browserSignal) => {
           await requireAccount(platform, target.accountId, browserSignal);
-          const result = await runCollectPublish(collectScriptPath(), browserSignal, { executable: await browserExecutable(), platforms: [platform], ...(target.remoteId ? { targets: [{ title: "", remoteIds: [target.remoteId], ...(target.url ? { urls: [target.url] } : {}) }] } : {}), cleanupStale: false, maxPages: 3, xhsScrollSteps: 8 });
+          const peers = task.metricsTargets!.filter(row => row.platform === platform && row.accountId === target.accountId);
+          const remoteIds = [...new Set(peers.flatMap(row => row.remoteId ? [row.remoteId] : []))];
+          const result = await runCollectPublish(collectScriptPath(), browserSignal, { executable: await browserExecutable(), platforms: [platform], ...(remoteIds.length && peers.every(row => row.remoteId) ? { targets: [{ title: "", remoteIds }] } : {}), cleanupStale: false, maxPages: 80, xhsScrollSteps: 80 });
           await requireAccount(platform, target.accountId, browserSignal);
           const page = result.collected.find((row) => row.platform === platform);
           if (!page || page.error || page.loginRequired) throw new Error(page?.error ?? "登录失效或未取得平台结果。");

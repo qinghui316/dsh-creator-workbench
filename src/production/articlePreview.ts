@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { imageKind } from "../covers/files.ts";
 import { hashText, inside, locked, owned } from "./storage.ts";
 import { renderWechat } from "./wechat.ts";
@@ -10,7 +10,7 @@ export async function formatArticle(dataDir: string, folder: string, articleFile
   return locked(`article-preview:${article}:${theme}`, async () => {
     signal.throwIfAborted();
     const source = await readFile(article, "utf8");
-    const result = await renderWechat(dataDir, folder, article, theme, signal);
+    const result = /\.html?$/i.test(article) ? { preview: source.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ""), images: await Promise.all([...source.matchAll(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)].filter(m => !m[1]!.startsWith("data:")).map(async (m) => { const name = m[1]!.replaceAll("&amp;", "&"); if (/^(?:https?:|file:|\/\/)/i.test(name)) throw new Error("HTML 配图需先导入本项目，再使用本地相对路径。"); return { source: name, path: await inside(folder, join(dirname(article), decodeURIComponent(name))) }; })) } : await renderWechat(dataDir, folder, article, theme, signal);
     if (source !== await readFile(article, "utf8")) throw new Error("文章已修改，请重新预览最新内容。");
     let html = result.preview, total = 0;
     for (const image of result.images) {

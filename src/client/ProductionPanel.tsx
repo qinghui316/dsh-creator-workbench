@@ -7,7 +7,7 @@ import { ActionBar, ActionButton } from "./ui/ActionButton.tsx";
 import "./ProductionPanel.css";
 
 const STATUS: Record<ProductionTask["status"], string> = { queued: "等待开始", running: "处理中", "waiting-agent": "等待对话处理", ready: "草稿就绪", completed: "已完成", blocked: "需要处理", failed: "未完成", cancelled: "已取消", unconfirmed: "结果需核对" };
-const KIND: Record<ProductionTask["kind"], string> = { upload: "视频上传", asr: "视频转文字", article: "文章制作", wechat: "公众号草稿", metrics: "数据刷新" };
+const KIND: Record<ProductionTask["kind"], string> = { upload: "视频上传", asr: "视频转文字", article: "文章制作", wechat: "公众号草稿", metrics: "数据刷新", images: "图片制作" };
 async function bounded<T>(work: Promise<T>, ms = 15_000): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   try { return await Promise.race([work, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("状态暂不可用，请查询原任务；未重新提交。")), ms); })]); }
@@ -24,6 +24,8 @@ export function ProductionPanel({ detail, api, mode, openPath, enabledPlatforms 
   const [uploadNotice, setUploadNotice] = useState<UploadNotice>();
   const [articleFile, setArticleFile] = useState(""), [preview, setPreview] = useState<{ html: string; path: string }>(), [previewError, setPreviewError] = useState<string>(), [previewRetry, setPreviewRetry] = useState(0), [requestReady, setRequestReady] = useState(false), [acknowledge, setAcknowledge] = useState(false), [confirmRemote, setConfirmRemote] = useState(false);
   const [metricPlatform, setMetricPlatform] = useState<PublishPlatform | "official-account">(mode === "article" ? "official-account" : enabledPlatforms[0] ?? "xiaohongshu"), [remoteId, setRemoteId] = useState(""), [url, setUrl] = useState("");
+  const [articleCover, setArticleCover] = useState("");
+  const articleInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null), alive = useRef(true), current = useRef(detail.folderPath); current.current = detail.folderPath;
   const scope = { id: detail.id, folderPath: detail.folderPath };
   const associationPlatforms: readonly (PublishPlatform | "official-account")[] = mode === "article" ? ["official-account" as const] : enabledPlatforms;
@@ -129,7 +131,7 @@ export function ProductionPanel({ detail, api, mode, openPath, enabledPlatforms 
       {!transcript && Boolean(state?.transcripts.length) && <p className="creatorMuted">已有字幕属于其他视频，当前视频需要重新识别或导入。</p>}
     </>}
     {mode === "article" && <>
-      <ActionBar><ActionButton tone={!detail.hasArticle ? "primary" : "secondary"} disabled={busy || !canVideo} onClick={() => void prepareArticle()}>让 Agent 制作文章</ActionButton>{preview && <ActionButton onClick={() => void openPath(preview.path).catch((cause: Error) => setError(cause.message))}>打开 HTML 成品</ActionButton>}</ActionBar>
+      <input hidden ref={articleInput} type="file" accept=".md,.html,.htm" aria-label="导入文章" onChange={event => { const f = event.currentTarget.files?.[0]; event.currentTarget.value = ""; if (f) { try { void run({ ...scope, action: "import-article", sourcePath: localFilePath(f) }); } catch (cause) { setError(cause instanceof Error ? cause.message : "文章导入失败"); } } }} /><ActionBar><ActionButton onClick={() => articleInput.current?.click()}>导入文章</ActionButton><ActionButton tone={!detail.hasArticle ? "primary" : "secondary"} disabled={busy} onClick={() => void prepareArticle()}>让 Agent 写文章</ActionButton>{api.prepareRequest && canVideo && <ActionButton disabled={busy} onClick={() => void api.prepareRequest!(detail, `请将当前视频《${detail.selectedVideo}》转成文章。使用真实转写与画面，通过 WeWrite 写作和排版，保存到本项目。`).then(() => setRequestReady(true), (cause: Error) => setError(cause.message))}>视频转文章</ActionButton>}{preview && <ActionButton onClick={() => void openPath(preview.path).catch((cause: Error) => setError(cause.message))}>打开 HTML 成品</ActionButton>}</ActionBar>
       {requestReady && <p className="creatorMuted" role="status">请求已放入左侧对话，请点击发送。</p>}
       {error?.includes("已有草稿") && <ActionButton onClick={() => void prepareArticle(true)}>追加文章请求</ActionButton>}
       {Boolean(state?.articles.length) && <label className="creatorField">文章版本<select value={articleFile} onChange={(e) => setArticleFile(e.target.value)}><option value="">当前文章</option>{state!.articles.map((article) => <option key={article.id} value={article.file}>{new Date(article.createdAt).toLocaleString()}</option>)}</select></label>}
@@ -140,7 +142,8 @@ export function ProductionPanel({ detail, api, mode, openPath, enabledPlatforms 
       </section>}
       {currentArticle && <details className="creatorDisclosure"><summary>编辑源稿</summary><ActionButton onClick={() => void openPath(/^(?:[A-Za-z]:[\\/]|\/)/.test(currentArticle) ? currentArticle : `${detail.folderPath}/${currentArticle}`).catch((cause: Error) => setError(cause.message))}>打开可编辑源稿</ActionButton><ActionButton onClick={() => setPreviewRetry((n) => n + 1)}>更新排版</ActionButton></details>}
       <details className="creatorDisclosure"><summary>公众号草稿</summary>
-        <ActionBar><ActionButton disabled={busy || !preview || !settings?.wechatConfigured || hasUnconfirmed && !acknowledge} onClick={() => void run({ ...scope, action: "wechat-draft", ...(currentArticle ? { articleFile: currentArticle } : {}), acknowledgeUnknown: acknowledge, confirmRemoteChange: confirmRemote })}>保存到公众号草稿</ActionButton></ActionBar>
+        <label className="creatorField">文章封面<select value={articleCover} onChange={e => setArticleCover(e.target.value)}><option value="">请选择文章封面</option>{state?.images?.filter(i => !i.hidden).map((i,n) => <option key={i.id} value={i.file}>图片 {n+1} · {i.width}×{i.height}</option>)}</select></label>
+        <ActionBar><ActionButton disabled={busy || !preview || !articleCover || !settings?.wechatConfigured || hasUnconfirmed && !acknowledge} onClick={() => void run({ ...scope, action: "wechat-draft", coverPath: articleCover, ...(currentArticle ? { articleFile: currentArticle } : {}), acknowledgeUnknown: acknowledge, confirmRemoteChange: confirmRemote })}>保存到公众号草稿</ActionButton></ActionBar>
         {error?.includes("后台修改") && <label className="productionInline"><input type="checkbox" checked={confirmRemote} onChange={(e) => setConfirmRemote(e.target.checked)} />我已核对后台修改，确认用本次文章更新</label>}
         {!settings?.wechatConfigured && <p className="creatorMuted">请先在“设置 → 公众号”完成配置。</p>}
       </details>{metrics}

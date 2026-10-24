@@ -51,7 +51,7 @@ export function creatorGuideText(status: CreatorSetupStatus): string {
   const lines: string[] = [
     "# 内容工作台自举指引",
     "",
-    "用户在 DeepSeek Harness 里安装了内容工作台插件。你的任务是带用户把一条片子从选题推进到发布，并在能力缺失时明确告诉用户缺什么、怎么补。先把下面的现状转成用户听得懂的话，不要逐字复述。",
+    "用户在 DeepSeek Harness 里安装了内容工作台插件。你的任务是在同一项目中协助用户制作脚本、视频、文章和配图，并独立准备各平台发布材料，并在能力缺失时明确告诉用户缺什么、怎么补。先把下面的现状转成用户听得懂的话，不要逐字复述。",
     "",
     "## 当前能力状态",
     capabilityLine("内容目录（核心）", capabilities.library),

@@ -55,6 +55,8 @@ interface RemoteAnswer<T> {
 }
 
 interface CreatorWorkbenchRemote {
+  getCreationImage: (request: ContentScope & { imageId: string }) => Promise<RemoteAnswer<{ mime: string; base64: string }>>;
+  getCreationText: (request: ContentScope & { file: string }) => Promise<RemoteAnswer<{ text: string }>>;
   restoreProjectSession: (request: { id: string; folderPath: string; sessionId: string }) => Promise<RemoteAnswer<Record<string, never>>>;
   projectAction: (request: { id: string; folderPath: string; action: "inspect" | "remove" | "join"; cancelTasks?: boolean }) => Promise<RemoteAnswer<{ tasks: string[]; removed: boolean }>>;
   getProductionSettings: (request: Record<string, never>) => Promise<RemoteAnswer<ProductionSettingsView>>;
@@ -152,12 +154,10 @@ export function apply(ctx: ClientContext): void {
       state: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProductionState(request), "任务读取失败"); },
       action: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); const value = unwrap(await r.productionAction(request), "操作未完成"); bumpLibrary(); return value; },
       preview: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProductionPreview(request), "预览读取失败"); },
-      prepareArticleDraft: async (detail, append) => prepareBusinessRequest(ctx, detail, async (sessionId) => {
-        const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。");
-        const state = unwrap(await r.productionAction({ id: detail.id, folderPath: detail.folderPath, action: "prepare-article", sessionId }), "文章请求未建立");
-        const task = [...state.tasks].reverse().find((row) => row.kind === "article" && row.status === "waiting-agent"); if (!task) throw new Error("文章请求未建立。");
-        return `请使用 WeWrite，根据本期视频制作公众号文章并交付排版 HTML。先调用 creator_prepare_article 读取本次输入和 WeWrite Skill，完成写作与检查后调用 creator_save_article。缺少字幕时使用已配置的火山转写；不发表文章。\n制作请求：${JSON.stringify({ id: detail.id, folderPath: detail.folderPath, taskId: task.id })}`;
-      }, async () => detail.folderPath, append),
+      image: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getCreationImage(request), "图片读取失败"); },
+      text: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getCreationText(request), "正文读取失败"); },
+      prepareRequest: async (detail, text, append) => prepareBusinessRequest(ctx, detail, async () => `${text}\n项目：${detail.id}\n目录：${detail.folderPath}`, async () => detail.folderPath, append, "创作请求"),
+      prepareArticleDraft: async (detail, append) => prepareBusinessRequest(ctx, detail, async () => `请使用 WeWrite 为《${detail.title}》写文章，完成检查、按需配图并交付排版 HTML。使用本项目选题和我在会话中的要求，通过工作台文章工具保存到本项目。\n项目：${detail.id}\n目录：${detail.folderPath}`, async () => detail.folderPath, append),
     },
     getCoverState: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.getCoverState(request), "封面读取失败"); },
     coverAction: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); const state = unwrap(await r.coverAction(request), "封面操作失败"); bumpLibrary(); return state; },
