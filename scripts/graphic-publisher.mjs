@@ -67,6 +67,8 @@ async function runBiliGraphic(page,snapshot,root,dir,previous,operation,save){
   let current=await page.evaluate(inspectGraphicPage,{title:publication.title});
   const expectedBody=markdown.replace(/!\[([^\]]*)\]\([^)]+\)/g,'$1').replace(/^#{1,6}\s+/gm,'').replace(/\*\*|__|`/g,'').replace(/^\s*[-*+]\s+/gm,'').trim();
   const expectedImages=(markdown.match(/!\[[^\]]*\]\(/g)||[]).length;
+  if(previous.documentImported)await page.waitForFunction(()=>[...document.querySelectorAll('iframe')].find(e=>e.src.includes('/york/read-editor'))?.contentDocument?.querySelector('.ProseMirror')?.textContent.length>0,undefined,{timeout:30000});
+  current=await page.evaluate(inspectGraphicPage,{title:publication.title});
   if(previous.uploadAttempted && compact(current.body)===compact(expectedBody) && current.imageCount===expectedImages) previous.documentImported=true;
   if(operation!=='inspect'&&!previous.documentImported){
     if(current.title||compact(current.body))throw new Error('原编辑器已有其他内容，未覆盖；请核对原任务');
@@ -83,11 +85,11 @@ async function runBiliGraphic(page,snapshot,root,dir,previous,operation,save){
   let savedDraft=false;
   if(ready&&operation!=='inspect'){
     await page.click("loc=role:button[name='保存为草稿']",{label:'save article draft'});
-    await page.waitForFunction(()=>[...document.querySelectorAll('iframe')].find(e=>e.src.includes('/york/read-editor'))?.contentDocument?.body.innerText.includes('保存成功'),undefined,{timeout:15000});
+    await page.waitForFunction(()=>[...document.querySelectorAll('iframe')].find(e=>e.src.includes('/york/read-editor'))?.contentDocument?.body.innerText.includes('保存成功'),undefined,{timeout:90000});
     savedDraft=true;
   }
   const remoteId=new URL(await page.url()).searchParams.get('aid');
-  return {...previous,ready,documentImported:previous.documentImported,savedDraft:savedDraft||previous.savedDraft===true,...(remoteId?{remoteId}:{}),checkedAt:Date.now(),imageCount:current.imageCount,...(ready?{error:undefined}:{error:'B站正文或图片未全部核对，原编辑器保持；请继续原任务'})};
+  return {...previous,ready,documentImported:previous.documentImported,savedDraft:savedDraft||previous.savedDraft===true||Boolean(operation==='inspect'&&remoteId&&ready),...(remoteId?{remoteId}:{}),checkedAt:Date.now(),imageCount:current.imageCount,...(ready?{error:undefined}:{error:'B站正文或图片未全部核对，原编辑器保持；请继续原任务'})};
 }
 export async function runGraphicPublisher({folder,taskId,operation,snapshotFile,spaceId,pageLabel='p1'}) {
   if(!/^[a-f0-9-]{36}$/i.test(taskId)||!['create','resume','inspect'].includes(operation))throw new Error('Invalid graphic task');

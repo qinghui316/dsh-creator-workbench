@@ -5,6 +5,15 @@ import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 const { GRAPHIC_PLATFORMS, verifyGraphicPage, runGraphicPublisher, graphicBodyWithoutTags } = await import(pathToFileURL(resolve("scripts/graphic-publisher.mjs")).href);
 describe("graphic page evidence",()=>{
+ it("reconciles a saved Bili draft by exact reopened content and remote identity without another save",async()=>{
+  const folder=await mkdtemp(join(tmpdir(),"creator-bili-saved-")),taskId=crypto.randomUUID(),dir=join(folder,".dsh-creator-workbench","production",taskId);await mkdir(dir,{recursive:true});
+  const file=join(dir,"publication-snapshot.json");await writeFile(file,JSON.stringify({publication:{id:"material",revision:1,platform:"bilibili",title:"Title",tags:[]},body:"Body",images:[],accountId:"one"}));
+  await writeFile(join(dir,"graphic-receipt.json"),JSON.stringify({taskId,spaceId:43,opened:true,uploadAttempted:true,documentImported:true,error:"save acknowledgement timed out"}));
+  const page={label:"p1",evaluate:vi.fn(async(_fn:unknown,arg:{kind?:string})=>arg.kind?{selector:"textarea"}:{title:"Title",body:"Body",imageCount:0,canPublish:true,errors:[]}),url:async()=>GRAPHIC_PLATFORMS.bilibili.url+"/new-edit?aid=371499",waitForFunction:vi.fn(),snapshot:async()=>"",click:vi.fn()},task={spaceId:43,pages:async()=>[page],handOff:async()=>undefined};
+  vi.stubGlobal("listTaskSpaces",async()=>[{id:43,name:`creator-graphic-${taskId}`,ownership:"agent"}]);vi.stubGlobal("taskSpace",async()=>task);const log=vi.spyOn(console,"log").mockImplementation(()=>undefined);
+  try{await runGraphicPublisher({folder,taskId,operation:"inspect",snapshotFile:file});const receipt=JSON.parse(await readFile(join(dir,"graphic-receipt.json"),"utf8"));expect(receipt.ready).toBe(true);expect(receipt.savedDraft).toBe(true);expect(receipt.remoteId).toBe("371499");expect(page.click).not.toHaveBeenCalled();}
+  finally{log.mockRestore();vi.unstubAllGlobals();}
+ });
  it.each([false,true])("resumes a pre-browser failure but preserves missing-page protection after an attempted upload (%s)",async attempted=>{
   const folder=await mkdtemp(join(tmpdir(),"creator-graphic-early-")),taskId=crypto.randomUUID(),dir=join(folder,".dsh-creator-workbench","production",taskId);await mkdir(dir,{recursive:true});
   const file=join(dir,"publication-snapshot.json");await writeFile(file,JSON.stringify({publication:{id:"material",revision:1,platform:"bilibili",title:"Title",tags:[]},body:"Body",images:[],accountId:"one"}));
