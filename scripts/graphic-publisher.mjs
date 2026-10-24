@@ -105,7 +105,13 @@ export async function runGraphicPublisher({folder,taskId,operation,snapshotFile,
     const entries=await listTaskSpaces();
     const existing=spaceId ? entries.find(e=>e.id===spaceId) : receipt.spaceId ? entries.find(e=>e.id===receipt.spaceId&&e.name.includes(taskId)) : entries.find(e=>e.name===`creator-graphic-${taskId}`);
     if(existing) { if(existing.ownership==='agent')task=await taskSpace(existing.id);else if(operation!=='create'||spaceId)task=await takeOverTaskSpace(existing.id);else throw new Error('USER_CONTROL: 请继续原任务，不要重新上传'); }
-    else { if(operation!=='create'||receipt.uploadAttempted)throw new Error('原图文页面已不在，请先核对平台草稿；未自动另建上传');task=await taskSpace(`creator-graphic-${taskId}`); }
+    else {
+      // A formatting/preparation failure can happen before the first browser
+      // space is recorded. Resume that same local task only at this boundary.
+      // Once any page or upload was owned, a lost page requires inspection.
+      if(operation==='inspect'||receipt.spaceId||receipt.opened||receipt.uploadAttempted)throw new Error('原图文页面已不在，请先核对平台草稿；未自动另建上传');
+      task=await taskSpace(`creator-graphic-${taskId}`);
+    }
     const pages=await task.pages();if(!spaceId&&pages.length!==1)throw new Error('图文任务页面不唯一，请核对原任务');page=spaceId?pages.find(p=>p.label===pageLabel):pages[0];if(!page)throw new Error('原图文页面不存在');
     receipt={...receipt,taskId,spaceId:task.spaceId,publicationId:publication.id,revision:publication.revision,platform:publication.platform,accountId:snapshot.accountId};await save();
     if(!receipt.opened){await page.goto(profile.url);receipt.opened=true;await save();}

@@ -5,6 +5,18 @@ import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 const { GRAPHIC_PLATFORMS, verifyGraphicPage, runGraphicPublisher, graphicBodyWithoutTags } = await import(pathToFileURL(resolve("scripts/graphic-publisher.mjs")).href);
 describe("graphic page evidence",()=>{
+ it.each([false,true])("resumes a pre-browser failure but preserves missing-page protection after an attempted upload (%s)",async attempted=>{
+  const folder=await mkdtemp(join(tmpdir(),"creator-graphic-early-")),taskId=crypto.randomUUID(),dir=join(folder,".dsh-creator-workbench","production",taskId);await mkdir(dir,{recursive:true});
+  const file=join(dir,"publication-snapshot.json");await writeFile(file,JSON.stringify({publication:{id:"material",revision:1,platform:"bilibili",title:"Title",tags:[]},body:"Body",images:[],accountId:"one"}));
+  await writeFile(join(dir,"graphic-receipt.json"),JSON.stringify({taskId,ready:false,...(attempted?{spaceId:42,opened:true,uploadAttempted:true}:{error:"local preparation failed"})}));
+  const create=vi.fn(async()=>({spaceId:43,pages:async()=>[{label:"p1",goto:async()=>{throw new Error("fixture stops before remote input");}}],handOff:async()=>undefined}));
+  vi.stubGlobal("listTaskSpaces",async()=>[]);vi.stubGlobal("taskSpace",create);const log=vi.spyOn(console,"log").mockImplementation(()=>undefined);
+  try {await runGraphicPublisher({folder,taskId,operation:"resume",snapshotFile:file});
+   expect(create).toHaveBeenCalledTimes(attempted?0:1);
+   const receipt=JSON.parse(await readFile(join(dir,"graphic-receipt.json"),"utf8"));expect(receipt.taskId).toBe(taskId);expect(receipt.ready).toBe(false);
+   expect(receipt.error).toContain(attempted?"原图文页面已不在":"fixture stops before remote input");
+  }finally{log.mockRestore();vi.unstubAllGlobals();}
+ });
  it("turns trailing topic text into one native topic without dropping inline text or accepting unrelated edits",()=>{
   expect(graphicBodyWithoutTags("保留正文 #人工智能#人工智能",["人工智能"])).toBe("保留正文");
   expect(graphicBodyWithoutTags("#人工智能 帮助整理，正文保留",["人工智能"])).toBe("#人工智能 帮助整理，正文保留");
