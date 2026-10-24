@@ -1,6 +1,14 @@
+import type { ProjectView, ArticleSource, ArticleEdit, ArticleSave, ArticleSaved } from "../projectView.ts";
 import type { ContentDetail } from "../types.ts";
 import type { ContentScope, ProductionAction, ProductionSettingsAction, ProductionSettingsView, ProductionState } from "../production/types.ts";
 export interface ProductionClient {
+  projectView?: (scope: ContentScope) => Promise<ProjectView>;
+  reconcile?: (scope: ContentScope) => Promise<unknown>;
+  publication?: (scope: ContentScope & { publicationId: string; revision: number }) => Promise<import("../production/types.ts").PublicationDraft>;
+  articleSource?: (scope: ContentScope & { articleId: string }) => Promise<ArticleSource>;
+  articlePreview?: (request: ArticleEdit) => Promise<{ html: string; path: string }>;
+  articleSave?: (request: ArticleSave) => Promise<ArticleSaved>;
+
   settings: () => Promise<ProductionSettingsView>;
   settingsAction: (request: ProductionSettingsAction) => Promise<ProductionSettingsView>;
   state: (scope: ContentScope) => Promise<ProductionState>;

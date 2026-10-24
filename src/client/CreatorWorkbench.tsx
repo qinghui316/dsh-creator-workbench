@@ -10,6 +10,7 @@ import type { CreatorKey } from "./locales.ts";
 import { contentBindingForSession, relocateSessionContent, restoreSessionContent, startContentSession, type CreatorWorkbenchService } from "./workbench.ts";
 import "./CreatorWorkbench.css";
 import "./InternalUi.css";
+import "./WorkbenchContrast.css";
 
 export function CreatorWorkbench({ face, service, credentials, t }: {
   face: CreatorViewFace;

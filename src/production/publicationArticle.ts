@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, rename } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { dirname, extname, join, relative } from "node:path";
 import { hashText, inside } from "./storage.ts";
 import type { PublicationDraft } from "./types.ts";
@@ -40,20 +41,33 @@ export async function platformArticleBody(folder: string, dir: string, body: str
 }
 
 /** Rebase actual project resources into an immutable task-owned article, never edit its source. */
-export async function snapshotPublicationArticle(folder: string, dir: string, publication: Pick<PublicationDraft, "articleFile" | "bodyFile">, body: string, images: string[]): Promise<string> {
+export async function snapshotPublicationArticle(folder: string, dir: string, publication: Pick<PublicationDraft, "articleFile" | "bodyFile">, body: string, images: string[], format?: "markdown" | "html", repairIncomplete = false): Promise<string> {
   const source = await inside(folder, publication.bodyFile);
-  const html = /^\s*(?:<!doctype\s+html|<(?:html|body|article|section|div|p|h[1-6])\b)/i.test(body) || /\.html?$/i.test(publication.articleFile ?? source) && /<\w+[\s>]/.test(body), refs = [...body.matchAll(html ? /<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi : /!\[[^\]]*\]\(([^)]+)\)/g)];
+  const complete = async (file: string, bytes: Uint8Array) => {
+    try { await writeFile(file, bytes, { flag: "wx" }); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const actual = await inside(folder, file);
+      if ((await readFile(actual)).equals(bytes)) return;
+      if (!repairIncomplete) throw new Error("本次文章快照与原提交不一致，请核对原任务。");
+      // Only a manifest-bound, unregistered editor-save directory opts into repair.
+      // Preserve the incomplete bytes for recovery; existing versions never enter this path.
+      await rename(actual, `${actual}.incomplete-${randomUUID()}`);
+      await writeFile(file, bytes, { flag: "wx" });
+    }
+  };
+  const html = format ? format === "html" : /^\s*(?:<!doctype\s+html|<(?:html|body|article|section|div|p|h[1-6])\b)/i.test(body) || /\.html?$/i.test(publication.articleFile ?? source) && /<\w+[\s>]/.test(body), refs = [...body.matchAll(html ? /<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi : /!\[[^\]]*\]\(([^)]+)\)/g)];
   let rendered = body;
   const freeze = async (path: string) => {
     const bytes = await readFile(await inside(folder, path));
     if (bytes.length > 24 * 1024 * 1024) throw new Error("文章配图超过 24 MB，请先处理后再上传。");
     const name = `article-image-${hashText(bytes.toString("base64"))}${extname(path).toLowerCase()}`, target = join(dir, name);
-    try { await writeFile(target, bytes, { flag: "wx" }); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST" || !(await readFile(target)).equals(bytes)) throw error; }
+    await complete(target, bytes);
     return name;
   };
   for (const match of refs) {
-    const value = match[1]!.split(/\s+["']/)[0]!;
+    const encoded = match[1]!.split(/\s+["']/)[0]!;
+    const value = html ? encoded.replaceAll("&amp;", "&").replaceAll("&#38;", "&").replaceAll("&#x26;", "&") : encoded;
     if (/^(?:https?:|file:|data:|\/\/)/i.test(value)) { if (!value.startsWith("data:")) throw new Error("请先将文章配图导入本项目。"); continue; }
     let file: string;
     try { file = await inside(folder, join(dirname(source), decodeURIComponent(value))); }
@@ -66,12 +80,11 @@ export async function snapshotPublicationArticle(folder: string, dir: string, pu
       file = await inside(folder, join(dirname(origin), decodeURIComponent(value)));
     }
     const target = await freeze(file);
-    rendered = rendered.split(match[0]).join(match[0].replace(value, target));
+    rendered = rendered.split(match[0]).join(match[0].replace(encoded, target));
   }
   if (!refs.length && images.length) for (const file of images) { const local = await freeze(file); rendered += html ? `\n<p><img src="${local}" alt="配图"></p>` : `\n\n![配图](${local})`; }
   const file = join(dir, html ? "publication-body.html" : "publication-body.md");
-  try { await writeFile(file, rendered, { encoding: "utf8", flag: "wx" }); }
-  catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST" || await readFile(file, "utf8") !== rendered) throw new Error("本次文章快照与原提交不一致，请核对原任务。"); }
+  await complete(file, Buffer.from(rendered, "utf8"));
   return file;
 }
 

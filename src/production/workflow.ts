@@ -1,3 +1,5 @@
+import { articleSource, saveArticleRevision } from "./articleEditing.ts";
+import type { ArticleSave } from "../projectView.ts";
 import { preparePublicationUpload, executePublicationUpload } from "./publicationUpload.ts";
 import { creationAction } from "./creationActions.ts";
 import { creationImage, hydrateCreations, readCreationSource } from "./creations.ts";
@@ -38,6 +40,14 @@ export class ProductionWorkflow {
   private disposed = false;
   constructor(readonly host: ProductionHost) {}
   dispose(): void { this.disposed = true; for (const task of this.active.values()) task.controller.abort(); pauseBrowser(this.host.dataDir); }
+  async readArticleVersion(scope: ContentScope & {articleId: string}) {
+    const detail = await this.host.resolve(scope); return articleSource(detail.folderPath, scope.articleId, detail.articlePath);
+  }
+  async editArticleVersion(request: ArticleSave, signal: AbortSignal) {
+    const detail = await this.host.resolve(request), settings = await readSettings(this.host.dataDir);
+    const result = await saveArticleRevision(this.host.dataDir, detail.folderPath, request, settings.wechat.theme, signal, () => this.host.resolve(request), detail.articlePath);
+    this.host.changed(); return result;
+  }
   async settings(): Promise<ProductionSettingsView> {
     const settings = await readSettings(this.host.dataDir), ref = wechatCredential(settings.wechat.appid);
     return { ...settings, runtime: await runtimeStatus(this.host.dataDir), asrConfigured: await this.host.hasKey(ASR_CREDENTIAL), wechatConfigured: Boolean(settings.wechat.appid) && await this.host.hasKey(ref), wechatCredential: ref };
@@ -82,13 +92,13 @@ export class ProductionWorkflow {
       await this.host.setKey(wechatCredential(config.appid), config.secret);
       await updateSettings(dataDir, (settings) => { settings.wechat = { appid: config.appid, author: config.author, theme: "claude-editorial" }; });
     }
-    return this.settings();
+    this.host.changed(); return this.settings();
   }
-  async state(scope: ContentScope): Promise<ProductionState> {
+  async reconcile(scope: ContentScope): Promise<ProductionState> {
     const detail = await this.host.resolve(scope);
     const existing = await readState(detail.folderPath);
     for (const task of existing.tasks) if (task.kind === "images" && ["running", "unconfirmed"].includes(task.status) && !this.active.has(task.id) && !this.pending.has(task.id)) await reconcileImageItems(detail.folderPath, task);
-    if (!existing.tasks.some((task) => ["running", "queued"].includes(task.status) && !this.active.has(task.id) && !this.pending.has(task.id))) return hydrateCreations(detail.folderPath, await readState(detail.folderPath));
+    if (!existing.tasks.some((task) => ["running", "queued"].includes(task.status) && !this.active.has(task.id) && !this.pending.has(task.id))) return readState(detail.folderPath);
     const reconciled = await updateState(detail.folderPath, async (state) => {
       await this.host.resolve({ id: detail.id, folderPath: detail.folderPath });
       for (const task of state.tasks) if (["running", "queued"].includes(task.status) && !this.active.has(task.id) && !this.pending.has(task.id)) {
@@ -96,7 +106,10 @@ export class ProductionWorkflow {
       }
       return structuredClone(state);
     });
-    return hydrateCreations(detail.folderPath, reconciled);
+    return reconciled;
+  }
+  async state(scope: ContentScope): Promise<ProductionState> {
+    return hydrateCreations(scope.folderPath, await this.reconcile(scope));
   }
   async newTask(detail: ContentDetail, kind: ProductionTask["kind"], extra: Partial<ProductionTask> = {}): Promise<{ task: ProductionTask; fresh: boolean }> {
     let reserved: string | undefined;

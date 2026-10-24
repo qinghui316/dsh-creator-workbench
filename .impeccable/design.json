@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-24T15:47:54.590Z",
+  "generatedAt": "2026-10-24T19:56:44.933Z",
   "title": "Design System: 创作工作台",
   "extensions": {
     "colorMeta": {
@@ -67,12 +67,36 @@
       "state-error": {
         "role": "semantic",
         "displayName": "错误状态"
+      },
+      "light-group": {
+        "role": "neutral",
+        "displayName": "浅色分组底色"
+      },
+      "light-hover": {
+        "role": "semantic",
+        "displayName": "浅色悬停底色"
+      },
+      "light-active": {
+        "role": "semantic",
+        "displayName": "浅色按下底色"
+      },
+      "light-line": {
+        "role": "neutral",
+        "displayName": "浅色分隔线"
+      },
+      "light-field-line": {
+        "role": "neutral",
+        "displayName": "浅色字段边界"
+      },
+      "light-selected": {
+        "role": "semantic",
+        "displayName": "浅色选中底色"
       }
     },
     "typographyMeta": {
       "title": {
-        "displayName": "详情标题",
-        "purpose": "当前内容名称。"
+        "displayName": "基础标题",
+        "purpose": "保留的14px标题档位；工作台页头继承宿主字体。"
       },
       "section": {
         "displayName": "业务分组标题",
@@ -88,11 +112,15 @@
       },
       "tab": {
         "displayName": "详情页签",
-        "purpose": "既有五页签导航。"
+        "purpose": "概览、视频、脚本、字幕、文章、图片和发布的七页签导航。"
       },
       "action-small": {
         "displayName": "紧凑动作",
         "purpose": "DSH 小尺寸按钮。"
+      },
+      "project-title": {
+        "displayName": "项目详情标题",
+        "purpose": "既有项目详情标题为16px、600字重、24px行高；源码未因文档修复改变。"
       }
     },
     "shadows": [
@@ -131,64 +159,49 @@
         "purpose": "封面内部容器查询：三列封面改为带缩略图的连续行。"
       },
       {
-        "name": "inspector-wide",
-        "value": "720px",
-        "purpose": "详情内部宽度状态：原有发布摘要可使用两列；不切换外部项目栏与详情。"
+        "name": "inspector-compact",
+        "value": "420px",
+        "purpose": "详情容器内部：页签间距收紧至12px、文章版本选择整行排列；概览图片带改为两列，文章配图列80px，保留外部项目栏与详情。"
       }
     ],
     "hostBinding": {
       "theme": "DSH semantic CSS custom properties",
       "font": "var(--dsw-font-markdown-base)",
-      "tonalRamps": "宿主运行时拥有颜色解析；本地源码未定义固定色阶，未合成色值。",
-      "previewScope": "下列片段是当前源码的静态视觉样例；动态行为以 React 源码为准。文档刷新不构成远端上传、安装或业务验收。"
+      "tonalRamps": "基础表面与文字继承宿主；浅色增强使用六个已批准的离散角色色。没有合成品牌色阶，深色继续使用宿主值。",
+      "previewScope": "下列片段是当前源码的静态视觉样例；动态行为以 React 源码为准。文档刷新不构成远端上传、安装或业务验收。",
+      "lightScheme": "仅当 html inline color-scheme 为 light 时，WorkbenchContrast.css 在本插件根节点内映射分组、边界、悬停、按下与选中；对话和宿主公共界面不在作用范围。"
     }
   },
   "components": [
     {
-      "name": "主要动作",
+      "name": "原生动作组",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "保存与选用等当前主要动作；沿用 DSH small primary。",
-      "html": "<button class=\"ds-button ds-primary\" type=\"button\">保存</button>",
-      "css": ".ds-button{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 10px;border:none;border-radius:var(--dsw-radius-sm);font-size:12px;line-height:18px;cursor:pointer}.ds-primary{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}.ds-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}.ds-button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-button:disabled{opacity:.4;cursor:not-allowed}"
-    },
-    {
-      "name": "次要动作",
-      "kind": "button",
-      "refersTo": "button-secondary",
-      "description": "导入、预览与连接检查等次要动作；沿用 DSH small outline。",
-      "html": "<button class=\"ds-button ds-secondary\" type=\"button\">检查连接</button>",
-      "css": ".ds-button{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm);font-size:12px;line-height:18px;cursor:pointer;color:var(--dsw-alias-label-primary)}.ds-secondary{border:.5px solid var(--dsw-alias-border-l3);background:transparent}.ds-secondary:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.ds-button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-button:disabled{opacity:.4;cursor:not-allowed}"
-    },
-    {
-      "name": "无边框动作",
-      "kind": "button",
-      "refersTo": "button-ghost",
-      "description": "返回与历史等附属动作；沿用 DSH small ghost。",
-      "html": "<button class=\"ds-button ds-ghost\" type=\"button\">返回</button>",
-      "css": ".ds-button{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 10px;border:none;border-radius:var(--dsw-radius-sm);font-size:12px;line-height:18px;cursor:pointer;color:var(--dsw-alias-label-primary)}.ds-ghost{background:transparent}.ds-ghost:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.ds-ghost:active:not(:disabled){background:var(--dsw-alias-interactive-bg-active)}.ds-button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-button:disabled{opacity:.4;cursor:not-allowed}"
+      "description": "保存、导入与返回沿用 DSH small 层级；浅色增强次要按钮边界及悬停/按下反馈。片段展示已批准的浅色动作状态，深色仍使用宿主。",
+      "html": "<div class=\"ds-actions\" data-ds-light-example=\"true\"><button class=\"ds-button ds-primary\" type=\"button\">保存</button><button class=\"ds-button ds-secondary\" type=\"button\">导入</button><button class=\"ds-button ds-ghost\" type=\"button\">返回</button></div>",
+      "css": ".ds-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.ds-button{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 10px;border:0;border-radius:var(--dsw-radius-sm);font-size:12px;line-height:18px;cursor:pointer;color:var(--dsw-alias-label-primary)}.ds-primary{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}.ds-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}.ds-secondary{border:.5px solid var(--dsw-alias-border-l3);background:transparent}.ds-ghost{background:transparent}.ds-secondary:hover:not(:disabled),.ds-ghost:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.ds-ghost:active:not(:disabled){background:var(--dsw-alias-interactive-bg-active)}.ds-button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-button:disabled{opacity:.4;cursor:not-allowed} .ds-actions[data-ds-light-example=true]{--dsw-alias-interactive-bg-hover:#e3eaf5;--dsw-alias-interactive-bg-active:#d3dfef}.ds-actions[data-ds-light-example=true] .ds-secondary{border:1px solid #8792a4;background:var(--dsw-alias-bg-base)}.ds-actions[data-ds-light-example=true] .ds-ghost{border:1px solid transparent}.ds-actions[data-ds-light-example=true] :is(.ds-secondary,.ds-ghost):hover:not(:disabled){border-color:#8792a4;background:#e3eaf5}.ds-actions[data-ds-light-example=true] :is(.ds-secondary,.ds-ghost):active:not(:disabled){background:#d3dfef}"
     },
     {
       "name": "设置字段",
       "kind": "input",
       "refersTo": "field",
-      "description": "标签、输入与说明纵向分组；设置输入使用当前 38px 最小高度。",
+      "description": "标签、输入与说明纵向分组；设置输入最小高度38px。浅色有效可用字段悬停强调边界，aria-invalid错误边框及禁用状态保持。",
       "html": "<label class=\"ds-field\"><span>生图模型</span><input value=\"\" placeholder=\"输入模型名称\" /><span class=\"ds-helper\">使用服务提供的模型名称</span></label>",
-      "css": ".ds-field{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}.ds-field input{width:100%;min-width:0;min-height:38px;padding:7px 10px;border:1px solid var(--dsw-alias-border-l2,var(--dsw-alias-border-l1));border-radius:6px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);font:inherit}.ds-field input:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-field input[aria-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}.ds-helper{color:var(--dsw-alias-label-secondary)}"
+      "css": ".ds-field{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}.ds-field input{width:100%;min-width:0;min-height:38px;padding:7px 10px;border:1px solid var(--dsw-alias-border-l2,var(--dsw-alias-border-l1));border-radius:6px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);font:inherit}.ds-field input:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-field input[aria-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}.ds-helper{color:var(--dsw-alias-label-secondary)}:host-context(html[style*=\"color-scheme: light\"]) .ds-field input:hover:not(:disabled):not([aria-invalid=true]){border-color:var(--dsw-alias-state-business-primary)}"
     },
     {
       "name": "详情页签",
       "kind": "nav",
       "refersTo": "detail-tab",
-      "description": "既有五页签的静态样例；选中业务色与底线共同表达当前页。",
-      "html": "<div class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\" type=\"button\">概览</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" type=\"button\">视频</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" type=\"button\">脚本</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" type=\"button\">字幕</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" type=\"button\">文章</button></div>",
-      "css": ".ds-tabs{display:flex;gap:20px;margin-top:4px;padding-left:2px;overflow-x:auto}.ds-tab{position:relative;flex:none;min-height:36px;padding:0 0 11px;border:none;background:transparent;font-size:13px;line-height:16px;font-weight:500;color:var(--dsw-alias-label-tertiary);cursor:pointer;white-space:nowrap}.ds-tab::after{content:'';position:absolute;right:0;bottom:1px;left:0;height:2px;border-radius:0;background:transparent}.ds-tab[aria-selected=true]{color:var(--dsw-alias-state-business-primary)}.ds-tab[aria-selected=true]::after{background:var(--dsw-alias-state-business-primary)}.ds-tab:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+      "description": "七页签保留固定浏览顺序，选中业务色与底线表达当前页。浅色另外增强悬停和选中表面，窄容器内横向滚动。",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"项目内容\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\" tabindex=\"0\" type=\"button\">概览</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" type=\"button\">视频</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" type=\"button\">脚本</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" type=\"button\">字幕</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" type=\"button\">文章</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" type=\"button\">图片</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" type=\"button\">发布</button></div>",
+      "css": ".ds-tabs{container-type:inline-size;display:flex;gap:20px;margin-top:4px;padding-left:2px;overflow-x:auto}.ds-tab{position:relative;flex:none;padding:0 0 11px;border:none;background:transparent;font-size:13px;line-height:16px;font-weight:500;color:var(--dsw-alias-label-tertiary);cursor:pointer;white-space:nowrap}.ds-tab::after{content:\"\";position:absolute;right:0;bottom:1px;left:0;height:2px;background:transparent}.ds-tab[aria-selected=true]{color:var(--dsw-alias-state-business-primary)}.ds-tab[aria-selected=true]::after{background:var(--dsw-alias-state-business-primary)}.ds-tab:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
     },
     {
       "name": "设置分组导航",
       "kind": "nav",
-      "description": "生图服务与常规设置的轻背景选中态。",
-      "html": "<nav class=\"ds-settings-tabs\" aria-label=\"设置分组\"><button type=\"button\" aria-current=\"page\">生图服务</button><button type=\"button\">常规</button></nav>",
+      "description": "生图服务、发布平台、语音转文字、公众号与常规设置使用统一分组导航，当前组为轻背景选中态。",
+      "html": "<nav class=\"ds-settings-tabs\" aria-label=\"设置分组\"><button type=\"button\" aria-current=\"page\">生图服务</button><button type=\"button\">发布平台</button><button type=\"button\">语音转文字</button><button type=\"button\">公众号</button><button type=\"button\">常规</button></nav>",
       "css": ".ds-settings-tabs{display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--dsw-alias-border-l1);padding-bottom:10px}.ds-settings-tabs button{border:0;background:none;color:var(--dsw-alias-label-secondary);padding:9px 16px;border-radius:6px;cursor:pointer;font:inherit;white-space:nowrap}.ds-settings-tabs [aria-current]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);font-weight:600}.ds-settings-tabs button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
     },
     {
@@ -201,9 +214,9 @@
     {
       "name": "平台材料列表",
       "kind": "custom",
-      "description": "平台材料使用连续双行列表，就地选中并展开编辑；标题和平台类型共同识别材料，上传反馈随当前材料显示。",
-      "html": "<div class=\"ds-publications\"><button type=\"button\" aria-pressed=\"true\"><strong>发布内容</strong><span>小红书 · 图文</span></button><button type=\"button\" aria-pressed=\"false\"><strong>发布内容</strong><span>公众号 · 文章</span></button></div>",
-      "css": ".ds-publications{display:grid;margin:12px 0}.ds-publications button{display:flex;flex-direction:column;text-align:left;gap:5px;color:var(--dsw-alias-label-primary);font:inherit;padding:12px;border:0;border-bottom:1px solid var(--dsw-alias-border-l1);background:transparent;cursor:pointer;min-width:0;overflow-wrap:anywhere}.ds-publications button:is(:hover,[aria-pressed=true]){background:var(--dsw-alias-bg-layer-2)}.ds-publications span{color:var(--dsw-alias-label-secondary);font-size:12px}.ds-publications button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+      "description": "发布页默认提供连续双行材料列表与平台、类型筛选；进入材料后由编辑器和紧凑切换器承接，返回保留列表位置。",
+      "html": "<section class=\"ds-publication-page\" aria-label=\"平台发布内容\"><div class=\"ds-filter-row\"><label>平台<select><option>全部平台</option><option>小红书</option><option>抖音</option></select></label><label>类型<select><option>全部类型</option><option>视频</option><option>图文多图</option></select></label></div><div class=\"ds-publications\"><button type=\"button\"><strong>图文发布材料</strong><span>小红书 · 图文多图 · 材料已保存</span></button><button type=\"button\"><strong>视频发布材料</strong><span>抖音 · 视频 · 已上传待人工发表</span></button></div></section>",
+      "css": ".ds-publications{display:grid;margin:12px 0}.ds-publications button{display:flex;flex-direction:column;text-align:left;gap:5px;color:var(--dsw-alias-label-primary);font:inherit;padding:12px;border:0;border-bottom:1px solid var(--dsw-alias-border-l1);background:transparent;cursor:pointer;min-width:0;overflow-wrap:anywhere}.ds-publications button:is(:hover,[aria-pressed=true]){background:var(--dsw-alias-bg-layer-2)}.ds-publications span{color:var(--dsw-alias-label-secondary);font-size:12px}.ds-publications button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-filter-row{display:flex;flex-wrap:wrap;gap:8px;color:var(--dsw-alias-label-primary);font-size:13px}.ds-filter-row label{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 140px}.ds-filter-row select{min-width:0;flex:1;min-height:36px;padding:7px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:var(--dsw-alias-bg-base);color:inherit;font:inherit}.ds-filter-row select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
     },
     {
       "name": "脚本请求与保存反馈",
@@ -211,23 +224,45 @@
       "description": "请求准备与脚本自动保存分别反馈；请求就绪后由用户在原生项目对话发送。片段展示就绪和已保存。",
       "html": "<section class=\"ds-script-feedback\" aria-label=\"脚本\"><button class=\"ds-script-request\" type=\"button\">让 Agent 修改脚本</button><p class=\"ds-request-state\" role=\"status\">请求已放入左侧对话，请发送。</p><div class=\"ds-script-save\" role=\"status\">已保存</div></section>",
       "css": ".ds-script-feedback{min-width:0;color:var(--dsw-alias-label-primary);font:var(--dsw-font-markdown-base)}.ds-script-request{display:inline-flex;align-items:center;justify-content:center;height:28px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-primary);font-size:12px;line-height:18px;cursor:pointer}.ds-script-request:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.ds-script-request:disabled{opacity:.4;cursor:not-allowed}.ds-request-state{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.ds-script-save{display:flex;align-items:center;gap:10px;min-height:36px;margin-bottom:10px;font-size:13px;color:var(--dsw-alias-label-secondary)}.ds-script-request:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+    },
+    {
+      "name": "概览成果分组",
+      "kind": "custom",
+      "description": "概览直接观看当前视频、真实正文摘录、图片与封面；发布内容逐份展示平台和状态。管理与编辑进入对应页面，点击媒体留在业务区查看。片段展示视频和脚本成果。",
+      "html": "<div class=\"ds-overview\"><section class=\"ds-overview-section\" aria-label=\"视频摘要\"><div class=\"ds-overview-heading\"><h3>视频</h3><button type=\"button\">管理</button></div><video class=\"ds-overview-video\" controls preload=\"metadata\" aria-label=\"概览视频预览\"></video><p class=\"ds-overview-caption\">创作演示.mp4</p></section><section class=\"ds-overview-section\" aria-label=\"脚本摘要\"><div class=\"ds-overview-heading\"><h3>脚本</h3><button type=\"button\">编辑</button></div><p class=\"ds-overview-excerpt\">先整理本期主题与资料，再写出口播结构。拍摄完成后导入成片，继续准备图片、文章和各平台内容。</p></section><section class=\"ds-overview-section\" aria-label=\"文章摘要\"><div class=\"ds-overview-heading\"><h3>文章</h3><button type=\"button\">编辑</button></div><h4>从选题到成稿</h4><p class=\"ds-overview-excerpt\">把素材按主题整理，将共用成果与各平台发布内容分别保存。</p></section></div>",
+      "css": ".ds-overview{padding:4px 0 20px;color:var(--dsw-alias-label-primary);font:var(--dsw-font-markdown-base)}.ds-overview-section{padding:20px 0;border-bottom:1px solid var(--dsw-alias-border-l1);min-width:0}.ds-overview-section:first-child{padding-top:0}.ds-overview-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.ds-overview-heading h3{margin:0;font-size:14px;font-weight:600}.ds-overview-heading button{height:28px;padding:0 10px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-primary);font-size:12px;line-height:18px;cursor:pointer}.ds-overview-heading button:hover{background:var(--dsw-alias-interactive-bg-hover)}.ds-overview-heading button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-overview-video{display:block;width:100%;max-height:280px;aspect-ratio:16/9;background:var(--dsw-alias-bg-overlay);border-radius:6px}.ds-overview-caption{margin:8px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;overflow-wrap:anywhere}.ds-overview-section h4{margin:0 0 8px;font-size:14px;line-height:1.6;font-weight:500;overflow-wrap:anywhere}.ds-overview-excerpt{margin:0;line-height:1.75;font-size:13px;white-space:pre-line;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}"
+    },
+    {
+      "name": "文章文稿与版本保存",
+      "kind": "custom",
+      "description": "文章默认阅读 HTML 成品；编辑时切换文稿与预览并保存新版本。让 Agent 修改绑定已保存的精确版本，未保存文稿先保存；原生草稿由用户发送。片段展示文稿编辑状态。",
+      "html": "<section class=\"ds-article\" aria-label=\"文章文稿\"><div class=\"ds-article-toolbar\"><button type=\"button\" aria-pressed=\"true\">文稿</button><button type=\"button\">预览</button><button class=\"ds-article-save\" type=\"button\">保存新版本</button><span>Markdown</span></div><textarea class=\"ds-source\" aria-label=\"文章源稿\"># 从选题到成稿\n\n整理观点，完成正文，再为各平台准备独立材料。</textarea><p class=\"ds-save-status\" role=\"status\">修改尚未保存</p></section>",
+      "css": ".ds-article{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%;gap:14px;color:var(--dsw-alias-label-primary);font:var(--dsw-font-markdown-base)}.ds-article-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.ds-article-toolbar button{height:28px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm);background:transparent;color:inherit;font-size:12px;line-height:18px;cursor:pointer}.ds-article-toolbar button.ds-article-save{border:0;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}.ds-article-toolbar button:hover{background:var(--dsw-alias-interactive-bg-hover)}.ds-article-toolbar button.ds-article-save:hover{background:var(--dsw-alias-button-primary-hover)}.ds-source{box-sizing:border-box;width:100%;min-height:240px;flex:1;resize:vertical;padding:14px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:var(--dsw-alias-bg-base);color:inherit;font:inherit;font-size:14px;line-height:1.7;tab-size:2}.ds-save-status,.ds-article-toolbar span{margin:0;min-height:20px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.ds-article button:focus-visible,.ds-source:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+    },
+    {
+      "name": "项目图片网格",
+      "kind": "custom",
+      "description": "图片页按需读取项目图片，缩略图保留比例；尺寸和移除相邻，在业务区内预览。浅色为图片增加可见边界与悬停反馈。片段展示读取占位。",
+      "html": "<section class=\"ds-gallery\" aria-label=\"项目图片\"><div class=\"ds-image-item\"><button class=\"ds-image-button\" type=\"button\" aria-label=\"预览项目图片\"><span>读取图片…</span></button><div class=\"ds-image-meta\"><span>1024×1365</span><button type=\"button\">移除</button></div></div><div class=\"ds-image-item\"><button class=\"ds-image-button\" type=\"button\" aria-label=\"预览项目图片\"><span>读取图片…</span></button><div class=\"ds-image-meta\"><span>1536×1024</span><button type=\"button\">移除</button></div></div></section>",
+      "css": ".ds-gallery{container-type:inline-size;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin:14px 0;color:var(--dsw-alias-label-primary)}.ds-image-item{min-width:0}.ds-image-button{display:block;width:100%;min-height:130px;padding:0;border:0;border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer}.ds-image-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:5px;font-size:12px;color:var(--dsw-alias-label-secondary)}.ds-image-meta button{height:28px;padding:0 10px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:inherit;font-size:12px;cursor:pointer}.ds-image-meta button:hover{background:var(--dsw-alias-interactive-bg-hover)}.ds-gallery button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
     }
   ],
   "narrative": {
     "northStar": "原生创作工具",
-    "overview": "这是一套在 Windows DSH Desktop 中完成内容整理与编辑的操作界面。视觉延续宿主的文字、主题和按钮语言，以简洁的 Beaver 式表单分组、连续历史列表和真实媒体预览组织任务。密度紧凑，标题克制，主要动作通过原生按钮与清晰文案建立层级。\n\n本文件记录当前工作区源码中可复用的视觉与交互规则，面向 Windows 原生操作场景。宿主提供字体与主题变量，插件不另建固定品牌色或字体栈。原生对话与业务区的分栏、业务区左侧项目历史与右侧详情，是承载这套视觉系统的现有布局。通用文章、图片与各平台发布材料沿用同一项目上下文，通过分组、连续行和就地编辑区呈现。",
+    "overview": "这是一套在 Windows DSH Desktop 中完成内容整理与编辑的操作界面。视觉延续宿主的文字、主题和按钮语言，以简洁的 Beaver 式表单分组、连续历史列表和真实媒体预览组织任务。密度紧凑，标题克制，主要动作通过原生按钮与清晰文案建立层级。\n\n本文件记录 0.6.0 当前工作区源码中可复用的视觉与交互规则，面向 Windows 原生操作场景。宿主提供字体与主题变量，插件不另建固定品牌色或字体栈。原生对话与业务区的分栏、业务区左侧项目历史与右侧详情，是承载这套视觉系统的现有布局。概览直接呈现已有成果，视频、脚本、字幕、文章、图片与发布各有所属编辑页面，同一项目中的共用成果和平台材料保持清楚的边界。新增页面与交互的本机验收另行记录。",
     "keyCharacteristics": [
-      "继承宿主语义主题，使用文字层级、细分隔线与轻背景表达关系。",
+      "继承宿主语义主题，浅色局部增强分区、边界、悬停与选中关系。",
       "正文、说明与详情标题形成紧凑的三级文字关系。",
-      "表单纵向分组，次要与诊断信息通过折叠展开。",
+      "概览按成果分组直接观看视频、图片、正文摘录和各平台状态，编辑时进入所属页面。",
+      "常用内容与操作直接展示，历史记录和诊断按需展开。",
       "项目历史和平台材料以连续行组织，图片、视频与封面保留真实比例。",
-      "预览和版本内容在所属业务区内展开。",
-      "原生请求、编辑保存与后台任务分别显示各自状态。"
+      "文章阅读、源稿编辑和版本保存各有明确状态；共用成果与平台材料分别编辑。",
+      "原生请求、编辑保存与后台任务分别反馈，后台更新保留未保存输入。"
     ],
     "rules": [
       {
         "name": "The Host Theme Rule",
-        "body": "复用宿主语义变量；扩展界面时继续按角色取色，不从截图采样并写入固定色值。",
+        "body": "基础界面复用宿主语义变量；浅色对比度增强使用本插件已批准的六个局部角色，作用范围限定在工作台内。",
         "section": "colors"
       },
       {
@@ -249,10 +284,11 @@
     "dos": [
       "**Do** 使用宿主语义颜色、字体与原生按钮，让新增表单延续当前控件语言。",
       "**Do** 按正文、说明、分组标题和详情标题角色建立紧凑层级。",
-      "**Do** 用连续行、分隔线和折叠组织历史、管理与诊断内容。",
+      "**Do** 在概览直接呈现真实成果，编辑时进入对应页面，历史与诊断按需查看。",
       "**Do** 按所属容器宽度重排封面、图片与表单内部内容，并保留真实媒体比例。",
-      "**Do** 同时保留原生分栏、项目栏与详情，以及“概览 → 视频 → 脚本 → 字幕 → 文章”的顺序。",
-      "**Do** 分别显示请求准备、内容保存和后台任务状态，让反馈对应实际动作。"
+      "**Do** 同时保留原生分栏、项目栏与详情，以及“概览 → 视频 → 脚本 → 字幕 → 文章 → 图片 → 发布”的顺序。",
+      "**Do** 分别显示请求准备、内容保存和后台任务状态，让反馈对应实际动作。",
+      "**Do** 分开共用成果、页面草稿与平台材料，后台更新时保留正在编辑的内容。"
     ],
     "donts": [
       "**Don't** 从单张浅色截图推导固定主题色或自行指定宿主字体。",

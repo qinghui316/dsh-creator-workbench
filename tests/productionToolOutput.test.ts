@@ -5,6 +5,14 @@ import { registerProductionTools } from "../src/production/tools.ts";
 import type { ProductionWorkflow } from "../src/production/workflow.ts";
 
 describe("article input through the actual Harness tool output contract", () => {
+  it("returns a compact revision receipt instead of HTML/Base64 through the actual Agent renderer", async () => {
+    const ctx=new Context();ctx.provide("systemPrompt",{tools:()=>()=>undefined});const runtime=new ToolRuntime(ctx);ctx.provide("attachments",{saveImages:vi.fn()});
+    const saved={article:{id:"saved",file:"saved.md",createdAt:1,frameFiles:[]},sourceHash:"hash",source:"source body",preview:{path:"preview.html",html:'<img src="data:image/png;base64,'+'A'.repeat(100000)+'">'}};
+    registerProductionTools(ctx,{editArticleVersion:vi.fn(async()=>saved)} as unknown as ProductionWorkflow);
+    const result=await runtime.execute({callId:"save" as never,name:"creator_save_article_revision",arguments:{id:"episode",folderPath:"E:/内容",articleId:"base",expectedSourceHash:"base-hash",source:"edited",saveId:"stable-save"},signal:new AbortController().signal});
+    expect(result.isError).toBe(false);if(result.isError)throw new Error(JSON.stringify(result));
+    expect(result.value).toMatchObject({article:{id:"saved"},previewPath:"preview.html"});expect(result.value).not.toHaveProperty("preview");expect(JSON.stringify(result.content)).not.toContain("base64");expect(JSON.stringify(result.content).length).toBeLessThan(1000);
+  });
   it.each([false, true])("returns lossless JSON and native image references (waiting=%s)", async (waiting) => {
     const ctx = new Context();
     ctx.provide("systemPrompt", { tools: () => () => undefined });

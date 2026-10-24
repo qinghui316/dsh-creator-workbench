@@ -1,3 +1,6 @@
+import { imageItemSchema } from "./production/creationSchemas.ts";
+import { coverRunSchema } from "./covers/schemas.ts";
+import { publicationSchema } from "./production/creationSchemas.ts";
 import { coverScopeSchema, coverActionSchema, coverStateSchema, imageSettingsSchema } from "./covers/schemas.ts";
 import type { InvocationDescriptor } from "@deepseek-ai/dsh-typert-protocol";
 import { z } from "zod";
@@ -71,7 +74,20 @@ function invocation(
   };
 }
 
+const taskViewSchema = productionStateSchema.shape.tasks.element.extend({imageItems:z.array(imageItemSchema.omit({prompt:true})).optional()});
+const productionViewSchema = productionStateSchema.extend({tasks:z.array(taskViewSchema)});
+const slotViewSchema = coverRunSchema.shape.slots.shape["3x4"].unwrap().omit({prompt:true});
+const coverViewSchema = coverStateSchema.extend({runs:z.array(coverRunSchema.extend({slots:z.object({"3x4":slotViewSchema.optional(),"4x3":slotViewSchema.optional(),"16x9":slotViewSchema.optional()})}))});
+const articleSourceResultSchema = z.object({ article: productionStateSchema.shape.articles.element, source: z.string(), sourceHash: z.string() });
+const articleEditSchema = scopeSchema.extend({ articleId: z.string(), expectedSourceHash: z.string(), source: z.string().max(2097152) });
+const htmlPreviewSchema = z.object({ html: z.string(), path: z.string() });
 export const CREATOR_WORKBENCH_INVOCATIONS: readonly InvocationDescriptor[] = [
+  invocation("getProjectView", z.object({ id: z.string(), folderPath: z.string().optional() }), z.object({ detail: contentDetailSchema, production: productionViewSchema, covers: coverViewSchema, settingsRevision: z.string().optional(), accountIds: z.record(z.string(), z.string()).optional(), script: z.object({ exists: z.boolean(), excerpt: z.string() }), excerpts:z.object({article:z.object({id:z.string(),text:z.string()}).optional(),subtitle:z.object({file:z.string(),source:z.string(),text:z.string()}).optional()}).optional() })),
+  invocation("reconcileProject", scopeSchema, emptyObjectSchema),
+  invocation("getPublicationContent", scopeSchema.extend({ publicationId: z.string(), revision: z.number() }), publicationSchema),
+  invocation("readArticleSource", scopeSchema.extend({ articleId: z.string() }), articleSourceResultSchema),
+  invocation("previewArticleDraft", articleEditSchema, htmlPreviewSchema),
+  invocation("saveArticleRevision", articleEditSchema.extend({ saveId: z.string() }), articleSourceResultSchema.extend({ preview: htmlPreviewSchema.optional(), previewError: z.string().optional() })),
   invocation("getProductionSettings", emptyObjectSchema, productionSettingsSchema),
   invocation("productionSettingsAction", productionSettingsActionSchema, productionSettingsSchema),
   invocation("getProductionState", scopeSchema, productionStateSchema),

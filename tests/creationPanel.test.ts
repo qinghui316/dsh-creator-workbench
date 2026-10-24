@@ -3,6 +3,7 @@ import { createElement as h } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreationPanel } from "../src/client/CreationPanel.tsx";
+import { PublicationPanel } from "../src/client/PublicationPanel.tsx";
 import type { ContentDetail } from "../src/types.ts";
 import type { ProductionClient } from "../src/client/productionApi.ts";
 import { emptyProduction, type ProductionAction, type PublicationInput } from "../src/production/types.ts";
@@ -17,6 +18,25 @@ function fixture(){
  render(h(CreationPanel,{detail,api,enabledPlatforms:["xiaohongshu","douyin"]}));return{detail,api,action,prepareRequest,state};
 }
 describe("independent publishing controls",()=>{
+ it("preserves an existing dirty draft when overview targets another publication",async()=>{
+  const f=fixture();fireEvent.click(await screen.findByRole("button",{name:/小红书标题/}));fireEvent.change(await screen.findByLabelText("正文"),{target:{value:"必须保留的未保存正文"}});await act(async()=>{});cleanup();
+  render(h(PublicationPanel,{detail:f.detail,api:f.api,enabledPlatforms:["xiaohongshu","douyin"],initialPublicationId:"second"}));
+  await screen.findByText("当前修改尚未保存");expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("必须保留的未保存正文");expect(f.action).not.toHaveBeenCalled();
+ });
+ it("retries interrupted task recovery from the publishing retry control",async()=>{
+  const state=emptyProduction(),reconcile=vi.fn().mockRejectedValueOnce(new Error("恢复断连")).mockResolvedValue(undefined);
+  const api={state:async()=>state,reconcile} as unknown as ProductionClient;
+  const detail={id:"retry",folderPath:`E:/retry-${++sequence}`,title:"恢复项目",tags:[],covers:{},publish:{},videos:[]} as unknown as ContentDetail;
+  render(h(PublicationPanel,{detail,api}));await screen.findByText("恢复断连");fireEvent.click(screen.getByText("重新读取"));
+  await waitFor(()=>expect(reconcile).toHaveBeenCalledTimes(2));await waitFor(()=>expect(screen.queryByText("恢复断连")).toBeNull());
+ });
+ it("does not replace ongoing edits when a later material body read completes",async()=>{
+  const f=fixture();f.api.publication=vi.fn(async(request)=>f.state.publications.find(p=>p.id===request.publicationId)!);
+  fireEvent.click(await screen.findByRole("button",{name:/小红书标题/}));await screen.findByLabelText("正文");
+  let finish!:(p:typeof f.state.publications[number])=>void;vi.mocked(f.api.publication).mockImplementationOnce(()=>new Promise(r=>{finish=r;}));
+  fireEvent.change(screen.getByLabelText("切换发布内容"),{target:{value:"second"}});fireEvent.change(screen.getByLabelText("正文"),{target:{value:"切换期间继续编辑A"}});
+  await act(async()=>finish(f.state.publications[1]!));expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("切换期间继续编辑A");expect(screen.getByText("读取期间内容已修改，当前编辑已保留，请再次切换。")).toBeTruthy();
+ });
  it("shows the server's rebased article body after saving while keeping later typing protected",async()=>{
   const f=fixture();fireEvent.click(await screen.findByRole("button",{name:/小红书标题/}));
   f.action.mockResolvedValueOnce({...f.state,publications:f.state.publications.map(p=>p.id==="first"?{...p,body:"![配图](../../images/one.png)",revision:2}:p),savedPublication:{id:"first",revision:2}} as typeof f.state);
@@ -26,7 +46,7 @@ describe("independent publishing controls",()=>{
  it("does not carry an earlier platform upload notice into another material",async()=>{
   const f=fixture();fireEvent.click(await screen.findByRole("button",{name:/小红书标题/}));let finish!:(s:typeof f.state)=>void;
   f.action.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));fireEvent.click(screen.getByLabelText("我确认本次内容拥有发布授权"));fireEvent.click(screen.getByRole("button",{name:"上传并准备草稿"}));
-  fireEvent.click(screen.getByRole("button",{name:/抖音标题/}));
+  fireEvent.change(screen.getByLabelText("切换发布内容"),{target:{value:"second"}});
   await act(async()=>finish({...f.state,uploadNotice:{taskId:"first-upload",canCreateNew:true,message:"小红书已有上传记录"}} as typeof f.state));
   expect(screen.queryByText("小红书已有上传记录")).toBeNull();expect(screen.queryByRole("button",{name:"确认另建一份上传"})).toBeNull();
  });
@@ -53,7 +73,7 @@ describe("independent publishing controls",()=>{
  it("does not navigate back when an earlier save succeeds after switching materials",async()=>{
   const f=fixture();fireEvent.click(await screen.findByRole("button",{name:/小红书标题/}));let finish!: (s:typeof f.state)=>void;
   f.action.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));fireEvent.change(screen.getByLabelText("正文"),{target:{value:"保存版本A"}});fireEvent.click(screen.getByRole("button",{name:"保存材料"}));
-  fireEvent.click(screen.getByRole("button",{name:/抖音标题/}));fireEvent.click(screen.getByRole("button",{name:"放弃修改"}));
+  fireEvent.change(screen.getByLabelText("切换发布内容"),{target:{value:"second"}});fireEvent.click(screen.getByRole("button",{name:"放弃修改"}));
   await act(async()=>finish({...f.state,publications:f.state.publications.map(p=>p.id==="first"?{...p,body:"保存版本A",revision:2}:p)}));
   expect((screen.getByLabelText("标题") as HTMLInputElement).value).toBe("抖音标题");expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("保留的正文");
  });
@@ -74,7 +94,7 @@ describe("independent publishing controls",()=>{
  it("preserves an edited platform draft before switching and keeps the other draft unchanged",async()=>{
   fixture();fireEvent.click(await screen.findByRole("button",{name:/小红书标题/}));
   fireEvent.change(screen.getByLabelText("正文"),{target:{value:"人工编辑未保存"}});
-  fireEvent.click(screen.getByRole("button",{name:/抖音标题/}));expect(screen.getByText("当前修改尚未保存")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("切换发布内容"),{target:{value:"second"}});expect(screen.getByText("当前修改尚未保存")).toBeTruthy();
   expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("人工编辑未保存");
   fireEvent.click(screen.getByRole("button",{name:"放弃修改"}));expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("保留的正文");
  });

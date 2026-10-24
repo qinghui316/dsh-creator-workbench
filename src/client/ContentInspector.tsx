@@ -1,4 +1,10 @@
-import { CreationPanel } from "./CreationPanel.tsx";
+import { PublicationPanel } from "./PublicationPanel.tsx";
+import { ImageLibraryPanel } from "./ImageLibraryPanel.tsx";
+import { ArticlePanel } from "./ArticlePanel.tsx";
+import { SubtitlePanel } from "./SubtitlePanel.tsx";
+import { OverviewPage } from "./OverviewPage.tsx";
+import { ProjectDataProvider } from "./ProjectData.tsx";
+import { PROJECT_TABS, type ProjectTab } from "../projectView.ts";
 import { CoverPanel } from "./CoverPanel.tsx";
 import { ProductionPanel } from "./ProductionPanel.tsx";
 import { VideoPanel } from "./VideoPanel.tsx";
@@ -28,7 +34,7 @@ import { StatusPill, type StatusTone } from "./ui/StatusPill.tsx";
 import { Surface } from "./ui/Surface.tsx";
 import "./ContentInspector.css";
 
-const TABS = ["overview", "video", "script", "subtitle", "article"] as const;
+const TABS = PROJECT_TABS;
 const INSPECTOR_WIDE_PX = 720;
 type InspectorTab = (typeof TABS)[number];
 
@@ -45,6 +51,8 @@ const TAB_KEY: Record<InspectorTab, CreatorKey> = {
   script: "inspector.tab.script",
   subtitle: "inspector.tab.subtitle",
   article: "inspector.tab.article",
+  images: "inspector.tab.images",
+  publishing: "inspector.tab.publishing",
 };
 
 function cuesFromSubtitle(nextSubtitle: { text: string; cues: SubtitleCue[] }): SubtitleCue[] {
@@ -112,6 +120,7 @@ function WorkRow({
 }
 
 const pendingScriptDrafts = new Map<string, string>();
+const projectNavigation = new Map<string, { tab: ProjectTab; scroll: Partial<Record<ProjectTab, number>> }>();
 
 export type ContentInspectorProps = CreatorViewFace & {
   suspended?: boolean;
@@ -124,6 +133,7 @@ export function ContentInspector({
   suspended = false,
   ready,
   getContent,
+  getProjectView,
   getCoverThumb,
   getCoverState, coverAction, getCoverImage, prepareCoverDraft, prepareCoverRequest,
   getVideoPlayback,
@@ -158,6 +168,12 @@ export function ContentInspector({
   const [cues, setCues] = useState<SubtitleCue[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [tab, setTab] = useState<InspectorTab>("overview");
+  const [publicationArticle, setPublicationArticle] = useState<string>();
+  const [overviewTarget,setOverviewTarget] = useState<{folder:string;tab:ProjectTab;id:string}>();
+  const tabMemory = useRef(projectNavigation);
+  const navigationKey = useRef<string>();
+  const changeTab = (next: ProjectTab) => { setOverviewTarget(undefined); if (detail) tabMemory.current.set(detail.folderPath, { tab: next, scroll: tabMemory.current.get(detail.folderPath)?.scroll ?? {} }); setTab(next); };
+
   const [wide, setWide] = useState(false);
   const [actionError, setActionError] = useState<string | undefined>(undefined);
   const [scriptRequest, setScriptRequest] = useState<"idle" | "preparing" | "ready" | "failed">("idle");
@@ -175,6 +191,7 @@ export function ContentInspector({
 
   useEffect(() => {
     setTab("overview");
+    setPublicationArticle(undefined);
     setActionError(undefined);
     setScriptRequest("idle"); setScriptRequestError("");
 
@@ -230,12 +247,16 @@ export function ContentInspector({
     const switched = loadedId.current !== selectedId;
     let cancelled = false;
     setError(undefined);
-    void Promise.all([getContent(selectedId), getSubtitleText(selectedId)]).then(
+    void Promise.all([
+      getProjectView && tab !== "script" ? getProjectView(selectedId).then(view => view.detail) : getContent(selectedId),
+      tab === "subtitle" ? getSubtitleText(selectedId) : Promise.resolve({ text: "", cues: [] as SubtitleCue[] })
+    ]).then(
       ([nextDetail, nextSubtitle]) => {
         if (cancelled) return;
+        if (navigationKey.current !== nextDetail.folderPath) { navigationKey.current = nextDetail.folderPath; setTab(tabMemory.current.get(nextDetail.folderPath)?.tab ?? "overview"); }
         loadedId.current = selectedId;
         setDetail(nextDetail);
-        if (switched || loadedFolder.current !== nextDetail.folderPath || scriptSavedRef.current) {
+        if ((!getProjectView || tab === "script") && (switched || loadedFolder.current !== nextDetail.folderPath || scriptSavedRef.current)) {
           const draft = pendingScriptDrafts.get(nextDetail.folderPath) ?? nextDetail.script;
           setScriptDraft(draft);
           setScriptSaved(draft === nextDetail.script);
@@ -252,10 +273,10 @@ export function ContentInspector({
     return () => {
       cancelled = true;
     };
-  }, [selectedId, libraryEpoch, suspended]);
+  }, [selectedId, libraryEpoch, suspended, tab === "script", tab === "subtitle"]);
 
   useEffect(() => {
-    if (suspended || tab !== "article" || selectedId === null || !ready()) return;
+    if (production || suspended || tab !== "article" || selectedId === null || !ready()) return;
     let cancelled = false;
     void getArticleMedia(selectedId).then((next: ArticleMediaResult) => {
       if (cancelled) return;
@@ -290,7 +311,7 @@ export function ContentInspector({
     const running = detail?.burn.status === "running"
       || detail?.subtitleJob.status === "running"
       || detail?.coverJob.status === "running";
-    if (suspended || !running || selectedId === null || !ready()) return;
+    if (production || suspended || !running || selectedId === null || !ready()) return;
     const timer = window.setInterval(() => {
       void getContent(selectedId).then((next) => { setDetail(next); });
     }, 3000);
@@ -434,6 +455,9 @@ export function ContentInspector({
   };
 
 
+  useEffect(() => {
+    if (!detail) return; const body = pane.current?.querySelector<HTMLElement>(".body"); if (body) body.scrollTop = tabMemory.current.get(detail.folderPath)?.scroll[tab] ?? 0;
+  }, [tab, detail?.folderPath]);
   const moveTabFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number): void => {
     let target = index;
     if (event.key === "ArrowRight") target = (index + 1) % TABS.length;
@@ -505,7 +529,7 @@ export function ContentInspector({
               aria-controls={`${tabGroupId}-panel-${id}`}
               tabIndex={tab === id ? 0 : -1}
               className={tab === id ? "tab active" : "tab"}
-              onClick={() => { setTab(id); }}
+              onClick={() => { changeTab(id); }}
               onKeyDown={(event) => { moveTabFocus(event, index); }}
             >
               {t(TAB_KEY[id])}
@@ -513,9 +537,10 @@ export function ContentInspector({
           ))}
         </div>
       </header>
-      <div
+      <ProjectBoundary api={production} detail={detail}><div
         id={`${tabGroupId}-panel-${tab}`}
         className="body"
+        onScroll={event => { if (detail) { const previous = tabMemory.current.get(detail.folderPath); tabMemory.current.set(detail.folderPath, { tab, scroll: { ...previous?.scroll, [tab]: event.currentTarget.scrollTop } }); } }}
         role="tabpanel"
         aria-labelledby={`${tabGroupId}-tab-${tab}`}
       >
@@ -523,50 +548,16 @@ export function ContentInspector({
         {error === undefined && detail === undefined && (
           <div className="empty">{t("empty.loading" as CreatorKey)}</div>
         )}
-        {detail !== undefined && tab === "overview" && (
-          <>
-            <div className="lede">
-              <div className="ledeText">
-                <StatusPill tone={WORKFLOW_TONE[detail.workflow]}>
-                  {t(STAGE_KEY[detail.workflow])}
-                </StatusPill>
-                <div className="time">{formatRelativeTime(detail.recordedAt, Date.now(), t)}</div>
-              </div>
-            </div>
-            <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} setVideoVisibility={setVideoVisibility} />
-            {(hasVideo || Object.keys(detail.covers).length > 0) && <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} {...(prepareCoverRequest ? { prepareCoverRequest } : {})} />}
-            {hasVideo && (
-              <Surface title={t("inspector.make" as CreatorKey)}>
-                <div className="workList">
-                  <WorkRow
-                    name={t("inspector.track.subtitle" as CreatorKey)}
-                    {...subtitleStatus()}
-                  />
-
-                </div>
-              </Surface>
-            )}
-            {actionError !== undefined && (
-              <JobNote tone="error">{actionError}</JobNote>
-            )}
-            {production && <CreationPanel key={`creations:${detail.folderPath}`} detail={detail} api={production} enabledPlatforms={enabledPlatforms ?? []} onPublish={applyPublish} publishPending={publishPending} openPath={openPath} />}
-            {detail.tags.length > 0 && (
-              <Surface title={t("detail.tags" as CreatorKey)}>
-                <div className="tags">
-                  {detail.tags.map((tag) => (
-                    <span key={tag} className="tag">#{tag}</span>
-                  ))}
-                </div>
-              </Surface>
-            )}
-          </>
-        )}
-        {detail !== undefined && tab === "video" && (
-          <>
+        {detail !== undefined && tab === "overview" && (production ? <OverviewPage detail={detail} api={production} getVideoPlayback={getVideoPlayback} getCoverImage={getCoverImage} navigate={(next,id)=>{changeTab(next);setOverviewTarget(id?{folder:detail.folderPath,tab:next,id}:undefined);if(next==="publishing")setPublicationArticle(undefined);}} /> : <div className="projectOverview">{TABS.filter(t => t !== "overview").map(id => <button className="projectSummaryRow" key={id} onClick={() => changeTab(id)}>{t(TAB_KEY[id])}</button>)}</div>)}
+        {detail !== undefined && tab === "video" && <>
           <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} setVideoVisibility={setVideoVisibility} />
-            <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} {...(prepareCoverRequest ? { prepareCoverRequest } : {})} />
-          </>
-        )}
+          <ActionBar><ActionButton tone="ghost" onClick={() => changeTab("images")}>查看视频封面</ActionButton></ActionBar>
+        </>}
+        {detail !== undefined && tab === "images" && <>
+          {production && <ImageLibraryPanel detail={detail} api={production} />}
+          {(hasVideo || Object.keys(detail.covers).length > 0) && <CoverPanel detail={detail} {...(production ? {api: production} : {})} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} {...(prepareCoverRequest ? { prepareCoverRequest } : {})} />}
+        </>}
+        {detail !== undefined && tab === "publishing" && production && <PublicationPanel key={`publishing:${detail.folderPath}`} detail={detail} api={production} enabledPlatforms={enabledPlatforms ?? []} onPublish={applyPublish} publishPending={publishPending} openPath={openPath} {...(publicationArticle ? { initialArticleId: publicationArticle } : {})} {...(overviewTarget?.folder===detail.folderPath&&overviewTarget.tab==="publishing"?{initialPublicationId:overviewTarget.id}:{})} />}
         {detail !== undefined && tab === "script" && (
           <>
           {production?.prepareRequest && <ActionBar><ActionButton disabled={scriptRequest === "preparing"} onClick={() => void prepareScript()}>{scriptRequest === "preparing" ? "正在准备请求…" : detail.script ? "让 Agent 修改脚本" : "让 Agent 写脚本"}</ActionButton></ActionBar>}
@@ -587,7 +578,7 @@ export function ContentInspector({
           />
           </>
         )}
-        {detail !== undefined && tab === "article" && production && <ProductionPanel key={`article:${detail.folderPath}`} detail={detail} api={production} mode="article" openPath={openPath} />}
+        {detail !== undefined && tab === "article" && production && <ArticlePanel key={`article:${detail.folderPath}`} detail={detail} api={production} openPath={openPath} {...(overviewTarget?.folder===detail.folderPath&&overviewTarget.tab==="article"?{initialArticleId:overviewTarget.id}:{})} goPublish={id => { setOverviewTarget(undefined);setPublicationArticle(id); changeTab("publishing"); }} />}
         {detail !== undefined && tab === "article" && !production && (
           detail.article.trim() === ""
             ? <div className="empty">{t("inspector.article.empty" as CreatorKey)}</div>
@@ -604,7 +595,7 @@ export function ContentInspector({
         )}
         {detail !== undefined && tab === "subtitle" && (
           <>
-            {production && <ProductionPanel key={`subtitle:${detail.folderPath}`} detail={detail} api={production} mode="subtitle" openPath={openPath} />}
+            {production && <SubtitlePanel key={`subtitle:${detail.folderPath}`} detail={detail} api={production} openPath={openPath} />}
             {hasVideo && !production && (
               <ActionBar>
                 {canPreviewSubtitle && (
@@ -679,7 +670,11 @@ export function ContentInspector({
               )}
           </>
         )}
-      </div>
+      </div></ProjectBoundary>
     </div>
   );
+}
+
+function ProjectBoundary({api, detail, children}: {api: import("./productionApi.ts").ProductionClient | undefined; detail: ContentDetail | undefined; children: ReactNode}) {
+  return api && detail ? <ProjectDataProvider key={detail.folderPath} api={api} scope={{id: detail.id, folderPath: detail.folderPath}}>{children}</ProjectDataProvider> : <>{children}</>;
 }

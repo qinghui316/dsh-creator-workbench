@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-24T15:57:30.836Z",
+  "generatedAt": "2026-10-24T19:56:44.933Z",
   "sourceRoot": ".",
   "method": "scan",
   "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
-  "authority": "Confirmed Windows native Operate direction, PRODUCT.md and current working-tree code; existing captures are retained as historical shell/style evidence.",
-  "hostValues": "Font family and resolved theme colors belong to the DSH host. CSS variable references are preserved; no fixed palette or tonal ramps were synthesized.",
+  "authority": "Confirmed Windows native Operate direction, approved light-only local contrast palette, final 0.6.0 source, native UI evidence, executed Agent article-version tools and verified local installed artifact.",
+  "hostValues": "Font family, basic theme colors and dark appearance remain owned by DSH. Six approved light-only local role colors are extracted exactly from WorkbenchContrast.css, without synthesized tonal ramps. Existing 16px/600/24px project heading is documented from InternalUi.css.",
   "sourceFiles": [
     {
       "path": "PRODUCT.md",
-      "sha256": "e979344008a15113792a0e0b8574b98683bf119ee70e09c7a4202c6adaa4bae9"
+      "sha256": "7c9efe07fdddac129019e4aa05440751c8695d045883fd0656db1c4b63ce81ef"
     },
     {
       "path": "src/client/InternalUi.css",
@@ -37,7 +37,7 @@
     },
     {
       "path": "src/client/ui/ActionButton.tsx",
-      "sha256": "bd01ed3cecb7a58b7c4d7259539d9c10d51700ea083ca6b9acf221330da6c867"
+      "sha256": "96b9671f3c1337e15008892d3146e8d3a502a5206b8a7404dc15808435651e4e"
     },
     {
       "path": "src/client/ui/ActionButton.css",
@@ -49,15 +49,15 @@
     },
     {
       "path": "src/client/CreatorWorkbench.tsx",
-      "sha256": "9424d3e8b2d8fab878fef9341ae23211a9af187715d5d235ac7299211127410a"
+      "sha256": "f5b1673cffe84e8f4985e5afd33ca51a451f2d1e42191ef335ffd562a3a06367"
     },
     {
       "path": "src/client/ContentInspector.tsx",
-      "sha256": "f627a2cf900c46a1da70e8633a27b6b644cd0170b618b096cbba4fdabcc3772c"
+      "sha256": "af0dc5c059d760b1a7c99a50ccdde8b51e25e7507bd05b95f3a24668f48f7ef5"
     },
     {
       "path": "src/client/CoverPanel.tsx",
-      "sha256": "2428734ea953d1c6021da8d30bfeb5e6f6fe0d4c6f2653831fb38f17dce3098f"
+      "sha256": "c537224d57b8684169972a36182b0beab60e42e9746b319620473d56007e6313"
     },
     {
       "path": "src/client/VideoPanel.tsx",
@@ -65,7 +65,7 @@
     },
     {
       "path": "src/client/CreatorSettingsCard.tsx",
-      "sha256": "cfbcfdc48c0537996c876b970ae4c2b097ab394ce9ead0d2359cc959fbc300b6"
+      "sha256": "079141d60ba04e2ed69a87e1ee425781d07e2f3b19ab9b080b7c9a489951defb"
     },
     {
       "path": "src/client/sidebar/ContentSidebarPanel.css",
@@ -76,16 +76,8 @@
       "sha256": "d5e324be7782f28b320ebac3e5b48e3a3f95a6c8d90656c086a3a933e0b2c7a5"
     },
     {
-      "path": "src/client/CreationPanel.tsx",
-      "sha256": "f85cd973a35a008afaf55dede3f022ca19aa235b3951de6d44c6941068d89e09"
-    },
-    {
       "path": "src/client/CreationPanel.css",
-      "sha256": "d7e0926c5d1fc881b9b1abe8e7747a5c4f95e7cd03eb720d3bdf6662c301528a"
-    },
-    {
-      "path": "src/client/ProductionPanel.tsx",
-      "sha256": "8bf0b26cdfcdb0054100a49ebc4f2479591f8bd6ddb04de82f0575ea603ab0a6"
+      "sha256": "564457eb1d28a488bdf2c3a8dd0c6be530b74f6f7d7a73d8136e6390b616f391"
     },
     {
       "path": "src/client/ProductionPanel.css",
@@ -97,7 +89,75 @@
     },
     {
       "path": "src/production/publicationArticle.ts",
-      "sha256": "b1f2a21a7aecaa7a9883a51bf038fe73fff515c45f9e62d163c7f3bdb93f59bd"
+      "sha256": "68685a470a971836093c0742834f564538164b527c386c219b32572809bb597e"
+    },
+    {
+      "path": "src/client/ProjectPages.css",
+      "sha256": "77ae7aa49bfac47be637f72fcc3abf8bb1a3f1ea094f3c92155cf5444b266e3d"
+    },
+    {
+      "path": "src/client/OverviewPage.tsx",
+      "sha256": "3be3cdd9cfc4626f438cc3c91d1d0bec87a968909168b9d19065bdc18122a275"
+    },
+    {
+      "path": "src/client/ArticlePanel.tsx",
+      "sha256": "c3458f3fa835133626f1a5d3308ab2d6fb8133ada83d2cfc84121b7ef9756fc9"
+    },
+    {
+      "path": "src/client/ImageLibraryPanel.tsx",
+      "sha256": "0e548ed12b414e3776fc03e74b122d5db4e6cc91659ad84ef7991a94d187932c"
+    },
+    {
+      "path": "src/client/ImageThumb.tsx",
+      "sha256": "6cbb4f8db8bfb52dd178a5249b3e21d08ac70ae5ef9d6b6da2af023dd44d147c"
+    },
+    {
+      "path": "src/client/PublicationPanel.tsx",
+      "sha256": "a8e3fb92e52bd82f9d3d059c7416dff2efc21e4f700832ac6d498273f155485b"
+    },
+    {
+      "path": "src/client/SubtitlePanel.tsx",
+      "sha256": "1988db7edb370307a3e7d11d8d63c591014a63b26eec02a44f0da1d952f8670e"
+    },
+    {
+      "path": "src/client/LegacyPublishingPanel.tsx",
+      "sha256": "38b3450ca7d933433325fa48eac90bbb188cc40432fb0727fdb28eccd4c70e06"
+    },
+    {
+      "path": "src/client/ProjectData.tsx",
+      "sha256": "c5489be97025419c5f75ec4f9969a466133bbec7d591bd99b03372d33bb84d1e"
+    },
+    {
+      "path": "src/client/projectQuery.ts",
+      "sha256": "4ed6d1101d7b948b53e978282343e4a35d49c8dbb7bd5782aa2505ad4f253a23"
+    },
+    {
+      "path": "src/projectView.ts",
+      "sha256": "69481bb5732abdb58d4d300de1983ef462dc7782d92368f0584d8c1dcfe94230"
+    },
+    {
+      "path": "src/production/articleEditing.ts",
+      "sha256": "b4f3b824c1e5277b24f81037e42017946ed96ea4e425dcca78ea6fc7bcb22617"
+    },
+    {
+      "path": "src/client/OverviewMedia.tsx",
+      "sha256": "636e3fbbeb9bde7b90135bc62f202f20cbc74e141f59b794219040ed8ae67647"
+    },
+    {
+      "path": "src/client/PlatformMark.tsx",
+      "sha256": "9f5a964e0dd84b082dd40f94890582f9cdfaee5d4abd3c09dac2e2b09d34a590"
+    },
+    {
+      "path": "src/production/projectQuery.ts",
+      "sha256": "dd31061f7c152b2cc3b235db77a168d6821b0b7b02b4f0280be6fe42b990a499"
+    },
+    {
+      "path": "src/remote-contract.ts",
+      "sha256": "f8918cb058a07a27db45359df547eb04cc06565759fe662f22778d416427d7f5"
+    },
+    {
+      "path": "src/client/WorkbenchContrast.css",
+      "sha256": "7fc844388ec7c362ede30ad13fee5694ac3bfc4c3136de1e238992dadd383f58"
     }
   ],
   "renderedEvidence": [
@@ -124,38 +184,139 @@
     {
       "path": ".impeccable/review/14-general-settings.jpg",
       "sha256": "d19f45f0bcd8a0aa99478dd6220eea99c31527f54bb75f71cae8b124c4d0f4a4"
+    },
+    {
+      "path": ".impeccable/review/v060/article-read-light.jpg",
+      "sha256": "1e38c0a844bea8821c42eae68e1e770abef586ec87e8964f92186a1124a20671"
+    },
+    {
+      "path": ".impeccable/review/v060/article-unsaved-preview.jpg",
+      "sha256": "6e3900feb2ef615a8f490d497537395ee360fae2fd926e8256bab07f78f13376"
+    },
+    {
+      "path": ".impeccable/review/v060/article-saved-version.jpg",
+      "sha256": "8d64fc0e41e3d8ce77e887f40d74dd404aacd0c9fd330ef2ad4e01990e7daa2d"
+    },
+    {
+      "path": ".impeccable/review/v060/images-light.jpg",
+      "sha256": "87cef6959798988ac35c87d1cfbd7630a88cb37f88e666df3eff05cd8288b10b"
+    },
+    {
+      "path": ".impeccable/review/v060/final-article-read-light.jpg",
+      "sha256": "6587cda2043a60b48cce63eafb4d7180e21ba95212f5c4d1becdcf718047826d"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-content-light.jpg",
+      "sha256": "ff616f542a666bbbb76bc5a3bdd0019b0859ac30a62b517aed09c5e34844315e"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-play-refresh.jpg",
+      "sha256": "46178d143b81c67f1c51075aec3a1795aad2c6bee1051e1032ae7fbb53b5b726"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-image-preview.jpg",
+      "sha256": "28225d98fd9b8cca73b6358b0deeaf61bd301da65ce98be9b5b4ccd21c373aa1"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-preview-refresh.jpg",
+      "sha256": "bed9e0aa977e7f037962a7a47bbb5ede2700464d613c6fc433dc9205f9fcebcc"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-platform-status.jpg",
+      "sha256": "63f2af700119aba6283c55ee0b0304cb9560ab6333a39acf4858f18dfcf8c138"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-320-actual.jpg",
+      "sha256": "ad7c27ed349fa5180b0419b6ef26d52f74e86351e37ce8800d86ccda36e0e0bd"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-520-actual.jpg",
+      "sha256": "815c28e48f34e7fa50f863784f6e8407c6dfa76c2d136f5e4d29cf3e43191a30"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-800-actual.jpg",
+      "sha256": "46172790f2e5e7138be52334b9ef11000bb8e8e692c6c4e16aa692871e2b44a0"
+    },
+    {
+      "path": ".impeccable/review/v060/native-agent-article-revision.jpg",
+      "sha256": "6c154ece0169e716fe250c1aa3833319fd70cad778edf29b80c0052c254f838e"
+    },
+    {
+      "path": ".impeccable/review/v060/native-agent-tools.jpg",
+      "sha256": "89710ce09887e554ad9842e2f56c2d6744d7754b1584573b3913d0932e994bc4"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-dark-video.jpg",
+      "sha256": "1b51ff3360d1d617a7cfdd316d3fddc8859a8a0a27a3d1e27af51abc3a38f870"
+    },
+    {
+      "path": ".impeccable/review/v060/overview-dark-platforms-before.jpg",
+      "sha256": "2350f9c937444dad435c0caf1e8df417d95bd0ecdfeb55e0a5e77eb15067e08c"
+    },
+    {
+      "path": ".impeccable/review/v060/light-contrast-loaded.jpg",
+      "sha256": "40cfed54be94ea89a428ad8bdd0b1d78017985c8396ace125458d47fbf01b54f"
+    },
+    {
+      "path": ".impeccable/review/v060/light-contrast-hover.jpg",
+      "sha256": "a71190a1afdb74f2df7805dff0024be664f7f42baa9325656687a4fa54f0f07e"
+    },
+    {
+      "path": ".impeccable/review/v060/final-agent-revision-visible.jpg",
+      "sha256": "898baf050fb7c75a677bdce665953e25f2d338891665568d7ed477f7395799d9"
+    },
+    {
+      "path": ".impeccable/review/v060/final-installed-version.jpg",
+      "sha256": "156978c7100a121a7cf02b15b102e3ed4635e3e1d0ecc738fe4d087d1840d64b"
+    },
+    {
+      "path": ".impeccable/review/v060/final-installed-plugin.jpg",
+      "sha256": "e3abe2729a3d3f3b72f825d0b47fa3832cf44733ff7138b7ff0b431e7ea34cb5"
+    },
+    {
+      "path": ".impeccable/review/v060/final-switch-menu.jpg",
+      "sha256": "f353afc28c84dd4a29c65c4d1860433758a85e7b55f63856703bdc751412dc39"
+    },
+    {
+      "path": ".impeccable/review/v060/host-theme-restored.jpg",
+      "sha256": "26f525f94bf6d2efcd08297829cf14d16df0843245aa5c4c8d8348f418132144"
     }
   ],
   "artifacts": [
     {
       "path": "DESIGN.md",
-      "sha256": "d0eef90b9755b12d23a520013b23b8c0807ea76d312b9190595aa3b23fac8d7b"
+      "sha256": "a65eda448ba41b0ef767467825829030cf99afd77e885f34a309137e5d500972"
     },
     {
       "path": ".impeccable/design.json",
-      "sha256": "b3f26d0b2ccdfed49da2b1876fe311845e08f477432c8f206414c1bff1efe93a"
+      "sha256": "7c5147eee092f4be5dff1fd156fab14a6ad926a337dbb0ea6bbd32e25ca50698"
     }
   ],
   "evidenceMap": {
     "theme": [
       "src/client/InternalUi.css",
       "src/client/CreatorWorkbench.css",
-      "node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/Button.module.css"
+      "node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/Button.module.css",
+      "src/client/WorkbenchContrast.css"
     ],
     "typography": [
       "src/client/InternalUi.css",
       "src/client/CreatorSettingsCard.css",
-      "node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/Button.module.css"
+      "node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/Button.module.css",
+      "src/client/ContentInspector.css"
     ],
     "responsiveLayout": [
       "src/client/CreatorWorkbench.css",
-      "src/client/ContentInspector.tsx",
+      "src/client/ContentInspector.css",
+      "src/client/ProjectPages.css",
       "src/client/CoverPanel.css",
       "src/client/CreationPanel.css"
     ],
     "navigation": [
+      "src/projectView.ts",
       "src/client/ContentInspector.tsx",
-      "src/client/ContentInspector.css"
+      "src/client/ContentInspector.css",
+      "src/client/CreatorSettingsCard.tsx"
     ],
     "stateAndFocus": [
       "src/client/ui/SectionPanel.tsx",
@@ -166,9 +327,10 @@
       "src/client/sidebar/ContentSidebarPanel.css"
     ],
     "sharedAssetsAndPlatformMaterials": [
-      "src/client/CreationPanel.tsx",
+      "src/client/ImageLibraryPanel.tsx",
+      "src/client/ImageThumb.tsx",
+      "src/client/PublicationPanel.tsx",
       "src/client/CreationPanel.css",
-      "src/client/ProductionPanel.tsx",
       "src/client/ProductionPanel.css",
       "src/production/creations.ts",
       "src/production/publicationArticle.ts"
@@ -176,18 +338,66 @@
     "requestAndSaveFeedback": [
       "src/client/ContentInspector.tsx",
       "src/client/InternalUi.css",
-      "src/client/CreationPanel.tsx",
-      "src/client/ProductionPanel.tsx"
+      "src/client/ArticlePanel.tsx",
+      "src/client/PublicationPanel.tsx",
+      "src/client/ImageLibraryPanel.tsx"
+    ],
+    "overview": [
+      "src/client/OverviewPage.tsx",
+      "src/client/OverviewMedia.tsx",
+      "src/client/PlatformMark.tsx",
+      "src/client/ImageThumb.tsx",
+      "src/client/ProjectPages.css",
+      "src/production/projectQuery.ts"
+    ],
+    "articleEditing": [
+      "src/client/ArticlePanel.tsx",
+      "src/client/ProjectPages.css",
+      "src/production/articleEditing.ts"
+    ],
+    "queryAndDraftBoundaries": [
+      "src/projectView.ts",
+      "src/production/projectQuery.ts",
+      "src/client/ProjectData.tsx",
+      "src/client/projectQuery.ts",
+      "src/client/ArticlePanel.tsx",
+      "src/client/PublicationPanel.tsx"
+    ],
+    "lightContrast": [
+      "src/client/WorkbenchContrast.css",
+      "src/client/ui/ActionButton.tsx",
+      "src/client/CreatorWorkbench.tsx"
     ]
   },
   "generator": "Impeccable v4.1.1 reference/document.md Step 4b schema; shipped parseDesignMd validates and extracts narrative. This version ships no sidecar generator CLI.",
-  "scope": "Visual and implemented interaction documentation only. No installation, paid-generation or remote-upload acceptance is inferred.",
-  "renderedEvidenceScope": "历史截图仅支持既有宿主外观；0.5 图片、平台材料和脚本请求规则据当前源码提取，新增截图单独记录于本次 Change 证据。",
+  "scope": "Visual and implemented interaction documentation with scoped native UI and local installation evidence. Remote publishing acceptance follows its separate Change evidence and is not inferred from these captures.",
+  "renderedEvidenceScope": "v060 原生证据覆盖成果概览、视频与图片预览、逐份平台状态、文章预览及新版本、图片页、原生Agent读取来源与保存版本两工具、深色界面及最终浅色增强。light-contrast-loaded记录分区/项目选中/页签，light-contrast-hover记录真实管理按钮悬停，final-agent-revision-visible记录Agent新版本在文章页可见。320/520/800 CSS px概览以geometry.json实测为准，布局已恢复、zoom为1；当前跟随系统浅色，宿主字体与缩放保持。执行方已核对Agent版本继承手工版本，18个原文件哈希一致，最终包49文件逐字节安装并完整退出重开；已安装版本、运行条目及切换入口使用各自截图。",
   "reviewEvidence": [
     {
       "path": ".impeccable/review/v050/finish-review-final.md",
       "sha256": "249bf8e5e1c44904ac880108e260ca3ebec1951e6a3fbda8a780561af308d210"
     }
   ],
-  "styleResolution": "Final native finish review resolves the current cascade for title and body inset values. Source-only duplicate selectors are not treated as the effective rendered style."
+  "styleResolution": "Final 0.6.0 native captures confirm the scoped light group surfaces, selected project/tab, real action hover, and Agent article revision. WorkbenchContrast guards preserve aria-invalid and disabled fields. The existing 16px/600/24px project title and host font/zoom remain unchanged; dark interaction was accepted by the user. Geometry records 320/520/800px inspector widths and restored layout.",
+  "geometryEvidence": [
+    {
+      "path": ".impeccable/review/v060/geometry.json",
+      "sha256": "c541615ccbfb5b3fd4ad8b6b96d27b38503e75187c1123a04418287d9333416e"
+    }
+  ],
+  "localInstallation": {
+    "version": "0.6.0",
+    "packageFile": ".artifacts/dsh-creator-workbench-0.6.0-d2ec4377dd0f.tgz",
+    "sha256": "d2ec4377dd0f8e141439b6a17641459026d96a67ef8e8b20273d0e99bf7321f9",
+    "installedFileCount": 49,
+    "byteVerification": "The execution stage compared all 49 installed package files byte-for-byte, then fully exited and reopened DSH Desktop.",
+    "nativeEvidence": [
+      ".impeccable/review/v060/final-installed-version.jpg",
+      ".impeccable/review/v060/final-installed-plugin.jpg",
+      ".impeccable/review/v060/final-switch-menu.jpg"
+    ]
+  },
+  "nativeUnverified": [
+    "键盘焦点单独实测未取得：补证时桌面访问失败，随后只读确认窗口已最小化。设计文档中的焦点规则来自源码，不作为该项原生实测通过证据。"
+  ]
 }

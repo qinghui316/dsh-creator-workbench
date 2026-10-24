@@ -1,3 +1,4 @@
+import type { ProjectView, ArticleSource, ArticleEdit, ArticleSave, ArticleSaved } from "../projectView.ts";
 import type { CoverScope, CoverAction, CoverState, ImageSettings } from "../covers/types.ts";
 import type { ContentScope, ProductionAction, ProductionSettingsAction, ProductionSettingsView, ProductionState } from "../production/types.ts";
 import { prepareCoverRequest } from "./coverRequests.ts";
@@ -55,6 +56,13 @@ interface RemoteAnswer<T> {
 }
 
 interface CreatorWorkbenchRemote {
+  getProjectView: (request: { id: string; folderPath?: string }) => Promise<RemoteAnswer<ProjectView>>;
+  reconcileProject: (request: ContentScope) => Promise<RemoteAnswer<Record<string, never>>>;
+  getPublicationContent: (request: ContentScope & { publicationId: string; revision: number }) => Promise<RemoteAnswer<import("../production/types.ts").PublicationDraft>>;
+  readArticleSource: (request: ContentScope & { articleId: string }) => Promise<RemoteAnswer<ArticleSource>>;
+  previewArticleDraft: (request: ArticleEdit) => Promise<RemoteAnswer<{ html: string; path: string }>>;
+  saveArticleRevision: (request: ArticleSave) => Promise<RemoteAnswer<ArticleSaved>>;
+
   getCreationImage: (request: ContentScope & { imageId: string }) => Promise<RemoteAnswer<{ mime: string; base64: string }>>;
   getCreationText: (request: ContentScope & { file: string }) => Promise<RemoteAnswer<{ text: string }>>;
   restoreProjectSession: (request: { id: string; folderPath: string; sessionId: string }) => Promise<RemoteAnswer<Record<string, never>>>;
@@ -110,7 +118,7 @@ interface CreatorWorkbenchRemote {
 
 function unwrap<T>(answer: RemoteAnswer<T>, fallback: string): T {
   if (!answer.ok || answer.value === undefined) {
-    throw new Error(answer.error?.message ?? fallback);
+    throw Object.assign(new Error(answer.error?.message ?? fallback), { remoteResponse: true });
   }
   return answer.value;
 }
@@ -148,7 +156,15 @@ export function apply(ctx: ClientContext): void {
       if (!navigationCurrent() || !selectionCurrent()) throw new Error("会话已切换，项目资料已加入，请从列表重新打开。");
       await restoreProjectSessions(ctx, folderPath, async (sessionId) => { unwrap(await r.restoreProjectSession({ id, folderPath, sessionId }), "原会话分组恢复失败"); }); bumpLibrary(); return { id, folderPath };
     },
+    getProjectView: async (id) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProjectView({ id }), "项目读取失败"); },
     production: {
+      projectView: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProjectView(request), "项目读取失败"); },
+      reconcile: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.reconcileProject(request), "任务核对失败"); },
+      publication: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getPublicationContent(request), "材料读取失败"); },
+      articleSource: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.readArticleSource(request), "文章读取失败"); },
+      articlePreview: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.previewArticleDraft(request), "预览未完成"); },
+      articleSave: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); const result = unwrap(await r.saveArticleRevision(request), "保存未完成"); bumpLibrary(); return result; },
+
       settings: async () => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProductionSettings({}), "发布设置读取失败"); },
       settingsAction: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.productionSettingsAction(request), "发布设置操作失败"); },
       state: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProductionState(request), "任务读取失败"); },

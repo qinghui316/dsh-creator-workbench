@@ -48,11 +48,16 @@ export const CREATOR_WORKBENCH_SKILL = {
 - 发布默认准备草稿。上传和账号登录复用外部能力；最后点击发表始终由用户手动完成。
 - 自动发布（\`video-publisher\` skill）和已发布数据回收（\`creator_sync_publish\`）只处理 \`enabledPlatforms\` 中的平台，都依赖 Ego Browser 和已登录的创作者后台；\`enabledPlatforms\` 为空时不执行发布或同步，先配置并确认启用平台。能力检查显示缺失时明确告诉用户这两项不可用，其余功能照常。
 
+## 页面与成果
+
+概览仅汇总已有成果；视频、脚本、字幕、文章、图片和发布各有页签。图片页管理项目配图与视频封面，发布页管理各平台独立文案、图序、上传及具体作品数据。
+
 ## 统一创作与平台发布
 
 - 一个项目一个目录，不设置项目模式。脚本、文章、视频、配图和平台材料可独立制作、互相复用。已有上下文足够时连续执行用户的要求。
 - 先用 creator_production_state 读取项目状态。独立文章调用 creator_production_action 的 prepare-article，source.kind 选 topic/materials/article 并提供已知 text/files/articleId；视频转文章选 video。随后 creator_prepare_article 读取输入和 WeWrite，再 creator_save_article 保存源稿与 HTML。
 - 配图可调用 generate-images，items 每项含 prompt、ratio（3x4/4x3/16x9/1x1）、purpose（cover/illustration/card）、可选 references（已登记图片 ID）。等待实际 job，使用 creator_read_images 检查产物；retry-images 只重试指定未完成项。
+- 修改既有文章先调用 creator_read_article_source 取得准确版本、格式和 sourceHash；再用 creator_save_article_revision 保存新版本，expectedSourceHash使用读取结果，saveId使用稳定唯一身份，通信重试沿用同一身份。保留原文格式与资源；预览失败不否定正文已保存，不因排版失败重复建版本。右侧文章页同样支持文稿编辑和未保存预览。
 - 正常文件工具写出的本项目 Markdown/HTML 使用 register-article 登记，已有图片使用 import-image 登记。文章内配图须是本项目真实截图或已登记图片，并使用相对路径；save-article 传对应 imageIds。
 - 各平台发布材料独立：save-publication 的 input 包含 platform、type（video/images/article）、title、body、tags、imageIds，以及需要的 video/articleId/articleFile/coverImageId/coverFiles/category/source。更新需要原 publicationId 与 expectedRevision，冲突保留用户编辑。
 - 图文支持小红书、抖音、B站；公众号用 article，视频号只用 video。小红书、抖音用有序图片组和独立正文，B站通过图文编辑器处理正文与图片；HTML 是文章阅读和公众号排版成品。

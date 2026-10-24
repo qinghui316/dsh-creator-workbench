@@ -44,7 +44,7 @@ export interface ProductionTask {
   source?: CreationSource; imageItems?: ImageItem[]; publicationId?: string; publicationRevision?: number; publicationType?: PublicationDraft["type"];
 }
 export interface TranscriptVersion { id: string; video: MediaIdentity; source: "imported" | "volcano"; textFile: string; srtFile: string; rawFile?: string; createdAt: number; cues: number }
-export interface ArticleVersion { id: string; video?: MediaIdentity; transcriptId?: string; file: string; createdAt: number; frameFiles: string[]; source?: CreationSource; imageIds?: string[]; title?: string; format?: "markdown" | "html" }
+export interface ArticleVersion { parentArticleId?: string; saveInputHash?: string; id: string; video?: MediaIdentity; transcriptId?: string; file: string; createdAt: number; frameFiles: string[]; source?: CreationSource; imageIds?: string[]; title?: string; format?: "markdown" | "html" }
 export interface WechatDraft { id: string; appid: string; articleFile: string; mediaId: string; title: string; submittedHash: string; remoteHash: string; submittedFile: string; updatedAt: number; publishedId?: string; publishedUrl?: string }
 export interface MetricRecord { platform: PublishPlatform | "official-account"; accountId: string; remoteId: string; url?: string; views?: number; likes?: number; comments?: number; shares?: number; syncedAt?: number; checkedAt: number; state: "ok" | "error" | "not-found" | "unassociated"; error?: string; publicationId?: string; recordId?: string }
 export interface PublicationCandidate { platform: PublishPlatform | "official-account"; accountId: string; remoteId: string; title: string; url?: string }
@@ -80,6 +80,6 @@ export type ProductionSettingsAction =
   | { action: "import-wechat"; sourcePath: string };
 
 export const emptyProduction = (): ProductionState => ({ schemaVersion: 1, tasks: [], transcripts: [], articles: [], drafts: [], metrics: [] });
-export const isActiveTask = (task: ProductionTask): boolean => ["queued", "running", "waiting-agent"].includes(task.status);
+export const isActiveTask = (task: Pick<ProductionTask, "status">): boolean => ["queued", "running", "waiting-agent"].includes(task.status);
 export const sameMedia = (left: MediaIdentity, right: MediaIdentity): boolean => left.name === right.name && left.size === right.size && left.sha256 === right.sha256;
 export const publisherPlatform = (platform: PublishPlatform): string => platform === "wechat" ? "wechat_channels" : platform;

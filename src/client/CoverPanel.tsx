@@ -1,3 +1,6 @@
+import type { CoverView, CoverRunView } from "../projectView.ts";
+import type { ProductionClient } from "./productionApi.ts";
+import { useProjectData } from "./ProjectData.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { ContentDetail } from "../types.ts";
 import {
@@ -112,9 +115,17 @@ function Thumbnail({
 }
 export function CoverPanel({
   detail,
+  api,
   ...face
-}: CoverFace & { detail: ContentDetail }) {
-  const [state, setState] = useState<CoverState>({
+}: CoverFace & { detail: ContentDetail; api?: ProductionClient }) {
+  return api ? <SharedCoverPanel detail={detail} api={api} {...face} /> : <CoverPanelBody detail={detail} {...face} />;
+}
+function SharedCoverPanel({detail, api, ...face}: CoverFace & {detail: ContentDetail; api: ProductionClient}) {
+  const data = useProjectData(api, detail);
+  return <CoverPanelBody detail={detail} {...face} shared={{ state: data.view?.covers, refresh: () => data.query.invalidate() }} />;
+}
+function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentDetail; shared?: {state: CoverView | undefined; refresh: () => Promise<unknown>}}) {
+  const [state, setState] = useState<CoverView>({
     versions: [],
     selected: {},
     runs: [],
@@ -152,6 +163,7 @@ export function CoverPanel({
   }, [notice]);
   const scope = { id: detail.id, folderPath: detail.folderPath };
   useEffect(() => {
+    if (shared) { if (shared.state) { setState(shared.state); setLoaded(true); setLoadError(false); } return; }
     let live = true;
     let timer: ReturnType<typeof setTimeout>;
     const refresh = async () => {
@@ -177,7 +189,7 @@ export function CoverPanel({
       live = false;
       clearTimeout(timer);
     };
-  }, [detail.folderPath, epoch, retry]);
+  }, [detail.folderPath, epoch, retry, shared?.state]);
   const apply = async (action: CoverAction) => {
     setBusy(true);
     setError(undefined);
@@ -185,6 +197,7 @@ export function CoverPanel({
     try {
       const next = await face.coverAction(action);
       if (alive.current) setState(next);
+      if (shared) void shared.refresh().catch(() => undefined);
       return next;
     } catch (cause) {
       if (alive.current)
@@ -194,7 +207,7 @@ export function CoverPanel({
       if (alive.current) setBusy(false);
     }
   };
-  const draft = async (run: CoverRun, append = false) => {
+  const draft = async (run: CoverRunView, append = false) => {
     setBusy(true);
     setError(undefined);
     try {
@@ -217,7 +230,7 @@ export function CoverPanel({
   const begin = async (ratios: CoverRatio[], append = false) => {
     if (face.prepareCoverRequest) {
       setBusy(true); setError(undefined);
-      try { await face.prepareCoverRequest(detail, ratios, append); setPendingRatios(undefined); setNotice("制作请求已放入原生对话，请发送。"); setRetry((n) => n + 1); }
+      try { await face.prepareCoverRequest(detail, ratios, append); setPendingRatios(undefined); setNotice("制作请求已放入原生对话，请发送。"); (shared ? void shared.refresh() : setRetry((n) => n + 1)); }
       catch (cause) { const message = cause instanceof Error ? cause.message : String(cause); setError(message); if (message.includes("已有草稿")) setPendingRatios(ratios); }
       finally { setBusy(false); }
       return;
@@ -247,14 +260,24 @@ export function CoverPanel({
       await draft(run);
     }
   };
-  const latest =
-    state.runs.find((r) => r.id === selectedRunId) ?? state.runs.at(-1);
+  const metadataRun = state.runs.find(r=>r.id===selectedRunId) ?? state.runs.at(-1);
+  const [runDetails,setRunDetails] = useState<CoverRun>();
+  const latest: CoverRunView | undefined = runDetails && metadataRun && runDetails.id===metadataRun.id ? {
+    ...metadataRun!, ...(runDetails.analysis ? {analysis:runDetails.analysis} : {}),
+    slots:Object.fromEntries(Object.entries(metadataRun!.slots).map(([ratio,slot])=>{const full=runDetails.slots[ratio as CoverRatio];return [ratio,{...slot,...(full?.versionId===slot.versionId ? {prompt:full.prompt} : {})}];}))
+  } : metadataRun;
+  useEffect(()=>{
+    if(!shared || !panel) return; let current=true;
+    void face.getCoverState(scope).then(full=>{if(current) {setRunDetails(full.runs.find(r=>r.id===metadataRun?.id)); if(panel === "preview" && preview) {const version=full.versions.find(v=>v.id===preview.id);if(version)setPreview(version);} setState(previous=>({...previous,versions:full.versions}));}}, e=>{if(current)setError(e instanceof Error?e.message:"详情读取失败");});
+    return()=>{current=false;};
+  },[panel,metadataRun?.id,metadataRun?.updatedAt,preview?.id]);
   const active = [...state.runs]
     .reverse()
     .find((r) => (r.purpose ?? "cover") === "cover" && r.video.name === detail.selectedVideo && r.video.size === detail.videos?.find((v) => v.name === detail.selectedVideo)?.size && r.video.modifiedAt === detail.videos?.find((v) => v.name === detail.selectedVideo)?.modifiedAt && (r.status !== "waiting_agent" || r.deliveredAt || r.frames.length) && ["waiting_agent", "preparing", "running"].includes(r.status));
   const incoming = state.versions.find((version) => !version.hidden && version.review === "pending" && state.runs.some((run) => run.id === version.runId && (run.purpose ?? "cover") === "cover" && run.video.name === detail.selectedVideo));
-  const runLabel = (run: CoverRun) =>
-    run.status === "waiting_agent" ? run.frames.length ? "画面已准备" : "请到对话发送制作请求" :
+  const hasSelectedCover = Object.values(state.selected).some(id => state.versions.some(v => v.id === id && !v.hidden));
+  const runLabel = (run: CoverRunView) =>
+    run.status === "waiting_agent" ? run.frames.length ? "画面已准备" : hasSelectedCover ? "重做请求待发送" : "请到对话发送制作请求" :
     run.status === "completed"
       ? coverRunReview(run, state.versions) === "pass"
         ? "制作完成"
@@ -315,7 +338,7 @@ export function CoverPanel({
         </p>
       )}
       {loadError && (
-        <ActionButton onClick={() => setRetry((n) => n + 1)}>
+        <ActionButton onClick={() => (shared ? void shared.refresh() : setRetry((n) => n + 1))}>
           重新读取封面
         </ActionButton>
       )}

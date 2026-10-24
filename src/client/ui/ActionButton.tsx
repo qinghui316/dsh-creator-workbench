@@ -20,7 +20,7 @@ export function ActionButton({
   children: ReactNode;
 } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type">) {
   return (
-    <Button type="button" size="sm" variant={VARIANT[tone]} {...rest}>
+    <Button type="button" size="sm" variant={VARIANT[tone]} {...rest} data-creator-tone={tone}>
       {children}
     </Button>
   );

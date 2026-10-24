@@ -51,7 +51,7 @@ export function checkDependencies(root, { built = true } = {}) {
   for (const file of files.filter((f) => label(f).startsWith("src/client/"))) {
     for (const child of closure(file)) if (nodeEdges.has(child)) errors.push(`Client reaches Node: ${label(file)} -> ${label(child)}`);
   }
-  for (const pure of ["types.ts", "platforms.ts", "publishRules.ts", "videoSelection.ts", "articleMarkdown.ts", "covers/types.ts", "covers/schemas.ts"]) {
+  for (const pure of ["projectView.ts", "types.ts", "platforms.ts", "publishRules.ts", "videoSelection.ts", "articleMarkdown.ts", "covers/types.ts", "covers/schemas.ts"]) {
     for (const child of closure(resolve(source, pure))) if (nodeEdges.has(child) || label(child).startsWith("src/client/") || /\/(service|index|backgroundJobs)\.ts$/.test(label(child))) errors.push(`Shared logic crosses boundary: ${pure} -> ${label(child)}`);
   }
   const client = resolve(root, "lib/client.js");

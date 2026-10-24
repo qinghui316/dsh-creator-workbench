@@ -47,7 +47,7 @@ export function coverRunStatus(slots: CoverRun["slots"]): CoverStatus {
 }
 
 /** Review belongs to this run's exact output versions, not the current cover selection. */
-export function coverRunReview(run: Pick<CoverRun, "id" | "ratios" | "slots">, versions: CoverVersion[]): CoverVersion["review"] {
+export function coverRunReview(run: Pick<CoverRun, "id" | "ratios"> & {slots: Partial<Record<CoverRatio, Pick<CoverSlot, "versionId">>>}, versions: CoverVersion[]): CoverVersion["review"] {
   const reviews = run.ratios.map((ratio) => versions.find((version) => version.id === run.slots[ratio]?.versionId && version.runId === run.id && version.ratio === ratio)?.review);
   if (reviews.includes("needs_changes")) return "needs_changes";
   return reviews.length && reviews.every((review) => review === "pass") ? "pass" : "pending";

@@ -17,7 +17,7 @@ import type { CreatorViewFace } from "../src/client/face.ts";
 import type { ContentDetail } from "../src/types.ts";
 import type { ProductionClient } from "../src/client/productionApi.ts";
 vi.mock("../src/client/ProductionPanel.tsx", () => ({ ProductionPanel: ({ onPublish }: { onPublish?: (platform: string, status: string) => void }) => h("button", { onClick: () => onPublish?.("bilibili", "draft") }, "标为草稿") }));
-vi.mock("../src/client/CreationPanel.tsx", () => ({ CreationPanel: ({ onPublish }: { onPublish?: (platform: string, status: string) => void }) => h("button", { onClick: () => onPublish?.("bilibili", "draft") }, "标为草稿") }));
+vi.mock("../src/client/PublicationPanel.tsx", () => ({ PublicationPanel: ({ onPublish }: { onPublish?: (platform: string, status: string) => void }) => h("button", { onClick: () => onPublish?.("bilibili", "draft") }, "标为草稿") }));
 vi.mock("../src/client/VideoPanel.tsx", () => ({
   VideoPanel: () => h("div", null, "视频区域"),
 }));
@@ -105,7 +105,7 @@ describe("original content navigation", () => {
     await act(async () => complete()); await screen.findByText("请求已放入左侧对话，请发送。");
     expect(screen.getByText("已保存")).toBeTruthy(); expect((screen.getByLabelText("脚本正文") as HTMLTextAreaElement).value).toBe("已有脚本");
   });
-  it("keeps the five named tabs in their original order with original overview/video locations", async () => {
+  it("keeps original tab order and appends images/publishing with summary-only overview", async () => {
     const { face } = fixture();
     setSelectedContentId("one");
     render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));
@@ -116,10 +116,15 @@ describe("original content navigation", () => {
       "脚本",
       "字幕",
       "文章",
+      "图片",
+      "发布",
     ]);
-    expect(screen.getByText("视频区域")).toBeTruthy();
-    expect(screen.getByText("封面区域")).toBeTruthy();
+    expect(screen.queryByText("视频区域")).toBeNull();
+    expect(screen.queryByText("封面区域")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "视频" }));
+    expect(screen.getByText("视频区域")).toBeTruthy();
+    expect(screen.queryByText("封面区域")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "图片" }));
     expect(screen.getByText("封面区域")).toBeTruthy();
   });
   it("keeps a failed script draft while changing tabs and can retry the original autosave", async () => {
@@ -149,11 +154,12 @@ describe("original content navigation", () => {
     const { face } = fixture(); setSelectedContentId("one");
     render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));
     await screen.findByText("测试内容");
-    const video = screen.getByText("视频区域"), covers = screen.getByText("封面区域");
+    fireEvent.click(screen.getByRole("tab", {name:"视频"}));
+    const video = screen.getByText("视频区域");
     const before = vi.mocked(face.getSettings).mock.calls.length;
     await act(async () => { bumpLibrary(); });
-    await waitFor(() => expect(face.getContent).toHaveBeenCalledTimes(2));
-    expect(screen.getByText("视频区域")).toBe(video); expect(screen.getByText("封面区域")).toBe(covers);
+    await waitFor(() => expect(vi.mocked(face.getContent).mock.calls.length).toBeGreaterThanOrEqual(2));
+    expect(screen.getByText("视频区域")).toBe(video);
     expect(face.getSettings).toHaveBeenCalledTimes(before);
   });
 
@@ -164,6 +170,7 @@ describe("original content navigation", () => {
     Object.assign(face, { setPublish: publish, production: {} });
     vi.mocked(face.getContent).mockImplementation(async (id) => id === "two" ? new Promise((resolve) => { loaded = resolve; }) : detail);
     setSelectedContentId("one"); render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));
+    await screen.findByText("测试内容"); fireEvent.click(screen.getByRole("tab", {name:"发布"}));
     fireEvent.click(await screen.findByRole("button", { name: "标为草稿" }));
     await act(async () => { setSelectedContentId("two"); });
     await waitFor(() => expect(loaded).toBeTypeOf("function"));

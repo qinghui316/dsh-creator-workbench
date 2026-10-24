@@ -1,0 +1,73 @@
+/* Desktop exposes the selected scheme on html. Overrides stay inside this plugin. */
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] {
+  --creator-light-group: #f1f4f8;
+  --creator-light-hover: #e3eaf5;
+  --creator-light-active: #d3dfef;
+  --creator-light-line: #cad2df;
+  --creator-light-field-line: #8792a4;
+  --creator-light-selected: #e3edff;
+  --dsw-alias-border-l1: var(--creator-light-line);
+  --dsw-alias-border-l2: var(--creator-light-field-line);
+  --dsw-alias-interactive-bg-hover: var(--creator-light-hover);
+  --dsw-alias-interactive-bg-active: var(--creator-light-active);
+  --dsw-alias-bg-layer-2: var(--creator-light-group);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.workbenchHeader,.workbenchLibrary) {
+  background:var(--creator-light-group);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.overviewHeading,.productionHeading,.creatorSectionHeading) {
+  padding:8px 10px;
+  background:var(--creator-light-group);
+  border-radius:6px;
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] [data-creator-tone="secondary"] {
+  border:1px solid var(--creator-light-field-line);
+  background:var(--dsw-alias-bg-base);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] [data-creator-tone="ghost"] {
+  border:1px solid transparent;
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is([data-creator-tone="secondary"],[data-creator-tone="ghost"]):not(:disabled):not([aria-disabled="true"]):hover {
+  border-color:var(--creator-light-field-line);
+  background:var(--creator-light-hover);
+  color:var(--dsw-alias-label-primary);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is([data-creator-tone="secondary"],[data-creator-tone="ghost"]):not(:disabled):not([aria-disabled="true"]):active {
+  background:var(--creator-light-active);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .contentRow.selected {
+  background:var(--creator-light-selected);
+  outline:1px solid var(--creator-light-field-line);
+  outline-offset:-1px;
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .contentRow.selected:hover {
+  background:var(--creator-light-active);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .tab {
+  padding-inline:6px;
+  margin-inline:-6px;
+  border-radius:6px;
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .tab:hover {
+  color:var(--dsw-alias-label-primary);
+  background:var(--creator-light-hover);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .tab.active {
+  color:var(--dsw-alias-state-business-primary);
+  background:var(--creator-light-selected);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.overviewImage,.creationImageButton,.coverPreview) {
+  box-sizing:border-box;
+  border:1px solid var(--creator-light-line);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.overviewImage,.creationImageButton,.coverPreview):hover {
+  border-color:var(--dsw-alias-state-business-primary);
+  background:var(--creator-light-hover);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(summary,.overviewClose):hover {
+  color:var(--dsw-alias-label-primary);
+  background:var(--creator-light-hover);
+}
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(input,select,textarea):hover:not(:disabled):not([aria-invalid="true"]) {
+  border-color:var(--dsw-alias-state-business-primary);
+}

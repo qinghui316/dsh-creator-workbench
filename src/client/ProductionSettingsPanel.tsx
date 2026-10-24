@@ -1,3 +1,4 @@
+import { invalidateProjectSettings } from "./projectQuery.ts";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ASR_CREDENTIAL, type ProductionSettingsAction, type ProductionSettingsView } from "../production/types.ts";
 import { PUBLISH_PLATFORM_DEFINITIONS, PUBLISH_PLATFORMS } from "../platforms.ts";
@@ -24,7 +25,7 @@ export const ProductionSettingsPanel = forwardRef<ProductionSettingsHandle, { ap
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(undefined), 5000); return () => clearTimeout(timer); }, [notice]);
   const action = async (request: ProductionSettingsAction) => {
     if (busy) return; setBusy(true); setError(undefined); setNotice(undefined);
-    try { const next = await api.settingsAction(request); if (alive.current) { setSaved(next); if (request.action === "import-wechat") { setAppid(next.wechat.appid); setAuthor(next.wechat.author); setTheme(next.wechat.theme); setSecret(""); } setNotice(request.action === "prepare-runtime" ? "运行环境已准备" : request.action === "check-wechat" ? "凭据可用，草稿和数据权限在实际操作时分别验证" : "已更新"); } }
+    try { const next = await api.settingsAction(request); invalidateProjectSettings(api); if (alive.current) { setSaved(next); if (request.action === "import-wechat") { setAppid(next.wechat.appid); setAuthor(next.wechat.author); setTheme(next.wechat.theme); setSecret(""); } setNotice(request.action === "prepare-runtime" ? "运行环境已准备" : request.action === "check-wechat" ? "凭据可用，草稿和数据权限在实际操作时分别验证" : "已更新"); } }
     catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "操作失败，请重试。"); }
     finally { if (alive.current) setBusy(false); }
   };
@@ -42,7 +43,7 @@ export const ProductionSettingsPanel = forwardRef<ProductionSettingsHandle, { ap
         if (!/^wx[a-zA-Z0-9]{8,40}$/.test(appid.trim())) throw new Error("请填写有效的公众号 AppID。");
         if ((appid !== saved.wechat.appid || !saved.wechatConfigured) && !secret.trim()) throw new Error("请填写此公众号对应的 AppSecret。");
         if (secret.trim()) { const result = await credentials.set({ ref: await wechatCredentialRef(appid.trim()), value: secret.trim() }); if (!result?.result.ok) throw new Error("公众号 AppSecret 保存失败。"); credentialSaved = true; }
-        next = await api.settingsAction({ action: "save-wechat", appid: appid.trim(), author, theme, revision: saved.revision });
+        next = await api.settingsAction({ action: "save-wechat", appid: appid.trim(), author, theme, revision: saved.revision }); invalidateProjectSettings(api);
       } else next = await api.settings();
       if (alive.current) { setSaved(next); setSecret(""); setAppid(next.wechat.appid); setAuthor(next.wechat.author); setTheme(next.wechat.theme); setNotice("已保存"); }
     } catch (cause) { const message = (credentialSaved ? "凭据已保存，设置更新尚未全部完成；" : "") + (cause instanceof Error ? cause.message : "保存失败，请重试。"); if (alive.current) setError(message); throw new Error(message); }

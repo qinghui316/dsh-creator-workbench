@@ -1,3 +1,4 @@
+import { invalidateProjectSettings } from "./projectQuery.ts";
 import {
   forwardRef,
   useEffect,
@@ -77,7 +78,7 @@ export const CreatorSettingsCard = forwardRef<
   const alive = useRef(true),
     saving = useRef(false),
     leaveBox = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  useEffect(() => { if (face.production) invalidateProjectSettings(face.production);
     alive.current = true;
     return () => {
       alive.current = false;

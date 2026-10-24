@@ -1,3 +1,8 @@
+import type { ProjectView, ArticleEdit, ArticleSave } from "./projectView.ts";
+import { queryProject } from "./production/projectQuery.ts";
+import { articleSource, previewArticleEdit, saveArticleRevision } from "./production/articleEditing.ts";
+import { hydrateCreations } from "./production/creations.ts";
+import { readSettings } from "./production/storage.ts";
 import { CoverWorkflow } from "./covers/workflow.ts";
 import { ProductionWorkflow } from "./production/workflow.ts";
 import { projectProduction } from "./production/projection.ts";
@@ -275,13 +280,13 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     return resolveCoverSkill(this.coverSkillDir());
   }
 
-  async scanned() {
+  async scanned(reconcile = true) {
     return withOverlayLock(this.dataDir, async () => {
       let overlay = await loadOverlay(this.dataDir);
       const libraryRoot = overlay.libraryRoot ?? this.libraryRoot;
       this.rememberOverlay(overlay);
       this.ensureWatch(libraryRoot);
-      const reconciled = await reconcileOverlayBurns(overlay);
+      const reconciled = reconcile ? await reconcileOverlayBurns(overlay) : undefined;
       if (reconciled !== undefined) {
         overlay = reconciled;
         await saveOverlay(this.dataDir, overlay);
@@ -778,6 +783,43 @@ export class CreatorWorkbenchService extends TypertRemoteService {
 
   async getProductionSettings(_request: Record<string, never>, signal: AbortSignal): Promise<ProductionSettingsView> { signal.throwIfAborted(); return this.production.settings(); }
   async productionSettingsAction(request: ProductionSettingsAction, signal: AbortSignal): Promise<ProductionSettingsView> { return this.production.settingsAction(request, signal); }
+  async getProjectView(request: { id: string; folderPath?: string }, signal: AbortSignal): Promise<ProjectView> {
+    signal.throwIfAborted();
+    const { libraryRoot, overlay, items } = await this.scanned(false);
+    if (removedContentIds(overlay, libraryRoot).includes(request.id)) throw new Error("项目已移除，请明确重新加入。");
+    const item = items.find(item => item.id === request.id);
+    if (!item || request.folderPath && await realpath(request.folderPath) !== await realpath(item.folderPath)) throw new Error("项目位置已变化，请重新打开。");
+    const config = await readSettings(this.dataDir);
+    const accountIds = Object.fromEntries(Object.entries(config.accounts).map(([p,a]) => [p,a?.id]));
+    if (config.wechat.appid) accountIds["official-account"] = config.wechat.appid;
+    return { ...await queryProject(item, () => this.covers.load(item.folderPath)), accountIds, settingsRevision: config.revision };
+  }
+  async reconcileProject(request: ContentScope, signal: AbortSignal): Promise<Record<string, never>> {
+    await this.getProjectView(request, signal);
+    await this.production.reconcile(request); await this.covers.state(request); return {};
+  }
+  async getPublicationContent(request: ContentScope & { publicationId: string; revision: number }, signal: AbortSignal) {
+    const view = await this.getProjectView(request, signal);
+    const full = await readState(view.detail.folderPath);
+    const publication = full.publications?.find(p => p.id === request.publicationId && !p.hidden);
+    if (!publication || publication.revision !== request.revision) throw new Error("发布材料已变化，请重新读取。");
+    const result = (await hydrateCreations(request.folderPath, { ...full, publications: [publication] })).publications![0]!;
+    if (publication.source?.articleId && view.production.articles.some(a => a.parentArticleId === publication.source!.articleId)) result.sourceChanged = true;
+    return result;
+  }
+  async readArticleSource(request: ContentScope & { articleId: string }, signal: AbortSignal) {
+    const view = await this.getProjectView(request, signal);
+    return articleSource(view.detail.folderPath, request.articleId, view.detail.articlePath);
+  }
+  async previewArticleDraft(request: ArticleEdit, signal: AbortSignal) {
+    const view = await this.getProjectView(request, signal), settings = await readSettings(this.dataDir);
+    return previewArticleEdit(this.dataDir, view.detail.folderPath, request, settings.wechat.theme, signal, view.detail.articlePath);
+  }
+  async saveArticleRevision(request: ArticleSave, signal: AbortSignal) {
+    const view = await this.getProjectView(request, signal), settings = await readSettings(this.dataDir);
+    const saved = await saveArticleRevision(this.dataDir, view.detail.folderPath, request, settings.wechat.theme, signal, () => this.getProjectView(request, signal), view.detail.articlePath);
+    this.invalidateCatalog(); return saved;
+  }
   async getProductionState(request: ContentScope, signal: AbortSignal): Promise<ProductionState> { signal.throwIfAborted(); return this.production.state(request); }
   async getCreationImage(request: ContentScope & { imageId: string }, signal: AbortSignal): Promise<{ mime: string; base64: string }> {
     await this.production.host.resolve(request); signal.throwIfAborted(); const { image, file } = await creationImage(request.folderPath, request.imageId);

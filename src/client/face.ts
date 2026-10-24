@@ -19,6 +19,7 @@ import type {
 } from "../types.ts";
 
 export interface CreatorViewFace {
+  getProjectView?: (id: string) => Promise<import("../projectView.ts").ProjectView>;
   production?: ProductionClient;
   inspectProject?: (id: string, folderPath: string) => Promise<string[]>;
   projectRemoved?: (id: string, folderPath: string) => Promise<boolean>;
