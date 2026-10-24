@@ -53,7 +53,7 @@ describe("content-owned sessions", () => {
   });
   it("rejects an unrelated directory and preserves the selected content", async () => {
     const { service, ensureSession } = host();
-    await expect(startContentSession(service, content, async () => "/other")).rejects.toThrow("这一期");
+    await expect(startContentSession(service, content, async () => "/other")).rejects.toThrow("当前项目");
     expect(ensureSession).not.toHaveBeenCalled();
     expect(loadCreatorUiState(storage).selectedId).toBe(content.id);
   });
@@ -63,7 +63,7 @@ describe("content-owned sessions", () => {
     saveCreatorUiState(storage, { ...DEFAULT_UI_STATE, selectedId: content.id, sessionContents: {
       native: { contentId: content.id, folder: content.folderPath },
     } });
-    expect(await startContentSession(service, content, async () => content.folderPath + "/")).toBe("creator-session");
+    expect(await startContentSession(service, content, async () => content.folderPath)).toBe("creator-session");
     expect(ensureSession).toHaveBeenCalledWith({ folder: content.folderPath });
     expect(loadCreatorUiState(storage).selectedId).toBe(content.id);
     expect(contentForSession(service)).toBe(content.id);
@@ -150,6 +150,56 @@ describe("content-owned sessions", () => {
     expect(current()).toBe(true);
     setCurrent("second");
     expect(current()).toBe(false);
+  });
+
+  it("coalesces concurrent clicks and reuses the resulting session on subsequent clicks", async () => {
+    const { service, ensureSession } = host();
+    const picker = vi.fn(async () => content.folderPath);
+    const results = await Promise.all(Array.from({ length: 4 }, () => startContentSession(service, content, picker)));
+    expect(results).toEqual(Array(4).fill("creator-session"));
+    expect(ensureSession).toHaveBeenCalledTimes(1);
+    await startContentSession(service, content, picker);
+    expect(ensureSession.mock.calls[1]?.[0]).toEqual({ folder: content.folderPath, sessionId: "creator-session" });
+    expect(picker).toHaveBeenCalledOnce();
+  });
+
+  it("ignores the provisional parent-folder navigation and restores the existing content session", async () => {
+    const { service, owned, ensureSession } = host(); owned.add("legacy"); owned.add("wrong-parent");
+    saveCreatorUiState(storage, { ...DEFAULT_UI_STATE, sessionContents: {
+      "wrong-parent": { contentId: content.id, folder: content.folderPath, workspaceFolder: "/library" },
+      legacy: { contentId: content.id, folder: content.folderPath },
+    } });
+    const picker = vi.fn(async () => null);
+    await startContentSession(service, content, picker);
+    expect(ensureSession).toHaveBeenCalledWith({ folder: content.folderPath, sessionId: "legacy" });
+    expect(picker).not.toHaveBeenCalled();
+    expect(loadCreatorUiState(storage).sessionContents?.["wrong-parent"]?.workspaceFolder).toBe("/library");
+  });
+
+  it("normalizes Windows case and separators without merging different libraries", async () => {
+    const { service, ensureSession } = host();
+    await startContentSession(service, { id: "中文", folderPath: "E:/资料 库/中文" }, async () => "e:\\资料 库\\中文\\");
+    expect(ensureSession).toHaveBeenCalledWith({ folder: "E:/资料 库/中文" });
+    await expect(startContentSession(service, { id: "中文", folderPath: "F:/资料 库/中文" }, async () => "E:/资料 库/中文")).rejects.toThrow("当前项目");
+  });
+
+  it("keeps the business sidebar available when an old conversation points to an already removed project", async () => {
+    const { service, owned, setCurrent } = host(); owned.add("old"); setCurrent("old");
+    saveCreatorUiState(storage, { ...DEFAULT_UI_STATE, sessionContents: { old: { contentId: content.id, folder: content.folderPath } } });
+    const face = { setLibraryRoot: vi.fn(async () => undefined), getContent: vi.fn(async () => { throw new Error("content failed: 此项目已从工作台移除，请通过‘使用已有目录’重新加入。"); }) };
+    expect(await restoreSessionContent(service, face)).toBeNull();
+    expect(loadCreatorUiState(storage).removedProjectFolders).toEqual([content.folderPath]);
+    expect(await restoreSessionContent(service, face)).toBeNull();
+    expect(face.getContent).toHaveBeenCalledOnce();
+  });
+
+  it("checks a removed project's status before changing the active library", async () => {
+    const { service, owned, setCurrent } = host(); owned.add("old"); setCurrent("old");
+    saveCreatorUiState(storage, { ...DEFAULT_UI_STATE, sessionContents: { old: { contentId: content.id, folder: content.folderPath } } });
+    const face = { projectRemoved: vi.fn(async () => true), setLibraryRoot: vi.fn(), getContent: vi.fn() };
+    expect(await restoreSessionContent(service, face)).toBeNull();
+    expect(face.projectRemoved).toHaveBeenCalledWith(content.id, content.folderPath);
+    expect(face.setLibraryRoot).not.toHaveBeenCalled(); expect(face.getContent).not.toHaveBeenCalled();
   });
 
 });

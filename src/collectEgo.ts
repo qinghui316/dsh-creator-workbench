@@ -14,6 +14,8 @@ import {
   unregisterCollectSpace,
 } from "./collectSpaces.ts";
 import type { PublishPlatform } from "./types.ts";
+import { browserExecutable, egoCompatibilityPrelude } from "./production/runtime.ts";
+import { decodeOutput, runProcess } from "./production/process.ts";
 
 export function collectScriptPath(): string {
   return join(dirname(fileURLToPath(import.meta.url)), "collect-publish.mjs");
@@ -39,6 +41,7 @@ export async function resolveCollectScript(preferred?: string): Promise<string> 
 }
 
 export interface CollectRunOptions {
+  executable?: string;
   platforms?: readonly PublishPlatform[];
   targets?: readonly CollectTarget[];
   spaceName?: string;
@@ -59,6 +62,8 @@ export async function runCollectPublish(
   options: CollectRunOptions = {},
 ): Promise<CollectResult> {
   const source = await readFile(await resolveCollectScript(scriptPath), "utf8");
+  const compatibility = await egoCompatibilityPrelude();
+  const executable = options.executable ?? await browserExecutable();
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
       reject(signal.reason ?? new Error("aborted"));
@@ -94,9 +99,10 @@ export async function runCollectPublish(
     }
     if (options.maxPages !== undefined) env.OIL_COLLECT_MAX_PAGES = String(options.maxPages);
     if (options.xhsScrollSteps !== undefined) env.OIL_COLLECT_XHS_SCROLL = String(options.xhsScrollSteps);
-    const child = spawn("ego-browser", ["nodejs"], {
+    const child = spawn(executable, ["nodejs"], {
       stdio: ["pipe", "pipe", "pipe"],
       env,
+      windowsHide: true,
     });
     if (child.pid !== undefined) {
       registerCollectSpace(registryPath, { name: spaceName, pid: child.pid, startedAt: Date.now() });
@@ -118,17 +124,24 @@ export async function runCollectPublish(
       options.maxPages !== undefined ? `var OIL_COLLECT_MAX_PAGES = ${JSON.stringify(String(options.maxPages))};` : "",
       options.xhsScrollSteps !== undefined ? `var OIL_COLLECT_XHS_SCROLL = ${JSON.stringify(String(options.xhsScrollSteps))};` : "",
     ].filter(Boolean).join("\n");
-    child.stdin?.end(`${prelude}\n${source}`);
-    let stdout = "";
-    let stderr = "";
+    child.stdin?.end(`${compatibility}\n${prelude}\n${source}`);
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
     child.stdout?.on("data", (chunk: Buffer | string) => {
-      stdout += String(chunk);
+      stdout.push(Buffer.from(chunk));
     });
     child.stderr?.on("data", (chunk: Buffer | string) => {
-      stderr += String(chunk);
+      stderr.push(Buffer.from(chunk));
     });
+    let aborting = false;
     const onAbort = (): void => {
+      aborting = true;
       child.kill("SIGTERM");
+      // Killing this CLI does not relinquish Ego's task space. Hand off only
+      // this run's exact space, never another task or a space already owned by the user.
+      const release = `${compatibility}\nconst spaces=await listTaskSpaces();for(const space of spaces){if(space.name===${JSON.stringify(spaceName)} && space.ownership==='agent'){await (await taskSpace(space.id)).handOff();}}`;
+      void runProcess(executable, ["nodejs"], { input: release, timeout: 5_000 })
+        .catch(() => undefined).finally(() => reject(signal.reason ?? new Error("同步已取消。")));
     };
     signal.addEventListener("abort", onAbort, { once: true });
     child.once("error", (cause) => {
@@ -137,9 +150,11 @@ export async function runCollectPublish(
       const code = (cause as NodeJS.ErrnoException).code;
       reject(code === "ENOENT" ? new Error("ego-browser not found; install Ego Lite") : cause);
     });
-    child.once("exit", (code) => {
+    child.once("close", (code) => {
       signal.removeEventListener("abort", onAbort);
-      const raw = `${stdout}\n${stderr}`;
+      if (aborting) return;
+      if (signal.aborted) { reject(signal.reason ?? new Error("同步已取消。")); return; }
+      const raw = `${decodeOutput(stdout)}\n${decodeOutput(stderr)}`;
       if (code !== 0 && raw.trim() === "") {
         reject(new Error(`ego-browser exited ${code}`));
         return;

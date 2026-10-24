@@ -58,6 +58,11 @@ export function decodeOverlay(value: unknown): OverlayStore {
   }
   const store = emptyOverlay();
   store.items = items;
+  if (typeof raw.hiddenContents === "object" && raw.hiddenContents !== null) {
+    store.hiddenContents = Object.fromEntries(Object.entries(raw.hiddenContents)
+      .filter(([, ids]) => Array.isArray(ids)).map(([root, ids]) => [root, [...new Set((ids as unknown[])
+        .filter((id): id is string => typeof id === "string" && id !== "" && id !== "." && id !== ".." && !/[\\/]/.test(id)))]]));
+  }
   if (typeof raw.videoSelections === "object" && raw.videoSelections !== null) {
     store.videoSelections = Object.fromEntries(Object.entries(raw.videoSelections).filter(([, v]) => typeof v === "object" && v !== null).map(([root, v]) => [root, Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, name]) => typeof name === "string" || name === null))])) as Record<string, Record<string, string | null>>;
   }

@@ -1,0 +1,209 @@
+name: "claude-editorial"
+description: "Claude/Anthropic editorial 风格：暖奶油底、珊瑚强调、深色代码面板，适合 AI Agent 和开源工具文章"
+colors:
+  primary: "#cc785c"
+  primary_active: "#a9583e"
+  accent_teal: "#5db8a6"
+  accent_amber: "#e8a55a"
+  canvas: "#faf9f5"
+  surface_soft: "#f5f0e8"
+  surface_card: "#efe9de"
+  surface_dark: "#181715"
+  surface_dark_elevated: "#252320"
+  ink: "#141413"
+  body: "#3d3d3a"
+  muted: "#6c6a64"
+  muted_soft: "#8e8b82"
+  hairline: "#e6dfd8"
+  code_color: "#faf9f5"
+  darkmode:
+    background: "#181715"
+    text: "#faf9f5"
+    text_light: "#a09d96"
+    primary: "#cc785c"
+    code_bg: "#252320"
+    code_color: "#faf9f5"
+    quote_bg: "#252320"
+    quote_border: "#cc785c"
+base_css: |
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.82;
+    color: #3d3d3a;
+    background: #faf9f5;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    word-wrap: break-word;
+  }
+
+  h1 {
+    font-family: "Times New Roman", "Songti SC", "SimSun", serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: #141413;
+    letter-spacing: -0.02em;
+    line-height: 1.28;
+    margin: 34px 0 18px 0;
+    padding-bottom: 14px;
+    border-bottom: 2px solid #cc785c;
+  }
+
+  h2 {
+    font-family: "Times New Roman", "Songti SC", "SimSun", serif;
+    font-size: 23px;
+    font-weight: 400;
+    color: #141413;
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+    margin: 34px 0 16px 0;
+    padding: 10px 0 10px 14px;
+    border-left: 4px solid #cc785c;
+    background: #f5f0e8;
+    border-radius: 0 12px 12px 0;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 500;
+    color: #141413;
+    margin: 26px 0 12px 0;
+    line-height: 1.45;
+  }
+
+  h4 {
+    font-size: 16px;
+    font-weight: 500;
+    color: #141413;
+    margin: 22px 0 10px 0;
+    line-height: 1.45;
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 1.82;
+    color: #3d3d3a;
+    margin: 13px 0;
+  }
+
+  strong {
+    font-weight: 600;
+    color: #141413;
+  }
+
+  em {
+    font-style: italic;
+    color: #6c6a64;
+  }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: #efe9de;
+    color: #a9583e;
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  pre {
+    background: #181715;
+    color: #faf9f5;
+    padding: 18px;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin: 18px 0;
+    line-height: 1.62;
+  }
+
+  pre code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: none;
+    color: #faf9f5;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  blockquote {
+    border-left: 4px solid #cc785c;
+    background: #efe9de;
+    margin: 18px 0;
+    padding: 14px 18px;
+    border-radius: 0 12px 12px 0;
+    color: #3d3d3a;
+  }
+
+  blockquote p {
+    margin: 8px 0;
+    color: #3d3d3a;
+  }
+
+  ul {
+    padding-left: 24px;
+    margin: 14px 0;
+  }
+
+  ol {
+    padding-left: 24px;
+    margin: 14px 0;
+  }
+
+  li {
+    font-size: 16px;
+    line-height: 1.82;
+    color: #3d3d3a;
+    margin: 7px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 15px;
+    background: #faf9f5;
+  }
+
+  thead {
+    background: #181715;
+  }
+
+  th {
+    background: #181715;
+    color: #faf9f5;
+    font-weight: 500;
+    padding: 11px 14px;
+    text-align: left;
+    border: 1px solid #181715;
+  }
+
+  td {
+    padding: 11px 14px;
+    border: 1px solid #e6dfd8;
+    color: #3d3d3a;
+  }
+
+  tr {
+    background: #faf9f5;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 28px auto;
+    border-radius: 12px;
+    border: 1px solid #e6dfd8;
+  }
+
+  a {
+    color: #cc785c;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #e6dfd8;
+    margin: 28px 0;
+  }

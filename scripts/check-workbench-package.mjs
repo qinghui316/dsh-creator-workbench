@@ -17,7 +17,23 @@ fail(manifest.dsh?.bundle?.patch === "./cordis.patch.yml", "Missing plugin patch
 fail(manifest.dsh.client.platform === "web" && manifest.dsh.client.inject.includes("dsh-desktop-workbenches"), "Missing Desktop provider dependency");
 fail(!manifest.dependencies?.["@deepseek-ai/dsh-tools"], "Do not bundle a second host ToolRuntime");
 fail(read("cordis.patch.yml").replaceAll("\r\n", "\n").trim() === "- insert:\n    - id: dsh-creator-workbench\n      name: dsh-creator-workbench", "Patch identity mismatch");
-for (const path of ["lib/index.js", "lib/client.js", "lib/typert.host.js", "lib/collect-publish.mjs", "LICENSE", "README.md"]) {
+const runtimeFiles = [
+  "lib/index.js", "lib/client.js", "lib/typert.host.js", "lib/collect-publish.mjs",
+  "scripts/collect-publish.mjs", "scripts/ego-account.mjs", "scripts/ego-compat.mjs",
+  "scripts/publisher-ego-bridge.mjs", "scripts/publisher-douyin-adapter.mjs", "scripts/publisher-xhs-details.mjs", "scripts/install-runtime.mjs",
+  "scripts/publisher-bilibili-details.mjs",
+  "scripts/publisher-bilibili-adapter.mjs",
+  "vendor/wewrite/worker.py", "vendor/wewrite/converter.py", "vendor/wewrite/theme.py",
+  "vendor/wewrite/requirements.txt", "vendor/wewrite/themes/claude-editorial.yaml",
+  "vendor/wewrite/themes/professional-clean.yaml", "vendor/wewrite/LICENSE",
+  "vendor/wewrite/SKILL.md", "vendor/wewrite/source-files.json", "vendor/wewrite/writing-config.example.yaml",
+  "vendor/wewrite/references/writing-workflow.md", "vendor/wewrite/references/frameworks.md",
+  "vendor/wewrite/references/writing-guide.md", "vendor/wewrite/references/content-enhance.md",
+  "vendor/wewrite/references/seo-rules.md", "vendor/wewrite/references/exemplar-seeds.yaml",
+  "vendor/wewrite/personas/midnight-friend.yaml", "vendor/wewrite/scripts/humanness_score.py",
+  "THIRD_PARTY_NOTICES.md", "LICENSE", "README.md",
+];
+for (const path of runtimeFiles) {
   const text = read(path);
   fail(text.length > 0, `Empty file: ${path}`);
   fail(!/\bsk-[a-zA-Z0-9_-]{24,}\b/.test(text), `Possible secret in ${path}`);
@@ -28,6 +44,7 @@ fail(errors.length === 0, errors.join("\n"));
 if (tarball) {
   const entries = execFileSync("tar", ["-tzf", tarball], { encoding: "utf8" }).trim().split(/\r?\n/);
   fail(entries.every((file) => file.startsWith("package/") && !/(?:^|\/)(?:\.agents|\.claude|\.git|node_modules|\.env|\.npmrc|overlay\.json)(?:\/|$)|\.map$/.test(file)), "Unexpected private or development file in tarball");
-  for (const file of ["lib/index.js", "lib/client.js", "lib/typert.host.js", "lib/collect-publish.mjs"]) fail(read(file) === readFileSync(resolve(file), "utf8"), `Tarball differs from current build: ${file}`);
+  for (const file of runtimeFiles) fail(read(file) === readFileSync(resolve(file), "utf8"), `Tarball differs from current build: ${file}`);
+  for (const file of entries.filter((entry) => /\.(?:m?js|py|md|json|ya?ml|svg)$/.test(entry))) fail(!/\bsk-[a-zA-Z0-9_-]{24,}\b/.test(read(file.slice("package/".length))), `Possible secret in ${file}`);
   console.log(JSON.stringify({ package: `${manifest.name}@${manifest.version}`, tarball, files: entries.length, sha256: createHash("sha256").update(readFileSync(tarball)).digest("hex"), status: "passed" }, null, 2));
 } else console.log("Workbench manifest, entries, identity, credentials scan, and dependency boundaries passed.");

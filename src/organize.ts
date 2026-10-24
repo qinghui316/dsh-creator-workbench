@@ -121,7 +121,12 @@ export function remapOverlayItems(overlay: OverlayStore, moves: readonly Organiz
     if (!libraryRoot || !roots[libraryRoot]) return roots;
     return { ...roots, [libraryRoot]: Object.fromEntries(Object.entries(roots[libraryRoot]).map(([id, value]) => [map.get(id) ?? id, value])) };
   };
-  return { ...overlay, items, ...(overlay.videoSelections ? { videoSelections: remapScoped(overlay.videoSelections) } : {}), ...(overlay.hiddenVideos ? { hiddenVideos: remapScoped(overlay.hiddenVideos) } : {}) };
+  const rootKey = libraryRoot?.replaceAll("\\", "/").replace(/\/+$/, "");
+  const hiddenKey = process.platform === "win32" ? rootKey?.toLowerCase() : rootKey;
+  const hiddenContents = hiddenKey && overlay.hiddenContents?.[hiddenKey]
+    ? { ...overlay.hiddenContents, [hiddenKey]: overlay.hiddenContents[hiddenKey]!.map((id) => map.get(id) ?? id) }
+    : overlay.hiddenContents;
+  return { ...overlay, items, ...(hiddenContents ? { hiddenContents } : {}), ...(overlay.videoSelections ? { videoSelections: remapScoped(overlay.videoSelections) } : {}), ...(overlay.hiddenVideos ? { hiddenVideos: remapScoped(overlay.hiddenVideos) } : {}) };
 }
 
 export async function previewOrganize(

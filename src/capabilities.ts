@@ -4,13 +4,12 @@ import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 
 import { skillDirCandidates } from "./config.ts";
-import { resolveCoverSkill } from "./generate.ts";
 import {
   egoInstallCandidates,
   extraBinDirs,
   pathEnvValue,
 } from "./runtimePaths.ts";
-import { resolveSubtitleSkill, subtitleInstallCommand } from "./subtitle.ts";
+import { publisherRoot, resource } from "./production/runtime.ts";
 import type {
   CreatorCapabilities,
   CreatorCapability,
@@ -57,30 +56,11 @@ async function libraryCapability(path: string): Promise<CreatorCapability> {
     : capability("missing", true, "内容目录存在，但当前进程没有读写权限。", path);
 }
 
-async function subtitleCapability(
-  path: string,
-  platform: NodeJS.Platform,
-): Promise<CreatorCapability> {
-  const info = await stat(path).catch(() => undefined);
-  if (info === undefined || !info.isDirectory()) {
-    return capability(
-      "missing",
-      false,
-      `未发现 oil-subtitle；执行 ${subtitleInstallCommand(path)} 后重试。`,
-      path,
-    );
-  }
-  try {
-    const resolved = await resolveSubtitleSkill(path, platform);
-    return capability("ready", false, "已发现字幕工作流。", resolved.root);
-  } catch {
-    return capability(
-      "missing",
-      false,
-      `已发现 oil-subtitle 目录，但尚未完成 setup.sh；执行 bash "${join(path, "setup.sh")}" 后重试。字幕生成和预览暂不可用。`,
-      path,
-    );
-  }
+async function subtitleCapability(platform: NodeJS.Platform, env: NodeJS.ProcessEnv, home: string): Promise<CreatorCapability> {
+  if (platform !== "win32") return capability("unsupported", false, "当前语音转文字入口面向 Windows。");
+  const ffmpeg = await findExecutable("ffmpeg", env, platform, home);
+  const local = home === homedir() && existsSync("C:/ffmpeg/bin/ffmpeg.exe");
+  return ffmpeg || local ? capability("ready", false, "本地音频提取可用；火山识别能力需使用已配置服务实际验证。") : capability("missing", false, "请安装 FFmpeg，再使用火山录音文件识别。");
 }
 
 async function coverCapability(
@@ -98,16 +78,6 @@ function credentialCapability(secret: CreatorSecrets[keyof CreatorSecrets], labe
   return secret.configured
     ? capability("ready", false, `${label}凭据已配置。`)
     : capability("missing", false, `${label}凭据未配置。`);
-}
-
-function skillCapability(
-  findSkillDir: (skillName: string) => string | undefined,
-  skillName: string,
-): CreatorCapability {
-  const found = findSkillDir(skillName);
-  return found === undefined
-    ? capability("missing", false, `未发现 ${skillName}。`)
-    : capability("ready", false, `已发现 ${skillName}。`, found);
 }
 
 export async function findExecutable(
@@ -162,34 +132,25 @@ function egoCapability(found: { path: string; kind: "cli" | "app" } | undefined)
       found.path,
     );
   }
-  return capability("ready", false, "已发现 Ego Browser，可自动发布和回收发布数据。", found.path);
+  return capability("ready", false, "已发现 Ego Browser 命令；账号、上传和数据能力需分别实际检查。", found.path);
 }
 
 function recommendationsOf(capabilities: CreatorCapabilities): string[] {
   const recommendations: string[] = [];
   if (capabilities.library.state !== "ready") recommendations.push("先选择一个可读写的内容目录。");
-  if (capabilities.subtitleSkill.state !== "ready") {
-    const installedPath = capabilities.subtitleSkill.path;
-    recommendations.push(
-      capabilities.subtitleSkill.detail.includes("尚未完成 setup.sh") && installedPath !== undefined
-        ? `字幕：bash "${join(installedPath, "setup.sh")}"`
-        : installedPath === undefined
-          ? "字幕：git clone https://github.com/oil-oil/oil-subtitle ~/.agents/skills/oil-subtitle && bash ~/.agents/skills/oil-subtitle/setup.sh"
-          : `字幕：${subtitleInstallCommand(installedPath)}`,
-    );
-  }
-  if (capabilities.subtitleCredential.state !== "ready") recommendations.push("字幕 Key：到百炼控制台（https://bailian.console.aliyun.com）申请 DASHSCOPE_API_KEY，在设置页填写。");
+  if (capabilities.subtitleSkill.state !== "ready") recommendations.push("视频转文字：安装 FFmpeg，使用 Windows 入口。");
+  if (capabilities.subtitleCredential.state !== "ready") recommendations.push("在设置 → 语音转文字中填写火山语音 API Key。");
   if (capabilities.coverSkill.state !== "ready") recommendations.push("封面：git clone https://github.com/oil-oil/oil-cover ~/.agents/skills/oil-cover");
   if (capabilities.coverCredential.state !== "ready") recommendations.push("封面：在数据与设置中填写所选生图服务的地址、模型和 API Key；分析使用 Harness 当前 Agent。");
   if (capabilities.publishSync.state !== "ready") {
     recommendations.push(
       capabilities.publishSync.detail.includes("PATH")
         ? "自动发布和数据回收：已装 Ego Lite，还需要把 ego-browser 加到 PATH。"
-        : "自动发布和数据回收：安装 Ego Browser（https://lite.ego.app）并保证 PATH 里有 ego-browser，再登录各平台后台。",
+        : "自动发布和数据回收：安装 Ego Browser（https://www.egolite.ai/download）并保证 PATH 里有 ego-browser，再登录各平台后台。",
     );
   }
-  if (capabilities.publishSkill.state !== "ready") recommendations.push("自动发布：git clone https://github.com/oil-oil/video-publisher-skill ~/.agents/skills/video-publisher");
-  if (capabilities.articleSkill.state !== "ready") recommendations.push("公众号图文：git clone https://github.com/oil-oil/oil-video-article ~/.agents/skills/oil-video-article");
+  if (capabilities.publishSkill.state !== "ready") recommendations.push("视频上传：在设置 → 发布平台中准备运行环境。");
+  if (capabilities.articleSkill.state !== "ready") recommendations.push("公众号图文：在设置 → 发布平台中准备运行环境。");
   return recommendations;
 }
 
@@ -199,16 +160,15 @@ export async function inspectCreatorSetup(
   const platform = options.platform ?? process.platform;
   const env = options.env ?? process.env;
   const home = options.home ?? homedir();
-  const findSkillDir = options.findSkillDir ?? ((name: string) => defaultFindSkillDir(name, home));
   const capabilities: CreatorCapabilities = {
     library: await libraryCapability(options.libraryRoot),
-    subtitleSkill: await subtitleCapability(options.subtitleSkillDir, platform),
+    subtitleSkill: await subtitleCapability(platform, env, home),
     subtitleCredential: credentialCapability(options.settings.secrets.subtitle, "字幕"),
     coverSkill: await coverCapability(options.coverSkillDir, platform),
     coverCredential: credentialCapability(options.settings.secrets.cover, "封面"),
     publishSync: egoCapability(await findEgo(platform, env, home)),
-    publishSkill: skillCapability(findSkillDir, "video-publisher"),
-    articleSkill: skillCapability(findSkillDir, "oil-video-article"),
+    publishSkill: existsSync(join(publisherRoot(options.dataDir), "scripts", "v2", "publisher.mjs")) ? capability("ready", false, "已准备锁定版本的视频上传工具。") : capability("missing", false, "请在发布平台设置中准备运行环境。"),
+    articleSkill: await resource("vendor", "wewrite", "SKILL.md").then(() => capability("ready", false, "已提供 WeWrite 写作与排版。"), () => capability("missing", false, "WeWrite 资源缺失，请重新安装完整工作台包。")),
   };
   return {
     platform,

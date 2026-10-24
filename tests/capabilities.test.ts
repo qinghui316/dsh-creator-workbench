@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { defaultFindSkillDir, findExecutable, inspectCreatorSetup } from "../src/capabilities.ts";
+import { publisherRoot } from "../src/production/runtime.ts";
 import type { LibrarySettings } from "../src/types.ts";
 
 function settings(libraryRoot: string, configured = true): LibrarySettings {
@@ -44,6 +45,9 @@ describe("creator setup inspection", () => {
     ];
     await Promise.all(files.map((path) => writeFile(path, "")));
     await chmod(join(bin, "ego-browser"), 0o755);
+    await writeFile(join(bin, "ffmpeg.EXE"), "");
+    const managedPublisher = join(publisherRoot(join(root, "data")), "scripts", "v2");
+    await mkdir(managedPublisher, { recursive: true }); await writeFile(join(managedPublisher, "publisher.mjs"), "");
 
     await mkdir(join(coverRoot, "references"), { recursive: true });
     await writeFile(join(coverRoot, "references", "cover-rules.md"), "rules");
@@ -54,8 +58,9 @@ describe("creator setup inspection", () => {
       subtitleSkillDir: subtitleRoot,
       coverSkillDir: coverRoot,
       settings: settings(libraryRoot),
-      platform: "linux",
-      env: { PATH: bin },
+      platform: "win32",
+      env: { PATH: bin, PATHEXT: ".EXE" },
+      home: root,
       findSkillDir: (name) => join(root, "skills", name),
     });
 
@@ -76,7 +81,7 @@ describe("creator setup inspection", () => {
       subtitleSkillDir: join(root, "missing-subtitle"),
       coverSkillDir: join(root, "missing-cover"),
       settings: settings(join(root, "missing-library"), false),
-      platform: "linux",
+      platform: "win32",
       env: { PATH: "" },
       home: root,
       findSkillDir: () => undefined,
@@ -84,17 +89,16 @@ describe("creator setup inspection", () => {
 
     expect(result.capabilities.library.state).toBe("missing");
     expect(result.capabilities.subtitleSkill.state).toBe("missing");
-    expect(result.capabilities.subtitleSkill.detail).toContain(
-      `git clone https://github.com/oil-oil/oil-subtitle '${join(root, "missing-subtitle")}'`,
-    );
+    expect(result.capabilities.subtitleSkill.detail).toContain("FFmpeg");
     expect(result.capabilities.coverCredential.state).toBe("missing");
     expect(result.capabilities.publishSync.state).toBe("missing");
     expect(result.capabilities.publishSkill.state).toBe("missing");
-    expect(result.capabilities.articleSkill.state).toBe("missing");
+    // Writing is bundled with the workbench, independent of optional downloaded tools.
+    expect(result.capabilities.articleSkill.state).toBe("ready");
     expect(result.recommendations.length).toBeGreaterThan(3);
   });
 
-  it("distinguishes a cloned subtitle directory that still needs setup", async () => {
+  it("ignores a Mac-only subtitle setup and requires Windows audio extraction", async () => {
     const root = await mkdtemp(join(tmpdir(), "oil-capabilities-unsetup-"));
     const subtitleRoot = join(root, "oil-subtitle");
     await mkdir(subtitleRoot, { recursive: true });
@@ -106,17 +110,15 @@ describe("creator setup inspection", () => {
       subtitleSkillDir: subtitleRoot,
       coverSkillDir: join(root, "missing-cover"),
       settings: settings(root),
-      platform: "linux",
+      platform: "win32",
       env: { PATH: "" },
       home: root,
       findSkillDir: () => undefined,
     });
 
     expect(result.capabilities.subtitleSkill.state).toBe("missing");
-    expect(result.capabilities.subtitleSkill.path).toBe(subtitleRoot);
-    expect(result.capabilities.subtitleSkill.detail).toContain("尚未完成 setup.sh");
-    expect(result.capabilities.subtitleSkill.detail).toContain(`bash "${join(subtitleRoot, "setup.sh")}"`);
-    expect(result.recommendations).toContain(`字幕：bash "${join(subtitleRoot, "setup.sh")}"`);
+    expect(result.capabilities.subtitleSkill.detail).toContain("FFmpeg");
+    expect(result.recommendations.join("\n")).not.toContain("setup.sh");
     expect(result.recommendations.join("\n")).not.toContain("git clone https://github.com/oil-oil/oil-subtitle");
   });
 });
@@ -160,7 +162,7 @@ describe("defaultFindSkillDir", () => {
 });
 
 describe("inspectCreatorSetup windows and mac paths", () => {
-  it("accepts a Windows subtitle venv", async () => {
+  it("accepts Windows audio extraction independently from the old subtitle venv", async () => {
     const root = await mkdtemp(join(tmpdir(), "oil-win-setup-"));
     const libraryRoot = join(root, "library");
     const subtitleRoot = join(root, "oil-subtitle");
@@ -182,6 +184,7 @@ describe("inspectCreatorSetup windows and mac paths", () => {
       writeFile(join(subtitleRoot, "scripts", "review_subtitles.py"), ""),
       writeFile(join(coverRoot, "scripts", "generate_oil_cover.py"), ""),
       writeFile(join(bin, "ego-browser.EXE"), ""),
+      writeFile(join(bin, "ffmpeg.EXE"), ""),
     ]);
 
     await mkdir(join(coverRoot, "references"), { recursive: true });

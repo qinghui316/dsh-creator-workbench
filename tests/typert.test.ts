@@ -13,7 +13,13 @@ describe("handwritten TYPERT", () => {
   it("exposes creatorWorkbench methods with zod v4 codecs", () => {
     const methods = CREATOR_WORKBENCH_INVOCATIONS.map((item) => item.method);
     expect(methods).toEqual([
+      "getProductionSettings",
+      "productionSettingsAction",
+      "getProductionState",
+      "productionAction",
+      "getProductionPreview",
       "setVideoVisibility",
+      "setContentVisibility", "projectAction", "restoreProjectSession",
       "getCoverState",
       "coverAction",
       "getCoverImage",

@@ -140,4 +140,35 @@ describe("cover assets, jobs and recovery", () => {
     const finished = await f.workflow.state(f.scope); expect(finished.selected).toEqual({}); expect(finished.versions[0]?.review).toBe("pending");
   });
 
+  it("removes selected legacy covers without deleting files or allowing scan and late review to select them again", async () => {
+    const f = await fixture(), file = join(f.folder, "old_3x4.png"); await writeFile(file, pictures["3x4"]!);
+    const initial = await f.workflow.state(f.scope), legacy = initial.versions[0]!;
+    const run = await f.create(["3x4"]);
+    await f.workflow.action({ ...f.scope, action: "remove", versionId: legacy.id }, f.signal);
+    expect((await f.workflow.state(f.scope)).selected["3x4"]).toBeNull();
+    expect((await selectedCoverPaths(f.folder, { "3x4": file }))["3x4"]).toBeUndefined();
+    await f.workflow.start(f.scope, run.id, f.plan); await f.done();
+    const generated = (await f.workflow.state(f.scope)).versions.find((v) => v.runId === run.id)!;
+    await f.workflow.action({ ...f.scope, action: "review", versionId: generated.id, verdict: "pass", note: "checked", select: true }, f.signal);
+    const reopened = new CoverWorkflow(f.host);
+    expect((await reopened.state(f.scope)).selected["3x4"]).toBeNull();
+    expect(await readFile(file)).toEqual(pictures["3x4"]!);
+    await expect(f.workflow.action({ ...f.scope, action: "select", versionId: legacy.id }, f.signal)).rejects.toThrow("已移除");
+    await reopened.action({ ...f.scope, action: "select", versionId: generated.id }, f.signal);
+    expect((await reopened.state(f.scope)).selected["3x4"]).toBe(generated.id);
+  }, 30_000);
+  it("rolls back only a newly owned unstarted request, preserving a reused or delivered request", async () => {
+    const f = await fixture(), token = crypto.randomUUID();
+    const created = await f.workflow.action({ ...f.scope, action: "create", video: "video.MP4", ratios: ["3x4"], requestToken: token }, f.signal), run = created.runs.at(-1)!;
+    await f.workflow.action({ ...f.scope, action: "discard-request", runId: run.id, requestToken: crypto.randomUUID() }, f.signal);
+    expect((await f.workflow.state(f.scope)).runs.at(-1)?.status).toBe("waiting_agent");
+    await f.workflow.action({ ...f.scope, action: "delivered", runId: run.id, sessionId: "original" }, f.signal);
+    await f.workflow.action({ ...f.scope, action: "discard-request", runId: run.id, requestToken: token }, f.signal);
+    expect((await f.workflow.state(f.scope)).runs.at(-1)?.status).toBe("waiting_agent");
+    await f.workflow.action({ ...f.scope, action: "cancel", runId: run.id }, f.signal);
+    const next = (await f.workflow.action({ ...f.scope, action: "create", video: "video.MP4", ratios: ["3x4"], requestToken: token }, f.signal)).runs.at(-1)!;
+    await f.workflow.action({ ...f.scope, action: "discard-request", runId: next.id, requestToken: token }, f.signal);
+    expect((await f.workflow.state(f.scope)).runs.at(-1)?.status).toBe("cancelled");
+  });
+
 });

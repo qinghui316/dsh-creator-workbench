@@ -13,7 +13,7 @@ function statusOf(overrides: {
   enabledPlatforms?: Array<"xiaohongshu" | "douyin" | "bilibili" | "wechat">;
 }): CreatorSetupStatus {
   return {
-    platform: "darwin",
+    platform: "win32",
     dataDir: "/data",
     settings: {
       libraryRoot: "/Movies/视频项目",
@@ -60,7 +60,7 @@ describe("creatorGuideText", () => {
     expect(guide).toContain("未发现 Ego Browser");
     expect(guide).toContain("自动发布");
     expect(guide).toContain("creator_sync_publish");
-    expect(guide).toContain("lite.ego.app");
+    expect(guide).toContain("egolite.ai/download");
     expect(guide).toContain("不要假装能同步");
   });
 
@@ -108,7 +108,7 @@ describe("creatorGuideText", () => {
   it("covers article transcription from ordinary videos", () => {
     const guide = creatorGuideText(statusOf({}));
     expect(guide).toContain("## 公众号图文");
-    expect(guide).toContain("oil-video-article");
+    expect(guide).toContain("WeWrite");
     expect(guide).toContain("当前视频");
     expect(guide).toContain("普通成片视频可以转写");
   });
@@ -120,16 +120,16 @@ describe("creatorGuideText", () => {
     status.capabilities.subtitleCredential = capability("missing");
     status.capabilities.coverCredential = capability("missing");
     const guide = creatorGuideText(status);
-    expect(guide).toContain("git clone https://github.com/oil-oil/oil-subtitle ~/.agents/skills/oil-subtitle");
-    expect(guide).toContain("bash ~/.agents/skills/oil-subtitle/setup.sh");
+    expect(guide).toContain("火山语音 API Key");
+    expect(guide).not.toContain("setup.sh");
     expect(guide).toContain("git clone https://github.com/oil-oil/oil-cover ~/.agents/skills/oil-cover");
-    expect(guide).toContain("bailian.console.aliyun.com");
+    expect(guide).not.toContain("bailian.console.aliyun.com");
     expect(guide).toContain("所选服务的地址、模型和 API Key");
     expect(guide).not.toContain("zenmux.ai");
     expect(guide).toContain("不要让用户把 Key 明文发到对话里");
   });
 
-  it("runs setup in the detected subtitle directory instead of cloning another copy", () => {
+  it("does not execute a discovered legacy Mac subtitle installer", () => {
     const status = statusOf({});
     status.capabilities.subtitleSkill = {
       state: "missing",
@@ -138,17 +138,20 @@ describe("creatorGuideText", () => {
       path: "/custom/oil-subtitle",
     };
     const guide = creatorGuideText(status);
-    expect(guide).toContain('bash "/custom/oil-subtitle/setup.sh"');
+    expect(guide).not.toContain('bash "/custom/oil-subtitle/setup.sh"');
+    expect(guide).toContain("Windows 和 FFmpeg");
     expect(guide).not.toContain("git clone https://github.com/oil-oil/oil-subtitle");
   });
 
-  it("gives install commands for video-publisher and oil-video-article when missing", () => {
+  it("uses managed pinned Windows runtime preparation for publishing and articles", () => {
     const status = statusOf({});
     status.capabilities.publishSkill = capability("missing");
     status.capabilities.articleSkill = capability("missing");
     const guide = creatorGuideText(status);
-    expect(guide).toContain("git clone https://github.com/oil-oil/video-publisher-skill ~/.agents/skills/video-publisher");
-    expect(guide).toContain("git clone https://github.com/oil-oil/oil-video-article ~/.agents/skills/oil-video-article");
+    expect(guide).toContain("设置 → 发布平台");
+    expect(guide).toContain("锁定版本");
+    expect(guide).not.toContain("git clone https://github.com/oil-oil/video-publisher-skill");
+    expect(guide).not.toContain("git clone https://github.com/oil-oil/oil-video-article");
   });
 
   it("lists environment recommendations when present", () => {

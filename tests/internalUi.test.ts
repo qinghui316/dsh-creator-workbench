@@ -17,7 +17,7 @@ import {
 import { VideoPanel } from "../src/client/VideoPanel.tsx";
 import { CoverPanel } from "../src/client/CoverPanel.tsx";
 import { zh, type CreatorKey } from "../src/client/locales.ts";
-import { IMAGE_CREDENTIAL, type CoverState } from "../src/covers/types.ts";
+import { IMAGE_CREDENTIAL, COVER_RATIOS, type CoverState } from "../src/covers/types.ts";
 
 vi.mock("@deepseek-ai/dsh-client-ui-primitives", () => ({
   Button: ({ children, variant, size, ...props }: Record<string, unknown>) =>
@@ -314,7 +314,7 @@ describe("video confirmation", () => {
       ),
     );
   });
-  it("removes the current video only through the existing visibility contract and offers undo", async () => {
+  it("removes the current video through the visibility contract and keeps removed rows out of the interface", async () => {
     const visibility = vi.fn().mockResolvedValue(detail);
     render(
       h(VideoPanel, {
@@ -331,7 +331,7 @@ describe("video confirmation", () => {
       }),
     );
     fireEvent.click(screen.getByRole("button", { name: "从列表移除" }));
-    await screen.findByText("已从列表移除，磁盘文件保留");
+    await waitFor(() => expect(visibility).toHaveBeenCalledOnce());
     expect(visibility).toHaveBeenCalledWith(
       detail.id,
       "原始.MP4",
@@ -339,15 +339,8 @@ describe("video confirmation", () => {
       true,
     );
     expect(document.querySelector("video")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "撤销" }));
-    await waitFor(() =>
-      expect(visibility).toHaveBeenLastCalledWith(
-        detail.id,
-        "原始.MP4",
-        detail.folderPath,
-        false,
-      ),
-    );
+    expect(screen.queryByRole("button", { name: "撤销" })).toBeNull();
+    expect(screen.queryByText(/已移除视频/)).toBeNull();
   });
 });
 describe("cover previews", () => {
@@ -396,4 +389,27 @@ describe("cover previews", () => {
       screen.getByRole("button", { name: "预览 3:4 封面" }),
     );
   });
+  it("shows asset readiness without treating an old unsent record or a service test as current work", async () => {
+    const versions = COVER_RATIOS.map((ratio, i) => ({ id: `ready-${i}`, ratio, file: `ready-${i}.png`, mime: "image/png", createdAt: 1, source: "import" as const, review: "pass" as const, width: 240, height: 320 }));
+    const state = { versions, selected: Object.fromEntries(versions.map((v) => [v.ratio, v.id])), runs: [{ id: "old", contentId: detail.id, folderPath: detail.folderPath, createdAt: 1, updatedAt: 1, video: { name: detail.selectedVideo, size: 1234, modifiedAt: 1 }, status: "waiting_agent", frames: [], ratios: ["3x4"], slots: {} }, { id: "test", purpose: "service_test", contentId: detail.id, folderPath: detail.folderPath, createdAt: 1, updatedAt: 1, video: { name: detail.selectedVideo, size: 1234, modifiedAt: 1 }, deliveredAt: 1, status: "waiting_agent", frames: [], ratios: ["3x4"], slots: {} }] } as CoverState;
+    render(h(CoverPanel, { detail, getCoverState: vi.fn().mockResolvedValue(state), getCoverImage: vi.fn().mockResolvedValue({ mime: "image/png", base64: "AA==" }), coverAction: vi.fn(), prepareCoverDraft: vi.fn() }));
+    await screen.findByRole("button", { name: "重新制作封面" });
+    expect(screen.getAllByText("已选用")).toHaveLength(3);
+    expect(screen.queryByText("等待 Agent 制作")).toBeNull(); expect(screen.queryByText("查看进度")).toBeNull();
+    expect(screen.getByText("制作详情")).toBeTruthy();
+  });
+
+  it("reports a failed final selection without showing a successful selection message", async () => {
+    const version = { id: "pending-choice", ratio: "3x4", file: "pending.png", mime: "image/png", source: "generated", review: "pending", width: 240, height: 320, createdAt: 1 } as const;
+    const state: CoverState = { versions: [version], selected: {}, runs: [] };
+    const action = vi.fn().mockResolvedValueOnce({ ...state, versions: [{ ...version, review: "pass" }] }).mockRejectedValueOnce(new Error("选择保存失败"));
+    render(h(CoverPanel, { detail, getCoverState: vi.fn().mockResolvedValue(state), getCoverImage: vi.fn().mockResolvedValue({ mime: "image/png", base64: "AA==" }), coverAction: action, prepareCoverDraft: vi.fn() }));
+    fireEvent.click(await screen.findByRole("button", { name: "选择封面" }));
+    fireEvent.click(await screen.findByRole("button", { name: "预览 3:4 封面" }));
+    const select = await screen.findByRole("button", { name: "我已检查，选用此版" });
+    await waitFor(() => expect((select as HTMLButtonElement).disabled).toBe(false)); fireEvent.click(select);
+    await screen.findByText("选择保存失败"); expect(screen.queryByText("已选用此版本")).toBeNull();
+    expect(action.mock.calls.map(([request]) => request.action)).toEqual(["review", "select"]);
+  });
+
 });

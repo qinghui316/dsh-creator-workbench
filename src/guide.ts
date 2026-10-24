@@ -13,21 +13,9 @@ function capabilityLine(label: string, capability: CreatorCapability): string {
 
 function subtitleLines(capabilities: CreatorSetupStatus["capabilities"]): string[] {
   const lines: string[] = [];
-  if (capabilities.subtitleSkill.state !== "ready") {
-    const installedPath = capabilities.subtitleSkill.path;
-    const needsSetup = capabilities.subtitleSkill.detail.includes("尚未完成 setup.sh");
-    lines.push(
-      needsSetup && installedPath !== undefined
-        ? `- oil-subtitle 已下载但未初始化：征得用户同意后执行 \`bash "${installedPath}/setup.sh"\`，完成后重新调用 creator_setup 确认。`
-        : installedPath === undefined
-          ? "- 缺 oil-subtitle：征得用户同意后执行 `git clone https://github.com/oil-oil/oil-subtitle ~/.agents/skills/oil-subtitle && bash ~/.agents/skills/oil-subtitle/setup.sh`，装完重新调用 creator_setup 确认。"
-          : `- 缺 oil-subtitle：征得用户同意后按能力状态中给出的命令安装到当前配置目录 \`${installedPath}\`，装完重新调用 creator_setup 确认。`,
-    );
-  }
-  if (capabilities.subtitleCredential.state !== "ready") {
-    lines.push("- 缺 DASHSCOPE_API_KEY：让用户到百炼控制台（https://bailian.console.aliyun.com）申请，在 设置 → 插件 → 内容工作台 填写；不要让用户把 Key 明文发到对话里。");
-  }
-  return lines.length === 0 ? ["- 当前字幕能力可用。"] : lines;
+  if (capabilities.subtitleSkill.state !== "ready") lines.push("- 视频转文字需要 Windows 和 FFmpeg；请按当前能力提示补齐依赖。");
+  if (capabilities.subtitleCredential.state !== "ready") lines.push("- 请在工作台设置 → 语音转文字配置火山语音 API Key，不要把 Key 发到对话。");
+  return lines.length ? lines : ["- 本地提取与凭据已准备；实际识别结果仍需验证。"];
 }
 
 function coverLines(capabilities: CreatorSetupStatus["capabilities"]): string[] {
@@ -67,13 +55,13 @@ export function creatorGuideText(status: CreatorSetupStatus): string {
     "",
     "## 当前能力状态",
     capabilityLine("内容目录（核心）", capabilities.library),
-    capabilityLine("字幕工作流 oil-subtitle", capabilities.subtitleSkill),
-    capabilityLine("字幕凭据 DASHSCOPE_API_KEY", capabilities.subtitleCredential),
+    capabilityLine("Windows 视频转文字", capabilities.subtitleSkill),
+    capabilityLine("火山语音凭据", capabilities.subtitleCredential),
     capabilityLine("封面工作流 oil-cover", capabilities.coverSkill),
     capabilityLine("生图服务凭据", capabilities.coverCredential),
     capabilityLine("Ego Browser（自动发布与数据回收）", capabilities.publishSync),
     capabilityLine("发布 skill video-publisher", capabilities.publishSkill),
-    capabilityLine("公众号 skill oil-video-article", capabilities.articleSkill),
+    capabilityLine("公众号写作 WeWrite", capabilities.articleSkill),
     "",
     "## 内容管理",
     `- 片库目录是 ${settings.libraryRoot}，一集一个子文件夹，命名为 YYYY-MM-DD_可读标题。`,
@@ -88,8 +76,8 @@ export function creatorGuideText(status: CreatorSetupStatus): string {
       : "- 已配置脚本规则（人设），写或改 script.md 前先用 creator_script_rules 读取并严格遵循；用户提出新的长期偏好时，把它合并进规则再保存。",
     "",
     "## 字幕",
-    "- 成片落盘后：creator_generate_subtitles 转录、自动校对、排版，完成后打开预览；用户在预览里确认专有名词后，再用 creator_burn_subtitles 烧录。预览前不要烧录。",
-    "- creator_generate_subtitles 是 Harness 后台任务。保存返回的 job id，用 job_output 的 wait=true 等待并获取完成结果、job_kill 取消；不要把启动说成完成。完成标志是 subtitle-transcript.json / subtitle-manifest.json，不是 *_subtitled.mp4。",
+    "- 脚本和字幕都是可选资料。视频转文章优先使用匹配字幕，缺少时调用火山录音文件识别；在字幕页查看或导入，原始识别结果保留。",
+    "- creator_generate_subtitles 是 Harness 后台任务。保存返回的 job id，用 job_output 的 wait=true 等待并获取完成结果、job_kill 取消；不要把启动说成完成。完成以工作台任务和带时间轴的实际文字/SRT 为准。",
     ...subtitleLines(capabilities),
     "",
     "## 封面",
@@ -101,28 +89,28 @@ export function creatorGuideText(status: CreatorSetupStatus): string {
     "- 通过工作台导入 MP4 或 MOV，原文件保留。多个视频时先选择当前视频；字幕可选。需要 AI 协助时再打开原生对话。",
     "",
     "## 自动发布与数据回收",
-    "- 这两项都依赖 Ego Browser（PATH 里的 ego-browser 命令）和已登录的各平台创作者后台。",
+    "- 这两项都依赖 Ego Browser Windows 版和已登录的各平台创作者后台；在发布设置中打开登录、检查并连接实际账号。发现命令不代表已通过上传验收。",
     publishPlatformLine(enabledPlatforms),
     capabilities.publishSync.state === "ready"
       ? enabledPlatforms.length === 0
         ? "- 已发现 Ego Browser，但当前没有启用平台，不执行自动发布和数据回收。"
-        : "- 当前已发现 Ego Browser。上传发布走外部 skill video-publisher，停在最终发表按钮前由用户点；发布后或用户要求时用 creator_sync_publish 回收播放、赞、评论并写回工作台。"
-      : "- 当前未发现 Ego Browser：自动发布和 creator_sync_publish 数据回收都不可用。告诉用户到 https://lite.ego.app 下载 ego lite，完成首次引导后 ego-browser 命令可用，再登录各平台创作者后台；片库、脚本、字幕、封面不受影响，不要假装能同步。",
+        : "- 当前已发现 Ego Browser。上传通过工作台 creator_production_action 调用锁定版本 video-publisher，精确绑定视频、封面和账号；停在最终发表按钮前由用户点。只有用户要求时，用 creator_sync_publish 或 refresh-metrics 手动回收数据。"
+      : "- 当前未发现 Ego Browser：自动发布和 creator_sync_publish 数据回收都不可用。告诉用户到 https://www.egolite.ai/download 下载 Windows 版，完成首次引导后再登录平台；片库、脚本、字幕、封面不受影响，不要假装能同步。",
     capabilities.publishSkill.state === "ready"
       ? enabledPlatforms.length === 0
         ? "- 已发现 video-publisher，但当前没有启用平台，不使用它。"
         : "- 已发现 video-publisher。"
       : enabledPlatforms.length === 0
         ? "- 当前没有启用平台，先配置 enabledPlatforms，再考虑安装 video-publisher。"
-        : "- 缺 video-publisher：征得用户同意后执行 `git clone https://github.com/oil-oil/video-publisher-skill ~/.agents/skills/video-publisher`；没有它时在插件里手动标记发布状态即可。",
+        : "- 缺 video-publisher：请在工作台设置 → 发布平台点击准备运行环境，使用锁定版本及 Windows 兼容入口；不要直接克隆未知版本来绕过检查。",
     "",
     "## 公众号图文",
-    "- 把一期视频转成公众号文章走外部 skill oil-video-article，产物在这一集的 公众号文章/ 目录，插件负责展示，不负责生成。",
+    "- 在文章页发起制作，由用户发送原生会话草稿。用 creator_prepare_article 读取固定请求的字幕、真实截图和 WeWrite Skill，按其成熟流程写作与检查，再用 creator_save_article 保存并交付排版 HTML。",
     "- 普通成片视频可以转写，配图直接从当前视频截取。",
-    "- 文章语气遵循 oil-tone skill；公众号不是第五个视频平台，不参与发布状态标记。",
+    "- 脚本可作表达参考，事实以成片、真实转写和截图为准。公众号单独配置 AppID/AppSecret；先预览，再创建或更新草稿并读取确认，不自动发表。",
     capabilities.articleSkill.state === "ready"
-      ? "- 已发现 oil-video-article，用户提到把视频整理成文章时直接使用。"
-      : "- 缺 oil-video-article：征得用户同意后执行 `git clone https://github.com/oil-oil/oil-video-article ~/.agents/skills/oil-video-article`；不需要公众号时可以跳过这一环节。",
+      ? "- 已提供 WeWrite 写作规范和排版能力，Markdown 用作可编辑源稿，默认查看 HTML 成品。"
+      : "- WeWrite 资源缺失：请重新安装完整工作台包。",
     "",
     "## 推进原则",
     "- 每次只推进当前缺失的下一步：内容与脚本 → 导入视频并选择当前视频 → 封面与发布材料 → 平台草稿 → 人工发表 → 数据回收。独立字幕可选。",

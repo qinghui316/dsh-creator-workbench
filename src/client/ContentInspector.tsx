@@ -1,16 +1,15 @@
 import { CoverPanel } from "./CoverPanel.tsx";
+import { ProductionPanel } from "./ProductionPanel.tsx";
 import { VideoPanel } from "./VideoPanel.tsx";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   IconCloseOutlineRegular,
   IconFolderOpenOutlineRegular,
   MarkdownText,
-  Menu,
   StateDot,
 } from "@deepseek-ai/dsh-client-ui-primitives";
 
 import { formatCount } from "../collectPublish.ts";
-import { isPublishMark } from "../publishRules.ts";
 import { rewriteArticleImages } from "../articleMarkdown.ts";
 import type { ArticleMediaResult, ContentDetail, PublishMark, PublishPlatform, SubtitleCue, WorkflowStage } from "../types.ts";
 import type { CreatorViewFace } from "./face.ts";
@@ -18,10 +17,9 @@ import {
   useLibraryEpoch,
   useProfileEpoch,
   useSelectedContentId,
+  captureContentSelection,
 } from "./contentSelection.ts";
 import type { CreatorKey } from "./locales.ts";
-import { PlatformMark } from "./PlatformMark.tsx";
-import { isPublishSyncDisabled, PUBLISH_UI_PLATFORMS, selectEnabledPublishPlatforms } from "./publishPlatforms.ts";
 import { formatRelativeTime } from "./relativeTime.ts";
 import { WORKFLOW_TONE } from "./workflowTone.ts";
 import { ActionBar, ActionButton } from "./ui/ActionButton.tsx";
@@ -32,35 +30,6 @@ import "./ContentInspector.css";
 const TABS = ["overview", "video", "script", "subtitle", "article"] as const;
 const INSPECTOR_WIDE_PX = 720;
 type InspectorTab = (typeof TABS)[number];
-
-const PIPELINE_STEPS = [
-  { id: "topic", label: "inspector.step.topic", hint: "inspector.step.topicHint" },
-  { id: "finish", label: "inspector.step.finish", hint: "inspector.step.finishHint" },
-  { id: "publish", label: "inspector.step.publish" },
-] as const;
-
-type PipelineStepId = (typeof PIPELINE_STEPS)[number]["id"];
-
-const WORKFLOW_INDEX: Record<WorkflowStage, number> = {
-  idle: 0,
-  finish: 1,
-  publish: 2,
-  live: 2,
-};
-
-const PUBLISH_KEY: Record<PublishMark, CreatorKey> = {
-  unpublished: "inspector.publish.unpublished",
-  draft: "inspector.publish.draft",
-  published: "inspector.publish.published",
-};
-
-const PUBLISH_TONE: Record<PublishMark, StatusTone> = {
-  unpublished: "neutral",
-  draft: "pending",
-  published: "success",
-};
-
-const PUBLISH_MARKS: readonly PublishMark[] = ["unpublished", "draft", "published"];
 
 const STAGE_KEY: Record<WorkflowStage, CreatorKey> = {
   idle: "inspector.stage.idle",
@@ -149,12 +118,13 @@ export type ContentInspectorProps = CreatorViewFace & {
 };
 
 export function ContentInspector({
+  production,
   t,
   suspended = false,
   ready,
   getContent,
   getCoverThumb,
-  getCoverState, coverAction, getCoverImage, prepareCoverDraft,
+  getCoverState, coverAction, getCoverImage, prepareCoverDraft, prepareCoverRequest,
   getVideoPlayback,
   startVideoImport,
   getVideoImport,
@@ -165,7 +135,6 @@ export function ContentInspector({
   getSubtitleText,
   getSettings,
   setPublish,
-  syncPublish,
   startSubtitleGenerate,
   startSubtitleBurn,
   startCoverGenerate,
@@ -183,7 +152,8 @@ export function ContentInspector({
   const loadedFolder = useRef<string | null>(null);
   const loadedId = useRef<string | null>(null);
   const pane = useRef<HTMLDivElement>(null);
-  const [detail, setDetail] = useState<ContentDetail | undefined>(undefined);
+  const [loadedDetail, setDetail] = useState<ContentDetail | undefined>(undefined);
+  const detail = loadedDetail?.id === selectedId ? loadedDetail : undefined;
   const [cues, setCues] = useState<SubtitleCue[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [tab, setTab] = useState<InspectorTab>("overview");
@@ -192,34 +162,29 @@ export function ContentInspector({
 
   const [busy, setBusy] = useState<"subtitle" | "burn" | "cover" | "sync" | undefined>(undefined);
   const expectSubtitlePreview = useRef(false);
-  const [syncHint, setSyncHint] = useState<string | undefined>(undefined);
   const [scriptDraft, setScriptDraft] = useState("");
   const [scriptSaved, setScriptSaved] = useState(true);
   const [scriptError, setScriptError] = useState<string>();
   const [scriptRetry, setScriptRetry] = useState(0);
   scriptSavedRef.current = scriptSaved;
   const [articleOrigin, setArticleOrigin] = useState<string | undefined>(undefined);
-  const [publishMenu, setPublishMenu] = useState<PublishPlatform | null>(null);
   const [publishPending, setPublishPending] = useState<PublishPlatform | null>(null);
 
   useEffect(() => {
     setTab("overview");
     setActionError(undefined);
 
-    setSyncHint(undefined);
     setScriptDraft("");
     setScriptSaved(true);
     setScriptError(undefined);
     setArticleOrigin(undefined);
     setBusy(undefined);
     expectSubtitlePreview.current = false;
-    setPublishMenu(null);
     setPublishPending(null);
   }, [selectedId]);
 
   useEffect(() => {
     let cancelled = false;
-    setEnabledPlatforms(undefined);
     if (!ready()) {
       setEnabledPlatforms([]);
       return () => { cancelled = true; };
@@ -230,7 +195,7 @@ export function ContentInspector({
       if (!cancelled) setEnabledPlatforms([]);
     });
     return () => { cancelled = true; };
-  }, [getSettings, libraryEpoch, profileEpoch, ready]);
+  }, [getSettings, profileEpoch, ready]);
 
   useEffect(() => {
     const el = pane.current;
@@ -276,8 +241,7 @@ export function ContentInspector({
       },
       (cause: unknown) => {
         if (cancelled) return;
-        setDetail(undefined);
-        setCues([]);
+        if (switched) { setDetail(undefined); setCues([]); }
         setError(friendlyError(cause, t));
       },
     );
@@ -349,13 +313,16 @@ export function ContentInspector({
   }, [selectedId, detail?.subtitleJob.status, suspended]);
 
   const applyPublish = (platform: PublishPlatform, status: PublishMark): void => {
-    setPublishMenu(null);
-    if (detail === undefined || detail.publish[platform].status === status) return;
+    if (publishPending !== null || detail === undefined || detail.publish[platform].status === status) return;
     setPublishPending(platform);
-    void setPublish(detail.id, platform, status).then((next) => {
+    const scope = detail.folderPath, id = selectedId;
+    const isCurrentSelection = captureContentSelection();
+    void setPublish(detail.id, platform, status, undefined, scope).then((next) => {
+      if (!isCurrentSelection() || loadedFolder.current !== scope || loadedId.current !== id) return;
       setDetail(next);
       setPublishPending(null);
     }, (cause: unknown) => {
+      if (!isCurrentSelection() || loadedFolder.current !== scope || loadedId.current !== id) return;
       setActionError(cause instanceof Error ? cause.message : t("empty.error" as CreatorKey));
       setPublishPending(null);
     });
@@ -368,19 +335,6 @@ export function ContentInspector({
   const canPreviewSubtitle = hasSubtitleDraft || detail?.subtitleJob.status === "done";
   const hasAnyCover = detail !== undefined
     && (detail.covers["3x4"] !== undefined || detail.covers["4x3"] !== undefined || detail.covers["16x9"] !== undefined);
-  const platformSettingsPending = enabledPlatforms === undefined;
-  const visiblePlatforms = platformSettingsPending ? [] : selectEnabledPublishPlatforms(enabledPlatforms);
-  const publishedCount = detail === undefined
-    ? 0
-    : visiblePlatforms.filter((platform) => detail.publish[platform.key].status === "published").length;
-  const anyPublishMarked = detail !== undefined
-    && visiblePlatforms.some((platform) => detail.publish[platform.key].status !== "unpublished");
-  const publishStepDone = visiblePlatforms.length > 0 && publishedCount === visiblePlatforms.length;
-  const stageIndex = detail === undefined ? 0 : WORKFLOW_INDEX[detail.workflow];
-  const currentStep: PipelineStepId = publishStepDone
-    ? "publish"
-    : (PIPELINE_STEPS[stageIndex]?.id ?? "topic");
-
   const onGenerateSubtitle = (): void => {
     if (detail === undefined) return;
     if (detail.videoRaw === undefined && detail.videoSubtitled === undefined) {
@@ -432,33 +386,7 @@ export function ContentInspector({
     });
   };
 
-  const onSyncPublish = (): void => {
-    if (detail === undefined) return;
-    setActionError(undefined);
-    setBusy("sync");
-    void syncPublish({ id: detail.id }).then((result) => {
-      const login = result.platforms
-        .filter((page) => page.loginRequired === true)
-        .map((page) => {
-          const label = PUBLISH_UI_PLATFORMS.find((item) => item.key === page.platform);
-          return label === undefined ? page.platform : t(label.label);
-        });
-      setSyncHint(t((result.cached === true ? "inspector.publish.cached" : "inspector.publish.synced") as CreatorKey)
-        .replace("{n}", String(result.matched)));
-      if (login.length > 0) {
-        setActionError(
-          t("inspector.publish.login" as CreatorKey).replace("{name}", login.join("、")),
-        );
-      }
-      setBusy(undefined);
-      return getContent(detail.id);
-    }).then((next) => {
-      if (next !== undefined) setDetail(next);
-    }, (cause: unknown) => {
-      setActionError(cause instanceof Error ? cause.message : t("empty.error" as CreatorKey));
-      setBusy(undefined);
-    });
-  };
+
 
   const subtitleStatus = (): { status: string; tone?: StatusTone } => {
     if (detail === undefined) return { status: "" };
@@ -592,23 +520,8 @@ export function ContentInspector({
                 <div className="time">{formatRelativeTime(detail.recordedAt, Date.now(), t)}</div>
               </div>
             </div>
-            <div className="stepper" aria-hidden="true">
-              {PIPELINE_STEPS.map((step, index) => {
-                const done = index < stageIndex || (step.id === "publish" && publishStepDone);
-                const current = !done && step.id === currentStep;
-                return (
-                  <div
-                    key={step.id}
-                    className={`step ${done ? "done" : current ? "current" : ""}`}
-                  >
-                    <span className="stepDot" />
-                    <span className="stepLabel">{t(step.label as CreatorKey)}</span>
-                  </div>
-                );
-              })}
-            </div>
             <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} setVideoVisibility={setVideoVisibility} />
-            <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} />
+            <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} {...(prepareCoverRequest ? { prepareCoverRequest } : {})} />
             {hasVideo && (
               <Surface title={t("inspector.make" as CreatorKey)}>
                 <div className="workList">
@@ -623,97 +536,7 @@ export function ContentInspector({
             {actionError !== undefined && (
               <JobNote tone="error">{actionError}</JobNote>
             )}
-            {(detail.workflow === "publish" || anyPublishMarked || detail.hasArticle) && (
-              <details className="creatorDisclosure">
-                <summary>发布资料与状态</summary>
-                <Surface
-                  title={t("inspector.sync.title" as CreatorKey)}
-                  hint={syncHint ?? t((platformSettingsPending
-                    ? "inspector.publish.platformsLoading"
-                    : "inspector.sync.hint") as CreatorKey)}
-                >
-                  {!platformSettingsPending && visiblePlatforms.length === 0 && (
-                    <div className="empty">{t("inspector.publish.enablePlatforms" as CreatorKey)}</div>
-                  )}
-                  <ActionBar>
-                    <ActionButton
-                      tone="secondary"
-                      onClick={onSyncPublish}
-                      disabled={isPublishSyncDisabled(busy, platformSettingsPending, enabledPlatforms ?? [])}
-                    >
-                      {t((busy === "sync" ? "inspector.publish.syncing" : "inspector.publish.sync") as CreatorKey)}
-                    </ActionButton>
-                  </ActionBar>
-                </Surface>
-                {visiblePlatforms.length > 0 && (
-                  <Surface title={t("inspector.platforms" as CreatorKey)}>
-                    <div className="publishGrid">
-                      {visiblePlatforms.map((platform) => {
-                        const row = detail.publish[platform.key];
-                        const metrics = metricParts(row, t);
-                        return (
-                          <div key={platform.id} className="publishCard">
-                            <div className="publishRow">
-                              <span className="publishName">
-                                <PlatformMark id={platform.id} size={16} />
-                                {t(platform.label)}
-                              </span>
-                              <Menu
-                                portal={true}
-                                align="end"
-                                open={publishMenu === platform.key}
-                                anchor={(
-                                  <StatusPill
-                                    tone={PUBLISH_TONE[row.status]}
-                                    disabled={publishPending === platform.key}
-                                    aria-haspopup="menu"
-                                    aria-label={`${t(platform.label)}：${t(PUBLISH_KEY[row.status])}`}
-                                    onClick={() => {
-                                      setPublishMenu(publishMenu === platform.key ? null : platform.key);
-                                    }}
-                                  >
-                                    {t(PUBLISH_KEY[row.status])}
-                                  </StatusPill>
-                                )}
-                                items={PUBLISH_MARKS.map((mark) => ({ id: mark, label: t(PUBLISH_KEY[mark]) }))}
-                                selectedId={row.status}
-                                onSelect={(id) => {
-                                  if (isPublishMark(id)) applyPublish(platform.key, id);
-                                }}
-                                onClose={() => { setPublishMenu(null); }}
-                              />
-                            </div>
-                            {metrics.length > 0 && (
-                              <div className="publishMetrics">{metrics.join(" · ")}</div>
-                            )}
-                            {row.status === "published" && row.url !== undefined && (
-                              <a className="publishUrl" href={row.url} target="_blank" rel="noreferrer">
-                                {t("inspector.publish.open" as CreatorKey)}
-                              </a>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </Surface>
-                )}
-                <Surface title={t("inspector.article" as CreatorKey)}>
-                  <button
-                    type="button"
-                    className="publishRow articleRow"
-                    onClick={() => { setTab("article"); }}
-                  >
-                    <span className="publishName">
-                      <PlatformMark id="article" size={16} />
-                      {t("inspector.article.draft" as CreatorKey)}
-                    </span>
-                    <StatusPill tone={detail.hasArticle ? "success" : "neutral"}>
-                      {t((detail.hasArticle ? "inspector.article.ready" : "inspector.article.missing") as CreatorKey)}
-                    </StatusPill>
-                  </button>
-                </Surface>
-              </details>
-            )}
+            {production && hasVideo && <ProductionPanel key={`publishing:${detail.folderPath}`} detail={detail} api={production} mode="publishing" openPath={openPath} enabledPlatforms={enabledPlatforms ?? []} onPublish={applyPublish} publishPending={publishPending} />}
             {detail.tags.length > 0 && (
               <Surface title={t("detail.tags" as CreatorKey)}>
                 <div className="tags">
@@ -728,7 +551,7 @@ export function ContentInspector({
         {detail !== undefined && tab === "video" && (
           <>
           <VideoPanel key={detail.folderPath} detail={detail} t={t} getVideoPlayback={getVideoPlayback} startVideoImport={startVideoImport} getVideoImport={getVideoImport} cancelVideoImport={cancelVideoImport} selectVideo={selectVideo} setVideoVisibility={setVideoVisibility} />
-            <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} />
+            <CoverPanel key={`covers:${detail.folderPath}`} detail={detail} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} {...(prepareCoverRequest ? { prepareCoverRequest } : {})} />
           </>
         )}
         {detail !== undefined && tab === "script" && (
@@ -748,7 +571,8 @@ export function ContentInspector({
           />
           </>
         )}
-        {detail !== undefined && tab === "article" && (
+        {detail !== undefined && tab === "article" && production && <ProductionPanel key={`article:${detail.folderPath}`} detail={detail} api={production} mode="article" openPath={openPath} />}
+        {detail !== undefined && tab === "article" && !production && (
           detail.article.trim() === ""
             ? <div className="empty">{t("inspector.article.empty" as CreatorKey)}</div>
             : (
@@ -764,7 +588,8 @@ export function ContentInspector({
         )}
         {detail !== undefined && tab === "subtitle" && (
           <>
-            {hasVideo && (
+            {production && <ProductionPanel key={`subtitle:${detail.folderPath}`} detail={detail} api={production} mode="subtitle" openPath={openPath} />}
+            {hasVideo && !production && (
               <ActionBar>
                 {canPreviewSubtitle && (
                   <ActionButton tone="ghost" onClick={onPreviewSubtitle}>

@@ -7,12 +7,15 @@ import {
   screen,
   fireEvent,
   waitFor,
+  act,
 } from "@testing-library/react";
 import { ContentInspector } from "../src/client/ContentInspector.tsx";
+import { bumpLibrary } from "../src/client/contentSelection.ts";
 import { setSelectedContentId } from "../src/client/contentSelection.ts";
 import { zh, type CreatorKey } from "../src/client/locales.ts";
 import type { CreatorViewFace } from "../src/client/face.ts";
 import type { ContentDetail } from "../src/types.ts";
+vi.mock("../src/client/ProductionPanel.tsx", () => ({ ProductionPanel: ({ onPublish }: { onPublish?: (platform: string, status: string) => void }) => h("button", { onClick: () => onPublish?.("bilibili", "draft") }, "标为草稿") }));
 vi.mock("../src/client/VideoPanel.tsx", () => ({
   VideoPanel: () => h("div", null, "视频区域"),
 }));
@@ -128,4 +131,32 @@ describe("original content navigation", () => {
     });
     expect(save).toHaveBeenLastCalledWith("one", "需要保留的正文", "E:/一期");
   });
+  it("retains mounted business content and configuration during a background refresh", async () => {
+    const { face } = fixture(); setSelectedContentId("one");
+    render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));
+    await screen.findByText("测试内容");
+    const video = screen.getByText("视频区域"), covers = screen.getByText("封面区域");
+    const before = vi.mocked(face.getSettings).mock.calls.length;
+    await act(async () => { bumpLibrary(); });
+    await waitFor(() => expect(face.getContent).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("视频区域")).toBe(video); expect(screen.getByText("封面区域")).toBe(covers);
+    expect(face.getSettings).toHaveBeenCalledTimes(before);
+  });
+
+  it("drops an old publish failure while the newly selected project is still loading", async () => {
+    const { face, detail } = fixture(); detail.videoRaw = "E:/一期/video.mp4";
+    let reject!: (error: Error) => void, loaded!: (value: ContentDetail) => void;
+    const publish = vi.fn(() => new Promise<ContentDetail>((_resolve, fail) => { reject = fail; }));
+    Object.assign(face, { setPublish: publish, production: {} });
+    vi.mocked(face.getContent).mockImplementation(async (id) => id === "two" ? new Promise((resolve) => { loaded = resolve; }) : detail);
+    setSelectedContentId("one"); render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));
+    fireEvent.click(await screen.findByRole("button", { name: "标为草稿" }));
+    await act(async () => { setSelectedContentId("two"); });
+    await waitFor(() => expect(loaded).toBeTypeOf("function"));
+    await act(async () => { reject(new Error("第一期状态保存失败")); });
+    expect(screen.queryByText("第一期状态保存失败")).toBeNull();
+    await act(async () => { loaded({ ...detail, id: "two", folderPath: "E:/二期", title: "第二期" }); });
+    await screen.findByText("第二期"); expect(screen.queryByText("第一期状态保存失败")).toBeNull();
+  });
+
 });

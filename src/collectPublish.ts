@@ -287,6 +287,11 @@ export function parseCollectOutput(raw: string): CollectResult {
               };
               if (typeof post.url === "string" && post.url !== "") next.url = post.url;
               if (typeof post.remoteId === "string" && post.remoteId !== "") next.remoteId = post.remoteId;
+              // Creator responses may include tracking-heavy iesdouyin share links.
+              // Use the verified work id for a stable link accepted by association.
+              if (platform === "douyin" && next.remoteId && /^\d+$/.test(next.remoteId)) {
+                next.url = `https://www.douyin.com/video/${next.remoteId}`;
+              }
               if (typeof post.views === "number") next.views = post.views;
               if (typeof post.likes === "number") next.likes = post.likes;
               if (typeof post.comments === "number") next.comments = post.comments;

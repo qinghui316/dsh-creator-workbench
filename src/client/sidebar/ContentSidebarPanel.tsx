@@ -14,7 +14,7 @@ import {
 import type { ContentSummary } from "../../types.ts";
 import { CoverThumb, coverThumbRevision } from "../CoverThumb.tsx";
 import type { CreatorViewFace } from "../face.ts";
-import { useLibraryEpoch, useSelectedContentId } from "../contentSelection.ts";
+import { captureContentSelection, useLibraryEpoch, useSelectedContentId } from "../contentSelection.ts";
 import type { CreatorKey } from "../locales.ts";
 import { formatRelativeTime } from "../relativeTime.ts";
 import { StatusPill } from "../ui/StatusPill.tsx";
@@ -37,6 +37,8 @@ export function ContentSidebarPanel({
   getCoverThumb,
   refreshCatalog,
   createContent,
+  setContentVisibility,
+  inspectProject, removeProject, joinProject,
 }: CreatorViewFace & {
   t: (key: CreatorKey) => string;
   suspended?: boolean;
@@ -51,6 +53,12 @@ export function ContentSidebarPanel({
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
   const [items, setItems] = useState<ContentSummary[]>([]);
+  const [removalTasks, setRemovalTasks] = useState<string[]>([]);
+  const [inspecting, setInspecting] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<ContentSummary | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const currentEpoch = useRef(libraryEpoch);
+  currentEpoch.current = libraryEpoch;
   const [error, setError] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -72,6 +80,7 @@ export function ContentSidebarPanel({
       const result = await listContents(nextQuery, "all");
       if (ticket !== requestVersion.current || !isCurrent()) return;
       setItems(sortByRecency(result.items));
+      if (result.cleanupWarnings?.length) setError(result.cleanupWarnings.join("；"));
       const currentId = selectedIdRef.current;
       if (nextQuery === "" && currentId !== null && !result.items.some((item) => item.id === currentId)) {
         setSelectedId(null);
@@ -85,6 +94,7 @@ export function ContentSidebarPanel({
 
   useEffect(() => {
     requestVersion.current += 1;
+    if (suspended) setDeleteItem(null);
     if (suspended) return;
     const handle = window.setTimeout(() => {
       void loadList(query);
@@ -147,6 +157,23 @@ export function ContentSidebarPanel({
     }
   };
 
+  const changeVisibility = async (item: ContentSummary, hidden: boolean) => {
+    if (updatingId || suspended) return;
+    const selectionCurrent = captureContentSelection();
+    setUpdatingId(item.id); setError(undefined);
+    try {
+      if (hidden && removeProject) await removeProject(item.id, item.folderPath, removalTasks.length > 0);
+      else await setContentVisibility(item.id, item.folderPath, hidden);
+      requestVersion.current += 1;
+      if (hidden) setItems((rows) => rows.filter((row) => row.folderPath !== item.folderPath));
+      if (hidden && selectionCurrent() && selectedIdRef.current === item.id) setSelectedId(null);
+      setDeleteItem(null);
+      await loadList(query);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("empty.error"));
+    } finally { setUpdatingId(null); }
+  };
+
   return (
     <div
       className="contentPanel"
@@ -154,6 +181,7 @@ export function ContentSidebarPanel({
       data-surface="library"
     >
       <div className="contentHeader">
+        {loading && <span className="contentRefreshStatus" role="status" aria-label="正在读取">·</span>}
         <div className={searchOpen ? "searchSlot expanded" : "searchSlot"}>
           <div
             ref={searchRoot}
@@ -267,20 +295,35 @@ export function ContentSidebarPanel({
             />
           </div>
           {createError !== undefined && <div className="createError">{createError}</div>}
+          {joinProject && <Button variant="ghost" disabled={creating} onClick={() => { setCreating(true); void joinProject().then(async (item) => { if (item) { setCreateOpen(false); await loadList(); setSelectedId(item.id); } }, (cause: unknown) => setCreateError(cause instanceof Error ? cause.message : String(cause))).finally(() => setCreating(false)); }}>使用已有目录</Button>}
         </div>
       </Modal>
+      <Modal
+        open={deleteItem !== null}
+        onClose={() => { if (!updatingId) setDeleteItem(null); }}
+        title="删除项目"
+        closeLabel="取消"
+        footer={<><Button variant="outline" disabled={updatingId !== null} onClick={() => setDeleteItem(null)}>取消</Button><Button disabled={updatingId !== null || inspecting} onClick={() => { if (deleteItem) void changeVisibility(deleteItem, true); }}>{updatingId ? "正在删除…" : removalTasks.length ? "取消任务并移除" : "确认删除"}</Button></>}
+      >
+        <p>删除「{deleteItem?.title}」并归档本项目的工作台会话？磁盘文件保留，以后可通过“使用已有目录”重新加入。</p>
+        {inspecting && <p role="status">正在检查项目…</p>}
+        {removalTasks.length > 0 && <p>将停止：{[...new Set(removalTasks)].join("、")}。已生成的文件保留，远端结果不会撤回。</p>}
+        {error && <p role="alert">{error}</p>}
+      </Modal>
       <div className="contentList">
-        {loading && <div className="contentEmpty" role="status">正在读取…</div>}
-        {error !== undefined && <div className="contentEmpty" role="alert">{error}<Button variant="ghost" onClick={() => { void loadList(); }}>重试</Button></div>}
+        {error !== undefined && !deleteItem && <div className="contentEmpty" role="alert">{error}<Button variant="ghost" onClick={() => { void loadList(); }}>重试</Button></div>}
         {error === undefined && items.length === 0 && !loading && (
           <div className="contentEmpty">{query ? "没有找到相关内容" : t("empty.library")}</div>
         )}
         {items.map((item) => (
-          <button
+          <div
             key={item.id}
             data-content-id={item.id}
-            type="button"
             className={item.id === selectedId ? "contentRow selected" : "contentRow"}
+          >
+          <button
+            type="button"
+            className="contentRowSelect"
             onClick={() => {
               setSelectedId(item.id === selectedId ? null : item.id);
             }}
@@ -303,6 +346,8 @@ export function ContentSidebarPanel({
               </span>
             </span>
           </button>
+          <button type="button" className="contentRowDelete" aria-label={`删除项目：${item.title}`} title="删除项目" disabled={updatingId !== null} onClick={() => { setDeleteItem(item); setError(undefined); setRemovalTasks([]); if (inspectProject) { setInspecting(true); void inspectProject(item.id, item.folderPath).then(setRemovalTasks, (cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => setInspecting(false)); } }}>删除</button>
+          </div>
         ))}
       </div>
     </div>

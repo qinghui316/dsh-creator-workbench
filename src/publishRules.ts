@@ -124,6 +124,7 @@ export function decodeOverlayPublish(raw: unknown): OverlayItem["publish"] {
     const record = field as Record<string, unknown>;
     if (!isPublishMark(record.status)) continue;
     const entry: OverlayPublish = { status: record.status };
+    if (typeof record.verifiedAccountId === "string") entry.verifiedAccountId = record.verifiedAccountId;
     if (typeof record.url === "string" && record.url.trim() !== "") {
       entry.url = record.url.trim();
     }
@@ -197,9 +198,10 @@ function copyOverlayMetrics(over: OverlayPublish): Pick<
 
 function copyOverlayFields(over: OverlayPublish): Pick<
   OverlayPublish,
-  "url" | "remoteId" | "views" | "likes" | "comments" | "syncedAt"
+  "url" | "remoteId" | "views" | "likes" | "comments" | "syncedAt" | "verifiedAccountId"
 > {
-  const next: Pick<OverlayPublish, "url" | "remoteId" | "views" | "likes" | "comments" | "syncedAt"> = {};
+  const next: Pick<OverlayPublish, "url" | "remoteId" | "views" | "likes" | "comments" | "syncedAt" | "verifiedAccountId"> = {};
+  if (over.verifiedAccountId !== undefined) next.verifiedAccountId = over.verifiedAccountId;
   if (over.url !== undefined) next.url = over.url;
   if (over.remoteId !== undefined) next.remoteId = over.remoteId;
   if (over.views !== undefined) next.views = over.views;

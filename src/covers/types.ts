@@ -7,14 +7,14 @@ export interface ImageSettings { apiBase: string; model: string; revision: strin
 export interface CoverVersion {
   id: string; ratio: CoverRatio; file: string; mime: string; width: number; height: number;
   source: "import" | "generated" | "legacy"; createdAt: number; video?: string; runId?: string;
-  review: "pending" | "pass" | "needs_changes"; reviewNote?: string;
+  review: "pending" | "pass" | "needs_changes"; reviewNote?: string; hidden?: boolean;
 }
 export interface CoverSlot {
   status: "pending" | "running" | "completed" | "failed" | "cancelled" | "unconfirmed";
   versionId: string; prompt: string; error?: string;
 }
 export interface CoverRun {
-  purpose?: "cover" | "service_test";
+  purpose?: "cover" | "service_test"; requestToken?: string; deliveredAt?: number; sessionId?: string; selectionRevision?: number;
   id: string; contentId: string; folderPath: string; createdAt: number; updatedAt: number;
   video: { name: string; size: number; modifiedAt: number }; ratios: CoverRatio[];
   status: CoverStatus; frames: Array<{ id: string; file: string; at: number }>;
@@ -22,11 +22,14 @@ export interface CoverRun {
   provider?: Pick<ImageSettings, "apiBase" | "model" | "revision">;
   slots: Partial<Record<CoverRatio, CoverSlot>>; jobId?: string; error?: string;
 }
-export interface CoverState { versions: CoverVersion[]; selected: Partial<Record<CoverRatio, string>>; runs: CoverRun[] }
+export interface CoverState { versions: CoverVersion[]; selected: Partial<Record<CoverRatio, string | null>>; runs: CoverRun[]; selectionRevision?: number }
 export interface CoverPlan { headline: string; analysis: string; frameIds: string[]; mode: "reference" | "text"; prompts: Partial<Record<CoverRatio, string>> }
 export type CoverAction = CoverScope & (
   { action: "test"; video: string } |
-  { action: "create"; video: string; ratios: CoverRatio[] } |
+  { action: "create"; video: string; ratios: CoverRatio[]; requestToken?: string } |
+  { action: "delivered"; runId: string; sessionId: string } |
+  { action: "discard-request"; runId: string; requestToken: string } |
+  { action: "remove"; versionId: string } |
   { action: "import"; sourcePath: string; ratio: CoverRatio } |
   { action: "select"; versionId: string } |
   { action: "cancel"; runId: string } |

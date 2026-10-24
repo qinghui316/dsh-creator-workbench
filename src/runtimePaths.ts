@@ -46,7 +46,7 @@ export function extraBinDirs(
   const dirs = [join(home, ".local", "bin"), join(home, "bin")];
   if (platform === "win32") {
     const local = env.LOCALAPPDATA ?? env.LocalAppData ?? join(home, "AppData", "Local");
-    dirs.push(join(local, "Programs"));
+    dirs.push(join(home, ".local", "share", "ego", "active_version_dir"), join(local, "Programs"));
     return dirs;
   }
   if (home === homedir()) {

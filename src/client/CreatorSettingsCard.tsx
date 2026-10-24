@@ -16,6 +16,7 @@ import { CREATOR_SETTINGS_PLATFORMS } from "./publishPlatforms.ts";
 import { ActionBar, ActionButton } from "./ui/ActionButton.tsx";
 import { saveImageForm } from "./imageSettingsSave.ts";
 import "./CreatorSettingsCard.css";
+import { ProductionSettingsPanel, type ProductionSettingsHandle } from "./ProductionSettingsPanel.tsx";
 
 export interface CreatorSettingsHandle {
   requestClose: () => void;
@@ -34,6 +35,7 @@ export type CreatorSettingsCardProps = Pick<
   | "setProfile"
   | "setScriptRules"
   | "pickDirectory"
+  | "production"
 > & {
   credentials: CredentialsClient | undefined;
   t: (key: CreatorKey) => string;
@@ -45,7 +47,9 @@ export const CreatorSettingsCard = forwardRef<
   CreatorSettingsCardProps
 >(function CreatorSettingsCard({ credentials, onClose, ...face }, ref) {
   const uid = useId();
-  const [group, setGroup] = useState<"image" | "general">("image");
+  const [group, setGroup] = useState<"image" | "general" | "platforms" | "asr" | "wechat">("image");
+  const productionRef = useRef<ProductionSettingsHandle>(null);
+  const [productionDirty, setProductionDirty] = useState(false), [productionBusy, setProductionBusy] = useState(false);
   const [saved, setSaved] = useState<LibrarySettings>(),
     [image, setImage] = useState<ImageSettings>();
   const [apiBase, setApiBase] = useState(""),
@@ -151,7 +155,7 @@ export const CreatorSettingsCard = forwardRef<
       JSON.stringify(platforms) !==
         JSON.stringify(saved.profile.enabledPlatforms) ||
       !!subtitleKey);
-  const dirty = imageDirty || generalDirty;
+  const dirty = imageDirty || generalDirty || productionDirty;
   const imageCredential = credentialViews[IMAGE_CREDENTIAL];
   const subtitleRef = saved?.secrets.subtitle.ref;
   const subtitleCredential = subtitleRef
@@ -161,12 +165,13 @@ export const CreatorSettingsCard = forwardRef<
     imageCredential?.configured ?? saved?.secrets.cover.configured ?? false;
   useImperativeHandle(ref, () => ({
     requestClose: () => {
-      if (saving.current) return;
+      if (saving.current || productionBusy) return;
       if (dirty) setLeaving(true);
       else onClose?.();
     },
   }));
   const discard = () => {
+    productionRef.current?.discard();
     setApiBase(image?.pending?.apiBase ?? image?.apiBase ?? "");
     setModel(image?.pending?.model ?? image?.model ?? "");
     setKey("");
@@ -209,7 +214,7 @@ export const CreatorSettingsCard = forwardRef<
     return Object.keys(next).length === 0;
   };
   const save = async (closeAfter = false) => {
-    if (!image || !saved || saving.current) return;
+    if (!image || !saved || saving.current || productionBusy) return;
     if ((imageDirty || image.pending) && !validate()) {
       setGroup("image");
       return;
@@ -220,6 +225,7 @@ export const CreatorSettingsCard = forwardRef<
     setNotice(undefined);
     let completed = false;
     try {
+      if (productionDirty) { await productionRef.current?.save(); completed = true; }
       if (imageDirty || image.pending) {
         if (credentialError)
           throw new Error("凭据状态读取失败，请先重试加载。");
@@ -373,6 +379,7 @@ export const CreatorSettingsCard = forwardRef<
         >
           生图服务
         </button>
+        {face.production && ([['platforms', '发布平台'], ['asr', '语音转文字'], ['wechat', '公众号']] as const).map(([value, label]) => <button key={value} type="button" aria-current={group === value ? "page" : undefined} onClick={() => setGroup(value)}>{label}</button>)}
         <button
           type="button"
           aria-current={group === "general" ? "page" : undefined}
@@ -402,6 +409,7 @@ export const CreatorSettingsCard = forwardRef<
             void save();
           }}
         >
+          {face.production && <ProductionSettingsPanel ref={productionRef} api={face.production} credentials={credentials} group={group === "platforms" || group === "asr" || group === "wechat" ? group : undefined} onDirty={setProductionDirty} onBusy={setProductionBusy} />}
           {group === "image" ? (
             <>
               {image?.pending && (
@@ -485,7 +493,7 @@ export const CreatorSettingsCard = forwardRef<
                 </p>
               )}
             </>
-          ) : (
+          ) : group === "general" ? (
             <>
               <label className="creatorField">
                 资料库位置
@@ -540,30 +548,6 @@ export const CreatorSettingsCard = forwardRef<
                   ))}
                 </div>
               </details>
-              <details className="creatorDisclosure">
-                <summary>字幕服务凭据</summary>
-                <label className="creatorField">
-                  <span className="creatorLabelLine">
-                    字幕 API Key{" "}
-                    <small>
-                      {(subtitleCredential?.configured ??
-                      saved?.secrets.subtitle.configured)
-                        ? "已保存"
-                        : "尚未配置"}
-                    </small>
-                  </span>
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    value={subtitleKey}
-                    placeholder="留空保留原凭据"
-                    disabled={
-                      busy || !subtitleCredential?.writable || !!credentialError
-                    }
-                    onChange={(e) => setSubtitleKey(e.target.value)}
-                  />
-                </label>
-              </details>
               <details
                 className="creatorDisclosure"
                 onToggle={(e) => {
@@ -587,7 +571,7 @@ export const CreatorSettingsCard = forwardRef<
                   ))}
               </details>
             </>
-          )}
+          ) : null}
           {credentialError && (
             <div className="creatorInlineStatus">
               <p role="alert" className="creatorError">
@@ -609,7 +593,7 @@ export const CreatorSettingsCard = forwardRef<
           <div className="creatorSettingsSave">
             <ActionButton
               tone="primary"
-              disabled={busy || (!dirty && !image?.pending)}
+              disabled={busy || productionBusy || (!dirty && !image?.pending)}
               onClick={() => {
                 void save();
               }}

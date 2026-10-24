@@ -1,4 +1,8 @@
 import type { CoverScope, CoverAction, CoverState, ImageSettings } from "../covers/types.ts";
+import type { ContentScope, ProductionAction, ProductionSettingsAction, ProductionSettingsView, ProductionState } from "../production/types.ts";
+import { prepareCoverRequest } from "./coverRequests.ts";
+import { prepareBusinessRequest } from "./workbench.ts";
+import { removeProjectWithHost, planProjectCleanup, restoreProjectSessions, reconcileRemovedProjects } from "./projectCleanup.ts";
 import type { Context as ClientContext } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-client-ui-workspace/client";
 import type {} from "@deepseek-ai/dsh-client-locale/client";
@@ -30,6 +34,7 @@ import type {
 import {
   bumpLibrary,
   bumpProfile,
+  captureContentSelection,
   setSelectedContentId,
 } from "./contentSelection.ts";
 import { credentialsOf } from "./credentialsApi.ts";
@@ -50,6 +55,13 @@ interface RemoteAnswer<T> {
 }
 
 interface CreatorWorkbenchRemote {
+  restoreProjectSession: (request: { id: string; folderPath: string; sessionId: string }) => Promise<RemoteAnswer<Record<string, never>>>;
+  projectAction: (request: { id: string; folderPath: string; action: "inspect" | "remove" | "join"; cancelTasks?: boolean }) => Promise<RemoteAnswer<{ tasks: string[]; removed: boolean }>>;
+  getProductionSettings: (request: Record<string, never>) => Promise<RemoteAnswer<ProductionSettingsView>>;
+  productionSettingsAction: (request: ProductionSettingsAction) => Promise<RemoteAnswer<ProductionSettingsView>>;
+  getProductionState: (request: ContentScope) => Promise<RemoteAnswer<ProductionState>>;
+  productionAction: (request: ProductionAction) => Promise<RemoteAnswer<ProductionState>>;
+  getProductionPreview: (request: ContentScope & { taskId?: string; articleFile?: string }) => Promise<RemoteAnswer<{ html: string; path: string }>>;
   getCoverState: (request: CoverScope) => Promise<RemoteAnswer<CoverState>>;
   coverAction: (request: CoverAction) => Promise<RemoteAnswer<CoverState>>;
   getCoverImage: (request: CoverScope & { versionId: string }) => Promise<RemoteAnswer<{ mime: string; base64: string }>>;
@@ -65,6 +77,7 @@ interface CreatorWorkbenchRemote {
   selectVideo: (request: { id: string; folderPath: string; name: string }) => Promise<RemoteAnswer<ContentDetail>>;
 
   listContents: (request: { query: string; filter: ContentFilter }) => Promise<RemoteAnswer<ListContentsResult>>;
+  setContentVisibility: (request: { id: string; folderPath: string; hidden: boolean }) => Promise<RemoteAnswer<ListContentsResult>>;
   openContentPath: (request: { path: string }) => Promise<RemoteAnswer<Record<string, never>>>;
   getContent: (request: { id: string }) => Promise<RemoteAnswer<ContentDetail>>;
   getCoverThumb: (request: { id: string }) => Promise<RemoteAnswer<CoverThumbResult>>;
@@ -83,7 +96,7 @@ interface CreatorWorkbenchRemote {
     id: string;
     platform: PublishPlatform;
     status: PublishMark;
-    url?: string;
+    url?: string; folderPath?: string;
   }) => Promise<RemoteAnswer<ContentDetail>>;
   syncPublish: (request: { id?: string; platform?: PublishPlatform; force?: boolean }) => Promise<RemoteAnswer<SyncPublishResult>>;
   openSubtitlePreview: (request: { id: string }) => Promise<RemoteAnswer<SubtitlePreviewResult>>;
@@ -100,7 +113,7 @@ function unwrap<T>(answer: RemoteAnswer<T>, fallback: string): T {
   return answer.value;
 }
 
-export const inject = ["locale", "remote", "uiWorkspace", "desktopWorkbenches", "sessions", "conversation"];
+export const inject = ["locale", "remote", "uiWorkspace", "desktopWorkbenches", "sessions", "conversation", "workspaces"];
 
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-creator-workbench: dictionaries");
@@ -114,6 +127,38 @@ export function apply(ctx: ClientContext): void {
     ctx.get("remote.creatorWorkbench") as CreatorWorkbenchRemote | undefined;
 
   const face = (): CreatorViewFace => ({
+    prepareCoverRequest: async (detail, ratios, append) => {
+      const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。");
+      await prepareCoverRequest(ctx, detail, ratios, async (request) => unwrap(await r.coverAction(request), "封面请求更新未完成"), append); bumpLibrary();
+    },
+    inspectProject: async (id, folderPath) => { planProjectCleanup(ctx, folderPath); const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.projectAction({ id, folderPath, action: "inspect" }), "项目检查失败").tasks; },
+    projectRemoved: async (id, folderPath) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.projectAction({ id, folderPath, action: "inspect" }), "项目状态读取失败").removed; },
+    removeProject: async (id, folderPath, cancelTasks) => {
+      const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。");
+      await removeProjectWithHost(ctx, { id, folderPath }, async () => { unwrap(await r.projectAction({ id, folderPath, action: "remove", cancelTasks }), "项目移除未完成"); });
+    },
+    joinProject: async () => {
+      const folderPath = await pickCreatorDirectory(ctx); if (!folderPath) return null;
+      const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。");
+      const id = folderPath.replace(/[\\/]+$/, "").split(/[\\/]/).at(-1)!;
+      const navigationCurrent = captureWorkbenchNavigation(desktopWorkbenchesOf(ctx)), selectionCurrent = captureContentSelection();
+      unwrap(await r.projectAction({ id, folderPath, action: "join" }), "加入项目失败");
+      if (!navigationCurrent() || !selectionCurrent()) throw new Error("会话已切换，项目资料已加入，请从列表重新打开。");
+      await restoreProjectSessions(ctx, folderPath, async (sessionId) => { unwrap(await r.restoreProjectSession({ id, folderPath, sessionId }), "原会话分组恢复失败"); }); bumpLibrary(); return { id, folderPath };
+    },
+    production: {
+      settings: async () => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProductionSettings({}), "发布设置读取失败"); },
+      settingsAction: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.productionSettingsAction(request), "发布设置操作失败"); },
+      state: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProductionState(request), "任务读取失败"); },
+      action: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); const value = unwrap(await r.productionAction(request), "操作未完成"); bumpLibrary(); return value; },
+      preview: async (request) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProductionPreview(request), "预览读取失败"); },
+      prepareArticleDraft: async (detail, append) => prepareBusinessRequest(ctx, detail, async (sessionId) => {
+        const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。");
+        const state = unwrap(await r.productionAction({ id: detail.id, folderPath: detail.folderPath, action: "prepare-article", sessionId }), "文章请求未建立");
+        const task = [...state.tasks].reverse().find((row) => row.kind === "article" && row.status === "waiting-agent"); if (!task) throw new Error("文章请求未建立。");
+        return `请使用 WeWrite，根据本期视频制作公众号文章并交付排版 HTML。先调用 creator_prepare_article 读取本次输入和 WeWrite Skill，完成写作与检查后调用 creator_save_article。缺少字幕时使用已配置的火山转写；不发表文章。\n制作请求：${JSON.stringify({ id: detail.id, folderPath: detail.folderPath, taskId: task.id })}`;
+      }, async () => detail.folderPath, append),
+    },
     getCoverState: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.getCoverState(request), "封面读取失败"); },
     coverAction: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); const state = unwrap(await r.coverAction(request), "封面操作失败"); bumpLibrary(); return state; },
     getCoverImage: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.getCoverImage(request), "图片读取失败"); },
@@ -122,13 +167,22 @@ export function apply(ctx: ClientContext): void {
     beginImageUpdate: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.beginImageUpdate(request), "设置更新未开始"); },
     completeImageUpdate: async (request) => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.completeImageUpdate(request), "设置更新未完成"); },
     checkImageService: async () => { const r = remoteOf(); if (!r) throw new Error("remote unavailable"); return unwrap(await r.checkImageService({}), "连接检查失败"); },
-    prepareCoverDraft: async (detail, runId, append) => { await prepareCoverDraft(ctx, detail, runId, () => pickCreatorDirectory(ctx), append); },
+    prepareCoverDraft: async (detail, runId, append) => { await prepareCoverDraft(ctx, detail, runId, async () => detail.folderPath, append); },
     ready: () => remoteOf() !== undefined,
     captureNavigation: () => captureWorkbenchNavigation(desktopWorkbenchesOf(ctx)),
     listContents: async (query, filter) => {
       const remote = remoteOf();
       if (remote === undefined) throw new Error("remote unavailable");
-      return unwrap(await remote.listContents({ query, filter }), "list failed");
+      const result = unwrap(await remote.listContents({ query, filter }), "list failed");
+      const previousSession = desktopWorkbenchesOf(ctx).currentSession();
+      const cleanupWarnings = await reconcileRemovedProjects(ctx, result.removedItems ?? []);
+      if (desktopWorkbenchesOf(ctx).currentSession() !== previousSession) bumpLibrary();
+      return { ...result, cleanupWarnings };
+    },
+    setContentVisibility: async (id, folderPath, hidden) => {
+      const remote = remoteOf(); if (!remote) throw new Error("服务尚未就绪。");
+      const result = unwrap(await remote.setContentVisibility({ id, folderPath, hidden }), "项目列表更新失败");
+      return result;
     },
     getContent: async (id) => {
       const remote = remoteOf();
@@ -251,11 +305,11 @@ export function apply(ctx: ClientContext): void {
       if (remote === undefined) throw new Error("remote unavailable");
       return unwrap(await remote.selectVideo({ id, name, folderPath }), "选择失败");
     },
-    setPublish: async (id, platform, status, url) => {
+    setPublish: async (id, platform, status, url, folderPath) => {
       const remote = remoteOf();
       if (remote === undefined) throw new Error("remote unavailable");
       const next = unwrap(
-        await remote.setPublish(url === undefined ? { id, platform, status } : { id, platform, status, url }),
+        await remote.setPublish({ id, platform, status, ...(url === undefined ? {} : { url }), ...(folderPath === undefined ? {} : { folderPath }) }),
         "publish failed",
       );
       bumpLibrary();

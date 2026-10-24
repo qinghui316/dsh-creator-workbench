@@ -4,13 +4,13 @@
 
 ![创作工作台](assets/readme/hero.svg)
 
-选择资料库 → 创建或选择一期内容 → 导入视频 → 选择当前视频 → 预览、从列表移除或恢复 → 导入已有封面或让 Agent 制作封面。
+选择资料库 → 创建或选择一期内容 → 导入视频 → 选择当前视频 → 预览与管理视频 → 导入已有封面或让 Agent 制作封面。
 
 - 支持 MP4、MOV，包括大写扩展名；来源不限，独立字幕可选。
 - 导入时复制文件，保留原文件；同名不覆盖，可修改导入名称重试。
 - 多个视频时明确选择，选择按资料库保存；选中文件消失时提示重新选择。
-- 左侧使用 Harness 原生对话，右侧管理内容。未开始对话也可以管理视频，需要时点击「在资料目录开始对话」。
-- 从列表移除视频仅改变产品显示，磁盘文件保留；移除当前视频后明确清空选择，可随时恢复显示。
+- 左侧使用 Harness 原生对话，右侧管理内容。未开始对话也可以管理视频，需要 AI 协助时点击「打开项目对话」进入当前项目目录。
+- 从列表移除视频仅改变产品显示，磁盘文件保留；移除当前视频后明确清空选择，需要时重新导入原文件即可加入。
 - 三画幅封面支持导入、预览、版本选择和单画幅重做；新图片通过检查后再选用，原版本保留。
 - 点击「让 Agent 制作封面」准备原生会话草稿，发送后由当前 Agent 看图分析并生成；没有单独的视觉模型设置。
 - 生图设置为服务根地址、模型和 API Key，使用 OpenAI 兼容 images 接口。凭据存入 Harness；不会自动借用聊天或旧厂商 Key。
@@ -27,7 +27,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm check
 node scripts/check-workbench-package.mjs
 npm pack --ignore-scripts --pack-destination .artifacts
-node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.3.0.tgz
+node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.4.1.tgz
 ```
 
 `pnpm check` 包含类型检查、构建、依赖边界检查与测试。构建仅写当前仓库的 lib，不直接修改 Desktop。
@@ -40,8 +40,10 @@ node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.3.0.
 导入通过 Desktop 的文件路径桥接和宿主后台任务执行，视频字节不经过 JSON Remote。
 
 参见 [使用指南](docs/usage.md)、[文件约定](docs/files.md) 与 [模块边界](docs/implementation.md)。
-0.2.0 已完成视频管理和 Agent 封面真实三画幅流程，见 [原生封面验证](docs/native-covers.md)。0.3.0 保留左右结构、历史侧栏、五个页签及原有流程，整理视频、封面和统一 API 表单，见 [界面优化验证](docs/ui-refinement.md)。多平台草稿及公众号增强仍按后续阶段实施。
-外部能力可继续使用 oil-cover、video-publisher、oil-video-article；最终发表由人确认。
+0.4.1 保留原生对话、历史侧栏、右侧详情和五个页签顺序，支持视频与封面管理、火山转写、WeWrite HTML 文章、小红书／抖音／B站视频草稿准备及手动运营数据同步。项目移除后可从原目录重新加入并恢复原会话，见 [状态与交互说明](docs/state-ux.md)。
+封面复用 oil-cover，视频上传复用 video-publisher；公众号写作、文字检查、排版和草稿能力复用 WeWrite。文章默认查看排版 HTML，可编辑源稿和历史版本保留；最终发表由人确认。
+
+当前版本已完成 Windows 本机安装与核心流程验收。视频号、公众号远端草稿与数据回收继续待验收；已发表作品的自动状态回写已有回归测试，尚待匹配真实作品验证。设置、使用方式和各能力验证边界见 [Windows 发布与 WeWrite 说明](docs/windows-publishing.md)。
 
 ## 来源与许可
 

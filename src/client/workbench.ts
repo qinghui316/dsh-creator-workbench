@@ -16,6 +16,8 @@ export interface CreatorWorkbenchService {
   currentSession: () => string | undefined;
   ownsSession: (sessionId: string) => boolean;
   isActive: () => boolean;
+  home?: (id: string) => Promise<void>;
+  getSnapshot?: () => { state: { active: string | null }; marketOpen?: boolean };
   ensureSession: (request: { folder: string; sessionId?: string }) => Promise<string>;
 }
 
@@ -48,7 +50,7 @@ export async function prepareCoverDraft(ctx: Services, content: { id: string; fo
   const expectedSelection = loadCreatorUiState(browserCreatorStorage()).selectedId;
   if (expectedSelection !== content.id) throw new Error("内容已切换，请重新发起。");
   const binding = contentBindingForSession(workbenches);
-  const sessionId = binding?.contentId === content.id && binding.folder === content.folderPath
+  const sessionId = matchesContentDirectory(binding, content)
     ? workbenches.currentSession() : await startContentSession(workbenches, content, picker);
   if (!sessionId) throw new Error("已取消会话创建，制作请求尚未发送。");
   if (loadCreatorUiState(browserCreatorStorage()).selectedId !== expectedSelection) throw new Error("内容已切换，未写入旧制作请求。");
@@ -67,7 +69,19 @@ export async function prepareCoverDraft(ctx: Services, content: { id: string; fo
   } else input.setDraft(text);
   input.focus();
 }
-const recentBindings = new WeakMap<CreatorWorkbenchService, Map<string, { contentId: string; folder: string; requiresNewSession?: boolean }>>();
+type ContentBinding = { contentId: string; folder: string; workspaceFolder?: string; requiresNewSession?: boolean };
+const recentBindings = new WeakMap<CreatorWorkbenchService, Map<string, ContentBinding>>();
+const sessionNavigations = new WeakMap<CreatorWorkbenchService, Map<string, Promise<string | null>>>();
+export function sameFolder(left: string | undefined, right: string): boolean {
+  const clean = (value: string) => { const path = value.replaceAll("\\", "/").replace(/\/+$/, ""); return /^[A-Za-z]:\//.test(path) ? path.toLowerCase() : path; };
+  return typeof left === "string" && clean(left) === clean(right);
+}
+
+function matchesContentDirectory(binding: ContentBinding | null, content: { id: string; folderPath: string }): boolean {
+  return binding !== null && binding.requiresNewSession !== true && binding.contentId === content.id
+    && sameFolder(binding.folder, content.folderPath)
+    && (binding.workspaceFolder === undefined || sameFolder(binding.workspaceFolder, content.folderPath));
+}
 
 /** Never adopt a native or another workbench's saved session. No auto-send. */
 export async function startContentSession(
@@ -75,35 +89,48 @@ export async function startContentSession(
   content: { id: string; folderPath: string },
   pickDirectory: () => Promise<string | null>,
 ): Promise<string | null> {
+  const key = content.folderPath.replaceAll("\\", "/").replace(/\/+$/, "");
+  const normalized = /^[A-Za-z]:\//.test(key) ? key.toLowerCase() : key;
+  const pending = sessionNavigations.get(service) ?? new Map<string, Promise<string | null>>();
+  const existing = pending.get(normalized);
+  if (existing) return existing;
+  const request = navigateContentSession(service, content, pickDirectory).finally(() => pending.delete(normalized));
+  pending.set(normalized, request);
+  sessionNavigations.set(service, pending);
+  return request;
+}
+
+async function navigateContentSession(service: CreatorWorkbenchService, content: { id: string; folderPath: string }, pickDirectory: () => Promise<string | null>): Promise<string | null> {
   const state = loadCreatorUiState(browserCreatorStorage());
-  const saved = Object.entries({ ...state.sessionContents, ...Object.fromEntries(recentBindings.get(service) ?? []) }).find(([id, item]) =>
-    item.requiresNewSession !== true && item.contentId === content.id && item.folder === content.folderPath && service.ownsSession(id));
-  let folder = content.folderPath;
+  if (state.removedProjectFolders?.some((f) => sameFolder(f, content.folderPath))) throw new Error("项目已移除，请通过‘使用已有目录’重新加入。");
+  const previousSession = service.currentSession();
+  const bindings = Object.entries({ ...state.sessionContents, ...Object.fromEntries(recentBindings.get(service) ?? []) });
+  const folder = content.folderPath;
+  const saved = bindings.find(([id, item]) => id === previousSession && matchesContentDirectory(item, content) && service.ownsSession(id))
+    ?? bindings.find(([id, item]) => matchesContentDirectory(item, content) && service.ownsSession(id));
   if (saved === undefined) {
     const selected = await pickDirectory();
-    if (selected === null || !service.isActive()) return null;
-    // Business content must stay in its existing folder; do not silently switch
-    // to the most recent workspace or a directory inferred from the repository.
-    if (selected.replace(/[\\/]+$/, "") !== folder.replace(/[\\/]+$/, "")) {
-      throw new Error(`请在目录选择器中选择这一期的资料目录：${folder}`);
+    if (selected === null || !service.isActive() || service.currentSession() !== previousSession) return null;
+    if (!sameFolder(selected, folder)) {
+      throw new Error(`请选择当前项目的目录：${folder}`);
     }
     // Keep the catalog path as the stable identity even if the picker returns a trailing slash.
   }
-  if (!service.isActive()) return null;
+  if (!service.isActive() || service.currentSession() !== previousSession) return null;
   const sessionId = await service.ensureSession({ folder, ...(saved ? { sessionId: saved[0] } : {}) });
   if (!service.ownsSession(sessionId)) return null;
   const pending = recentBindings.get(service) ?? new Map();
-  pending.set(sessionId, { contentId: content.id, folder });
+  pending.set(sessionId, { contentId: content.id, folder, workspaceFolder: folder });
   recentBindings.set(service, pending);
   const latest = loadCreatorUiState(browserCreatorStorage());
   if (!saveCreatorUiState(browserCreatorStorage(), {
     ...latest,
-    sessionContents: { ...latest.sessionContents, [sessionId]: { contentId: content.id, folder } },
+    sessionContents: { ...latest.sessionContents, [sessionId]: { contentId: content.id, folder, workspaceFolder: folder } },
   })) throw new Error("会话已创建，但内容关联未保存。请保留当前内容并重试。");
   return service.isActive() && service.currentSession() === sessionId ? sessionId : null;
 }
 
-export function contentBindingForSession(service: CreatorWorkbenchService): { contentId: string; folder: string } | null {
+export function contentBindingForSession(service: CreatorWorkbenchService): ContentBinding | null {
   const session = service.currentSession();
   if (session === undefined || !service.ownsSession(session)) return null;
   return recentBindings.get(service)?.get(session)
@@ -112,6 +139,26 @@ export function contentBindingForSession(service: CreatorWorkbenchService): { co
 
 export function contentForSession(service: CreatorWorkbenchService): string | null {
   return contentBindingForSession(service)?.contentId ?? null;
+}
+
+/** Prepare the session first, preserve existing input, then create the bound business request. */
+export async function prepareBusinessRequest(ctx: Services, content: { id: string; folderPath: string }, makeText: (sessionId: string) => Promise<string>, picker: () => Promise<string | null>, append = false, requestLabel = "文章请求"): Promise<void> {
+  const service = desktopWorkbenchesOf(ctx), expected = loadCreatorUiState(browserCreatorStorage()).selectedId;
+  if (expected !== content.id) throw new Error("内容已切换，请重新发起。");
+  const binding = contentBindingForSession(service), sessionId = matchesContentDirectory(binding, content) ? service.currentSession() : await startContentSession(service, content, picker);
+  if (!sessionId || !service.isActive() || service.currentSession() !== sessionId || !service.ownsSession(sessionId)) throw new Error("会话创建已取消或会话已切换。");
+  const sessions = ctx.get("sessions") as { scope: (id: string) => { get: (key: string) => unknown; bail: (event: string, request: unknown) => unknown } | undefined } | undefined;
+  const scoped = sessions?.scope(sessionId), conversation = scoped?.get("conversation") as { input: { for: (scope: unknown) => { state: { getSnapshot: () => { draft: string; draftRev: number; phase: string; occurrences: unknown[]; attachmentIds: unknown[] } }; setDraft: (text: string) => void; focus: () => void } } } | undefined;
+  if (!scoped || !conversation) throw new Error("原生会话输入尚未就绪，请稍后重试。");
+  const input = conversation.input.for(scoped), before = input.state.getSnapshot();
+  if (before.phase !== "plain") throw new Error("会话正在处理输入，请稍后重试。");
+  if ((before.draft || before.occurrences.length || before.attachmentIds.length) && !append) throw new Error(`当前会话已有草稿，原内容已保留。请点击‘追加${requestLabel}’。`);
+  const text = await makeText(sessionId), after = input.state.getSnapshot();
+  if (!service.isActive() || service.currentSession() !== sessionId || loadCreatorUiState(browserCreatorStorage()).selectedId !== expected || after.draftRev !== before.draftRev || after.phase !== "plain") throw new Error("内容或草稿已变化，未覆盖输入，请重新插入请求。");
+  if (before.draft || before.occurrences.length || before.attachmentIds.length) {
+    if (!scoped.bail("slash/input-insert-text", { text: `\n\n${text}`, span: { start: after.draft.length, end: after.draft.length, draftRev: after.draftRev } })) throw new Error("草稿已变化，未插入请求。");
+  } else input.setDraft(text);
+  input.focus();
 }
 
 export function libraryRootForFolder(folder: string): string {
@@ -125,14 +172,27 @@ export function libraryRootForFolder(folder: string): string {
 export async function restoreSessionContent(service: CreatorWorkbenchService, face: {
   setLibraryRoot: (root: string) => Promise<void>;
   getContent: (id: string) => Promise<{ folderPath: string }>;
+  projectRemoved?: (id: string, folder: string) => Promise<boolean>;
 }): Promise<string | null> {
   const session = service.currentSession();
   const binding = contentBindingForSession(service);
   if (binding === null || !service.isActive()) return null;
+  if (loadCreatorUiState(browserCreatorStorage()).removedProjectFolders?.some((f) => sameFolder(f, binding.folder))) return null;
   const current = () => service.isActive() && service.currentSession() === session;
+  if (await face.projectRemoved?.(binding.contentId, binding.folder)) return null;
+  if (!current()) return null;
   await face.setLibraryRoot(libraryRootForFolder(binding.folder));
   if (!current()) return null;
-  const detail = await face.getContent(binding.contentId);
+  let detail: { folderPath: string };
+  try { detail = await face.getContent(binding.contentId); }
+  catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("此项目已从工作台移除")) throw error;
+    // Upgrade an old server-side removal into the local navigation barrier.
+    // Viewing historical conversation must never block the rest of the workbench.
+    const storage = browserCreatorStorage(), state = loadCreatorUiState(storage);
+    saveCreatorUiState(storage, { ...state, removedProjectFolders: [...(state.removedProjectFolders ?? []).filter((f) => !sameFolder(f, binding.folder)), binding.folder] });
+    return null;
+  }
   if (detail.folderPath !== binding.folder) throw new Error("资料位置已改变，请重新选择资料目录。");
   return current() ? binding.contentId : null;
 }

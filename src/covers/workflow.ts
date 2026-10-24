@@ -21,7 +21,7 @@ export async function selectedCoverPaths(folder: string, fallback: Partial<Recor
   for (const ratio of COVER_RATIOS) {
     const id = state.selected[ratio];
     if (id !== undefined) {
-      const version = state.versions.find((v) => v.id === id && v.ratio === ratio);
+      const version = state.versions.find((v) => v.id === id && v.ratio === ratio && !v.hidden);
       delete result[ratio];
       if (version) { const file = await boundedFile(folder, version.file).catch(() => undefined); if (file) result[ratio] = file; }
     }
@@ -43,7 +43,7 @@ export class CoverWorkflow {
       const info = await lstat(join(folder, name)); if (!info.isFile() || info.isSymbolicLink()) continue;
       const id = `legacy-${createHash("sha256").update(name).digest("hex").slice(0, 16)}`;
       state.versions.push({ id, ratio, file: name, mime: "image/png", width: 0, height: 0, source: "legacy", createdAt: info.mtimeMs, review: "pass" });
-      state.selected[ratio] ??= id;
+      if (state.selected[ratio] === undefined) state.selected[ratio] = id;
     }
     return state;
   }
@@ -91,32 +91,53 @@ export class CoverWorkflow {
     }
     const result = await coverLock(folder, async () => {
       const state = await this.load(folder);
+      await this.host.resolve(request); // Recheck removal after waiting for the file lock.
+      if (request.action === "delivered" || request.action === "discard-request") {
+        const run = state.runs.find((r) => r.id === request.runId);
+        if (!run || run.status === "cancelled") return state;
+        if (request.action === "delivered") { run.deliveredAt = Date.now(); run.sessionId = request.sessionId; }
+        else if (run.requestToken === request.requestToken && !run.deliveredAt && !run.frames.length && !Object.keys(run.slots).length && run.status === "waiting_agent") run.status = "cancelled";
+        await writeCoverState(folder, state); this.host.changed(); return state;
+      }
       if (request.action === "create" || request.action === "test") {
         if (context.selectedVideo !== request.video) throw new Error("当前视频已切换，请重新发起制作。");
         const path = await videoFile(folder, request.video), info = await lstat(path);
-        const ratios: CoverRatio[] = request.action === "test" ? ["3x4"] : [...new Set(request.ratios)];
+        const ratios: CoverRatio[] = request.action === "test" ? ["3x4"] : COVER_RATIOS.filter((ratio) => request.ratios.includes(ratio));
         const purpose = request.action === "test" ? "service_test" : "cover"; if (!ratios.length) throw new Error("请至少选择一种画幅。");
         const existing = [...state.runs].reverse().find((r) => ["waiting_agent", "preparing", "running"].includes(r.status) && (r.purpose ?? "cover") === purpose);
-        if (existing && existing.video.name === request.video && existing.video.size === info.size && existing.video.modifiedAt === info.mtimeMs && ratios.join() === existing.ratios.join()) return state;
+        if (existing && existing.video.name === request.video && existing.video.size === info.size && existing.video.modifiedAt === info.mtimeMs && ratios.join() === COVER_RATIOS.filter((ratio) => existing.ratios.includes(ratio)).join()) return state;
         if (this.active.has(folder)) throw new Error("这一期已有封面任务，请等待或取消后再制作。");
         if (existing) existing.status = "cancelled";
         const now = Date.now();
-        state.runs.push({ purpose, id: randomUUID(), contentId: request.id, folderPath: folder, video: { name: request.video, size: info.size, modifiedAt: info.mtimeMs }, ratios, createdAt: now, updatedAt: now, status: "waiting_agent", frames: [], slots: {} });
+        state.runs.push({ purpose, ...(request.action === "create" && request.requestToken ? { requestToken: request.requestToken } : {}), selectionRevision: state.selectionRevision ?? 0, id: randomUUID(), contentId: request.id, folderPath: folder, video: { name: request.video, size: info.size, modifiedAt: info.mtimeMs }, ratios, createdAt: now, updatedAt: now, status: "waiting_agent", frames: [], slots: {} });
       } else if (request.action === "import") {
         const info = await inspectImage(request.sourcePath, signal);
         const version = await saveVersionBytes(folder, { id: randomUUID(), ratio: request.ratio, source: "import", createdAt: Date.now(), review: "pass", ...(context.selectedVideo ? { video: context.selectedVideo } : {}) }, await readFile(request.sourcePath), signal);
         if (info.width !== version.width || info.height !== version.height) throw new Error("导入期间图片发生变化，请重新导入。");
-        state.versions.push(version); state.selected[request.ratio] ??= version.id;
+        state.versions.push(version); if (state.selected[request.ratio] === undefined) { state.selected[request.ratio] = version.id; state.selectionRevision = (state.selectionRevision ?? 0) + 1; }
       } else {
         const version = state.versions.find((v) => v.id === request.versionId);
         if (!version) throw new Error("封面版本已找不到。");
+        if (request.action === "remove") {
+          version.hidden = true;
+          if (state.selected[version.ratio] === version.id) state.selected[version.ratio] = null;
+          state.selectionRevision = (state.selectionRevision ?? 0) + 1;
+          await writeCoverState(folder, state); this.host.changed(); return state;
+        }
+        if (version.hidden) throw new Error("此封面已移除，请重新导入后使用。");
         await boundedFile(folder, version.file);
         if (request.action === "review") { version.review = request.verdict; version.reviewNote = request.note; }
         if (request.action === "select" || (request.action === "review" && request.select)) {
           if (version.review !== "pass") throw new Error("请先完成这个版本的图片质检，再选为当前封面。");
           const image = await inspectImage(await boundedFile(folder, version.file), signal); assertRatio(image.width, image.height, version.ratio);
           Object.assign(version, image);
-          state.selected[version.ratio] = version.id;
+          const run = state.runs.find((r) => r.id === version.runId);
+          const source = run ? await videoFile(folder, run.video.name).then((file) => lstat(file)).catch(() => undefined) : undefined;
+          const canAutoSelect = run && source?.size === run.video.size && source?.mtimeMs === run.video.modifiedAt && (run.selectionRevision ?? 0) === (state.selectionRevision ?? 0) && context.selectedVideo === run.video.name;
+          if (request.action === "select" || canAutoSelect) {
+            state.selected[version.ratio] = version.id;
+            if (request.action === "select") state.selectionRevision = (state.selectionRevision ?? 0) + 1;
+          }
         }
       }
       await writeCoverState(folder, state); this.host.changed(); return state;
@@ -143,6 +164,7 @@ export class CoverWorkflow {
     if (!validId(runId)) throw new Error("无效的制作记录。");
     const context = await this.host.resolve(scope), { folder } = context;
     return coverLock(folder, async () => {
+      await this.host.resolve(scope);
       const state = await this.load(folder), run = state.runs.find((r) => r.id === runId);
       if (!run || run.status === "cancelled") throw new Error("制作记录不存在或已取消。");
       const video = await this.snapshot(folder, run), dir = await ownedDirectory(folder, "runs", runId);
@@ -173,6 +195,7 @@ export class CoverWorkflow {
     const { folder } = await this.host.resolve(scope), jobs = this.host.jobs();
     if (!jobs) throw new Error("Harness 后台任务服务尚未就绪。");
     return coverLock(folder, async () => {
+      await this.host.resolve(scope);
       const state = await this.load(folder), run = state.runs.find((r) => r.id === runId);
       if (!run) throw new Error("制作记录已找不到。");
       if (this.active.has(folder)) {

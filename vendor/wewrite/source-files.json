@@ -1,0 +1,38 @@
+[
+  {
+    "sha256": "d7ed36112956afbff61866609da4b9fff536e2758015cea2bdf68ef56443a198",
+    "path": "references/frameworks.md"
+  },
+  {
+    "sha256": "0ed6dc72a5899436e449c5c1c9b5571ac24479f06744dbf3d6c00d0a4e6b473e",
+    "path": "references/writing-guide.md"
+  },
+  {
+    "sha256": "03eec6b1e66ef0c3a17b511e483cc2dfa9db7445ea37227f264796b0429ad73b",
+    "path": "references/content-enhance.md"
+  },
+  {
+    "sha256": "4c4bffa4bb322ba92ee409c816f1a3461db09597660752aec6a9681f96f32105",
+    "path": "references/seo-rules.md"
+  },
+  {
+    "sha256": "60ceddb8dd6400591abaa4a95085209e95a4ca1700dd2ed06af64da74e5f9b07",
+    "path": "references/exemplar-seeds.yaml"
+  },
+  {
+    "sha256": "e572017a01cd105eadcb42b921c7b82a7a5e5ba84be18373f4e652e50b57c465",
+    "path": "personas/midnight-friend.yaml"
+  },
+  {
+    "sha256": "acd65e3b9aff5c689526ed825ab807e3211eb4b611a77747e2b3c174458324a2",
+    "path": "scripts/humanness_score.py"
+  },
+  {
+    "sha256": "4e0cda7796ac6a7cfb92f567acb2c8bb0d32a18132d3238afb1d404131ae957b",
+    "path": "writing-config.example.yaml"
+  },
+  {
+    "sha256": "1c55e9b117c45b2f88d6440a51c352aebcdda12ef10c4498b6b46625bf11b54f",
+    "path": "SKILL.md"
+  }
+]

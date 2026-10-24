@@ -50,13 +50,13 @@ export async function copyVideo(input: ImportInput, signal: AbortSignal): Promis
 }
 
 export class VideoImports {
-  readonly tasks = new Map<string, { state: VideoImportState; controller: AbortController }>();
+  readonly tasks = new Map<string, { state: VideoImportState; controller: AbortController; folder: string }>();
 
   start(jobs: JobRegistry, input: ImportInput, committed: (name: string) => Promise<void>): VideoImportState {
     const token = randomUUID();
     const controller = new AbortController();
     const state: VideoImportState = { token, id: input.id, status: "running", name: input.name ?? basename(input.sourcePath) };
-    const entry = { state, controller };
+    const entry = { state, controller, folder: input.folder };
     this.tasks.set(token, entry);
     try {
       state.jobId = jobs.start({ kind: "creator-media", label: `导入视频：${state.name}`, run: () => ({

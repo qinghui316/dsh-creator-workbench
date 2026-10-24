@@ -3,12 +3,25 @@ import { emptySecretView, refsFor, viewFromDescribe } from "./secrets.ts";
 import type { CreatorSecrets, SecretKind } from "./types.ts";
 
 interface HostCredentials {
+  set?: (ref: string, value: string) => Promise<void>;
   resolve: (ref: string) => Promise<{ value: string } | undefined>;
   describe: (ref: string) => Promise<{
     configured: boolean;
     writable: boolean;
     source?: string;
   }>;
+}
+
+/** Domain-specific references stay in the host vault; never serialized to ordinary settings. */
+export async function resolveWorkbenchCredential(ctx: { get: (name: string) => unknown }, ref: string): Promise<string | undefined> {
+  return (await credentialsOf(ctx)?.resolve(ref))?.value.trim() || undefined;
+}
+export async function workbenchCredentialConfigured(ctx: { get: (name: string) => unknown }, ref: string): Promise<boolean> {
+  return (await credentialsOf(ctx)?.describe(ref))?.configured === true;
+}
+export async function saveWorkbenchCredential(ctx: { get: (name: string) => unknown }, ref: string, value: string): Promise<void> {
+  const credentials = credentialsOf(ctx); if (!credentials?.set) throw new Error("宿主凭据保存服务暂不可用，请重试。");
+  await credentials.set(ref, value);
 }
 
 function credentialsOf(ctx: { get: (name: string) => unknown }): HostCredentials | undefined {

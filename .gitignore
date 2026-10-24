@@ -6,3 +6,5 @@ assets/readme/source/
 .artifacts/
 
 lib/*.map
+__pycache__/
+*.py[cod]

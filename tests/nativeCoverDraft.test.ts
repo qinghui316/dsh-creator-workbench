@@ -1,6 +1,9 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { prepareCoverDraft } from "../src/client/workbench.ts";
+import { prepareBusinessRequest, prepareCoverDraft } from "../src/client/workbench.ts";
 import { saveCreatorUiState, DEFAULT_UI_STATE } from "../src/client/persistence.ts";
+import { prepareCoverRequest } from "../src/client/coverRequests.ts";
+import type { ContentDetail } from "../src/types.ts";
+import type { CoverAction, CoverRun } from "../src/covers/types.ts";
 import { registerCoverTools } from "../src/covers/tools.ts";
 
 const content = { id: "episode", folderPath: "C:/资料/episode" };
@@ -38,6 +41,33 @@ describe("native cover draft admission", () => {
     await expect(prepareCoverDraft(changed.ctx, content, "run", async () => null, true)).rejects.toThrow("草稿已变化"); expect(changed.input.setDraft).not.toHaveBeenCalled();
     const busy = host("draft", "submitting"); await expect(prepareCoverDraft(busy.ctx, content, "run", async () => null, true)).rejects.toThrow("正在处理"); expect(busy.scoped.bail).not.toHaveBeenCalled();
   });
+  it("uses the same existing project conversation for cover and article entrypoints", async () => {
+    const f = host();
+    await prepareCoverDraft(f.ctx, content, "run", async () => { throw new Error("unexpected picker"); });
+    const makeText = vi.fn(async () => "请使用 WeWrite 制作本期文章。");
+    await prepareBusinessRequest(f.ctx, content, makeText, async () => { throw new Error("unexpected picker"); });
+    expect(makeText).toHaveBeenCalledWith("session1");
+    expect(f.workbench.ensureSession).not.toHaveBeenCalled();
+    expect(f.input.setDraft).toHaveBeenLastCalledWith("请使用 WeWrite 制作本期文章。");
+  });
+  it("preserves existing article text/attachments before creating any business request", async () => {
+    const f = host("用户正在编辑的原草稿"), makeText = vi.fn(async () => "new request");
+    await expect(prepareBusinessRequest(f.ctx, content, makeText, async () => null)).rejects.toThrow("已有草稿");
+    expect(makeText).not.toHaveBeenCalled(); expect(f.input.setDraft).not.toHaveBeenCalled();
+    await prepareBusinessRequest(f.ctx, content, makeText, async () => null, true);
+    expect(f.scoped.bail).toHaveBeenCalledWith("slash/input-insert-text", expect.objectContaining({ text: "\n\nnew request", span: { start: "用户正在编辑的原草稿".length, end: "用户正在编辑的原草稿".length, draftRev: 12 } }));
+  });
+  it("preflights the composer before creating a cover record and rolls back only its own unstarted request", async () => {
+    const f = host("用户草稿"), detail = { ...content, selectedVideo: "video.mp4" } as ContentDetail;
+    const action = vi.fn(async (request: CoverAction) => ({ selected: {}, versions: [], runs: [{ id: "one", purpose: "cover", video: { name: "video.mp4" }, status: "waiting_agent", ...(request.action === "create" ? { requestToken: request.requestToken } : {}) } as CoverRun] }));
+    await expect(prepareCoverRequest(f.ctx, detail, ["3x4"], action)).rejects.toThrow("已有草稿");
+    expect(action).not.toHaveBeenCalled(); f.scoped.bail.mockReturnValue(false);
+    await expect(prepareCoverRequest(f.ctx, detail, ["3x4"], action, true)).rejects.toThrow("草稿已变化");
+    expect(action.mock.calls.map(([request]) => request.action)).toEqual(["create", "discard-request"]);
+    const reused = vi.fn(async () => ({ selected: {}, versions: [], runs: [{ id: "old", purpose: "cover", video: { name: "video.mp4" }, status: "waiting_agent", requestToken: "another" } as CoverRun] }));
+    await expect(prepareCoverRequest(f.ctx, detail, ["3x4"], reused, true)).rejects.toThrow("草稿已变化"); expect(reused).toHaveBeenCalledOnce();
+  });
+
 });
 describe("Agent cover image tool boundary", () => {
   it("returns real image attachments and no raw image buffers in JSON", async () => {

@@ -10,10 +10,10 @@ import {
 describe("viewFromDescribe", () => {
   it("marks configured when any listed ref exists", () => {
     expect(viewFromDescribe("subtitle", {
-      BAILIAN_API_KEY: { configured: true, writable: true, source: "file" },
+      CREATOR_VOLC_ASR_API_KEY: { configured: true, writable: true, source: "file" },
     })).toEqual({
       kind: "subtitle",
-      ref: "BAILIAN_API_KEY",
+      ref: "CREATOR_VOLC_ASR_API_KEY",
       configured: true,
       writable: true,
       source: "file",
@@ -42,7 +42,7 @@ describe("emptySecrets", () => {
 
 describe("missingSecretMessage", () => {
   it("points at the plugin settings card", () => {
-    expect(missingSecretMessage("subtitle")).toContain("百炼");
+    expect(missingSecretMessage("subtitle")).toContain("火山语音");
     expect(missingSecretMessage("cover")).toContain("生图");
   });
 });

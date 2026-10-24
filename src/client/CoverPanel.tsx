@@ -17,7 +17,7 @@ import "./CoverPanel.css";
 
 type CoverFace = Pick<
   CreatorViewFace,
-  "getCoverState" | "coverAction" | "getCoverImage" | "prepareCoverDraft"
+  "getCoverState" | "coverAction" | "getCoverImage" | "prepareCoverDraft" | "prepareCoverRequest"
 >;
 const labels: Record<string, string> = {
   waiting_agent: "等待 Agent 制作",
@@ -181,6 +181,7 @@ export function CoverPanel({
   const apply = async (action: CoverAction) => {
     setBusy(true);
     setError(undefined);
+    setNotice(undefined);
     try {
       const next = await face.coverAction(action);
       if (alive.current) setState(next);
@@ -212,7 +213,15 @@ export function CoverPanel({
       if (alive.current) setBusy(false);
     }
   };
-  const begin = async (ratios: CoverRatio[]) => {
+  const [pendingRatios, setPendingRatios] = useState<CoverRatio[]>();
+  const begin = async (ratios: CoverRatio[], append = false) => {
+    if (face.prepareCoverRequest) {
+      setBusy(true); setError(undefined);
+      try { await face.prepareCoverRequest(detail, ratios, append); setPendingRatios(undefined); setNotice("制作请求已放入原生对话，请发送。"); setRetry((n) => n + 1); }
+      catch (cause) { const message = cause instanceof Error ? cause.message : String(cause); setError(message); if (message.includes("已有草稿")) setPendingRatios(ratios); }
+      finally { setBusy(false); }
+      return;
+    }
     if (!detail.selectedVideo) {
       setError("请先选择当前视频。");
       return;
@@ -242,8 +251,10 @@ export function CoverPanel({
     state.runs.find((r) => r.id === selectedRunId) ?? state.runs.at(-1);
   const active = [...state.runs]
     .reverse()
-    .find((r) => ["waiting_agent", "preparing", "running"].includes(r.status));
+    .find((r) => (r.purpose ?? "cover") === "cover" && r.video.name === detail.selectedVideo && r.video.size === detail.videos?.find((v) => v.name === detail.selectedVideo)?.size && r.video.modifiedAt === detail.videos?.find((v) => v.name === detail.selectedVideo)?.modifiedAt && (r.status !== "waiting_agent" || r.deliveredAt || r.frames.length) && ["waiting_agent", "preparing", "running"].includes(r.status));
+  const incoming = state.versions.find((version) => !version.hidden && version.review === "pending" && state.runs.some((run) => run.id === version.runId && (run.purpose ?? "cover") === "cover" && run.video.name === detail.selectedVideo));
   const runLabel = (run: CoverRun) =>
+    run.status === "waiting_agent" ? run.frames.length ? "画面已准备" : "请到对话发送制作请求" :
     run.status === "completed"
       ? coverRunReview(run, state.versions) === "pass"
         ? "制作完成"
@@ -292,10 +303,10 @@ export function CoverPanel({
           tone={Object.keys(state.selected).length ? "secondary" : "primary"}
           disabled={busy || !loaded || loadError || !detail.selectedVideo}
           onClick={() => {
-            void begin([...COVER_RATIOS]);
+            void begin(COVER_RATIOS.every((r) => state.selected[r]) ? [...COVER_RATIOS] : COVER_RATIOS.filter((r) => !state.selected[r]));
           }}
         >
-          让 Agent 制作封面
+          {COVER_RATIOS.every((r) => state.selected[r]) ? "重新制作封面" : COVER_RATIOS.some((r) => state.selected[r]) ? "补齐封面" : "让 Agent 制作封面"}
         </ActionButton>
       </div>
       {error && (
@@ -316,7 +327,7 @@ export function CoverPanel({
             if (run) void draft(run, true);
           }}
         >
-          追加制作请求，保留已有草稿
+          追加制作请求
         </ActionButton>
       )}
       {notice && (
@@ -332,7 +343,7 @@ export function CoverPanel({
       {loaded && !loadError && !panel && (
         <div className="coverRatioGrid">
           {COVER_RATIOS.map((r) => {
-            const versions = state.versions.filter((v) => v.ratio === r),
+            const versions = state.versions.filter((v) => v.ratio === r && !v.hidden),
               current = versions.find((v) => v.id === state.selected[r]);
             return (
               <article className="coverRatio" key={r}>
@@ -360,6 +371,7 @@ export function CoverPanel({
                       >
                         历史版本 · {versions.length}
                       </ActionButton>
+                      {current && <ActionButton tone="ghost" disabled={busy} onClick={() => { void apply({ ...scope, action: "remove", versionId: current.id }); }}>移除当前封面</ActionButton>}
                       <ActionButton
                         tone="ghost"
                         disabled={busy || !detail.selectedVideo}
@@ -382,17 +394,12 @@ export function CoverPanel({
                     }}
                   />
                 ) : (
-                  <button className="coverEmpty" onClick={() => importFile(r)}>
-                    导入图片
+                  <button className="coverEmpty" onClick={() => { if (versions.length) { setRatio(r); setPanel("versions"); } else importFile(r); }}>
+                    {versions.length ? "选择封面" : "导入图片"}
                   </button>
                 )}
                 <p className="creatorMuted">
-                  {current
-                    ? "已选用 · " +
-                      (current.source === "generated"
-                        ? "AI 生成"
-                        : sourceLabel(current))
-                    : "尚未选用"}
+                  {current ? "已选用" : "尚未选用"}
                 </p>
                 {current?.video &&
                   detail.selectedVideo &&
@@ -404,6 +411,7 @@ export function CoverPanel({
           })}
         </div>
       )}
+      {pendingRatios && <ActionButton onClick={() => { void begin(pendingRatios, true); }}>追加制作请求</ActionButton>}
       {panel === "versions" && (
         <SectionPanel
           title={ratio.replace("x", ":") + " 历史版本"}
@@ -411,7 +419,7 @@ export function CoverPanel({
           returnFocus={focusReturn}
         >
           {state.versions
-            .filter((v) => v.ratio === ratio)
+            .filter((v) => v.ratio === ratio && !v.hidden)
             .reverse()
             .map((v) => (
               <div className="coverVersionRow" key={v.id}>
@@ -434,6 +442,7 @@ export function CoverPanel({
                     {v.width} × {v.height}
                   </small>
                 </div>
+                <ActionButton disabled={busy} tone="ghost" onClick={() => { void apply({ ...scope, action: "remove", versionId: v.id }); }}>移除</ActionButton>
                 <ActionButton
                   onClick={() => {
                     void view(v);
@@ -485,10 +494,11 @@ export function CoverPanel({
                           versionId: preview.id,
                           verdict: "pass",
                           note: "用户预览图片后明确检查并选用此版本。",
-                          select: true,
+                          select: false,
                         },
                   );
-                  if (next) setNotice("已选用此版本");
+                  const selected = next && (preview.review === "pass" ? next : await apply({ ...scope, action: "select", versionId: preview.id }));
+                  if (selected?.selected[preview.ratio] === preview.id) setNotice("已选用此版本");
                 }}
               >
                 {state.selected[preview.ratio] === preview.id
@@ -528,20 +538,8 @@ export function CoverPanel({
           </ActionButton>
         </div>
       )}
-      {!panel && (
-        <details className="creatorDisclosure">
-          <summary>
-            制作记录{state.runs.length ? " · " + state.runs.length : ""}
-          </summary>
-          {state.runs.length ? (
-            <ActionButton onClick={() => setPanel("run")}>
-              查看制作详情
-            </ActionButton>
-          ) : (
-            <p className="creatorMuted">尚无制作记录</p>
-          )}
-        </details>
-      )}
+      {!panel && incoming && <ActionButton onClick={() => { void view(incoming); }}>检查新封面</ActionButton>}
+      {!panel && !active && state.runs.length > 0 && <ActionButton tone="ghost" onClick={() => setPanel("run")}>制作详情</ActionButton>}
       {panel === "run" && latest && (
         <SectionPanel
           title="制作详情"
@@ -576,7 +574,7 @@ export function CoverPanel({
           )}
           {latest.ratios.map((r) => {
             const slot = latest.slots[r],
-              version = state.versions.find((v) => v.id === slot?.versionId);
+              version = state.versions.find((v) => v.id === slot?.versionId && !v.hidden);
             return (
               <div key={r} className="coverTaskRatio">
                 <div className="creatorInlineStatus">

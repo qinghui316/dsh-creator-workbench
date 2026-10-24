@@ -103,48 +103,16 @@ function item(folderPath: string, videoRaw: string): ContentSummary {
 }
 
 describe("CreatorWorkbenchService.startSubtitleGenerate", () => {
-  it("always prepares subtitles without resolving or injecting the cover credential", async () => {
-    const folder = await mkdtemp(join(tmpdir(), "oil-service-subtitle-"));
-    const video = join(folder, "demo.mp4");
-    await writeFile(video, "v");
-
-    let launch: Parameters<CreatorWorkbenchService["startChainedJob"]>[2] | undefined;
+  it("delegates to Volcano domain without resolving or injecting cover credentials", async () => {
+    const folder = await mkdtemp(join(tmpdir(), "creator-service-transcribe-"));
     const service = Object.create(CreatorWorkbenchService.prototype) as CreatorWorkbenchService;
-    const probe = service as unknown as {
-      ctx: { get: (name: string) => unknown };
-      find: () => Promise<ContentSummary>;
-      subtitleSkill: () => Promise<{ root: string; python: string }>;
-      startChainedJob: (
-        id: string,
-        field: "burn" | "subtitleJob" | "coverJob",
-        nextLaunch: Parameters<CreatorWorkbenchService["startChainedJob"]>[2],
-        signal: AbortSignal,
-      ) => Promise<ContentDetail>;
-    };
-    probe.ctx = {
-      get: () => ({
-        resolve: async (ref: string) => {
-          if (ref === "DSH_CREATOR_IMAGE_API_KEY") throw new Error("cover credential must not be requested");
-          return ref === "DASHSCOPE_API_KEY" ? { value: "subtitle-key" } : undefined;
-        },
-        describe: async () => ({ configured: true, writable: false }),
-      }),
-    };
-    probe.find = async () => item(folder, video);
-    probe.subtitleSkill = async () => ({ root: "/tmp/oil-subtitle", python: "/tmp/python" });
-    probe.startChainedJob = async (_id, _field, nextLaunch) => {
-      launch = nextLaunch;
-      return undefined as never;
-    };
-
-    await service.startSubtitleGenerate({ id: "2026-08-13_demo" }, new AbortController().signal);
-
-    expect(launch?.steps).toHaveLength(3);
-    expect(launch?.steps[0]?.script.endsWith("bailian_transcribe.py")).toBe(true);
-    expect(launch?.steps[1]?.script.endsWith("review_subtitles.py")).toBe(true);
-    expect(launch?.steps[2]?.script.endsWith("prepare_subtitles.py")).toBe(true);
-    expect(launch?.steps.some((step) => step.script.endsWith("burn_subtitles.py"))).toBe(false);
-    expect(launch?.env).toEqual({ DASHSCOPE_API_KEY: "subtitle-key" });
+    const action = vi.fn(async () => undefined);
+    const resolve = vi.fn(async () => { throw new Error("credentials must be resolved by the domain only"); });
+    Object.assign(service, { ctx: { get: () => ({ resolve }) }, production: { action }, getContent: vi.fn(async () => ({ ...item(folder, join(folder, "demo.mp4")), folderPath: folder })) });
+    const signal = new AbortController().signal;
+    await service.startSubtitleGenerate({ id: "2026-08-13_demo" }, signal);
+    expect(action).toHaveBeenCalledWith({ id: "2026-08-13_demo", folderPath: folder, action: "transcribe" }, signal);
+    expect(resolve).not.toHaveBeenCalled();
   });
 });
 
@@ -225,7 +193,8 @@ async function syncService(profile: CreatorProfile): Promise<CreatorWorkbenchSer
     invalidateCatalog: () => void;
   };
   probe.dataDir = dataDir;
-  probe.scanned = async () => ({ items: [] });
+  probe.scanned = async () => ({ items: [item(dataDir, join(dataDir, "demo.mp4"))] });
+  Object.assign(service, { production: { active: new Map(), action: async (request: { platform: string }) => { await collect.run("", new AbortController().signal, { platforms: [request.platform] }); return { tasks: [] }; }, state: async () => ({ tasks: [], metrics: [] }) } });
   probe.invalidateCatalog = () => undefined;
   return service;
 }
@@ -236,12 +205,12 @@ describe("CreatorWorkbenchService.syncPublish", () => {
     collect.run.mockClear();
   });
 
-  it("passes the enabled platforms to the collector by default", async () => {
+  it("dispatches enabled platforms sequentially through account-bound operations", async () => {
     const service = await syncService({ enabledPlatforms: ["douyin", "wechat"] });
 
     await service.syncPublish({}, new AbortController().signal);
 
-    expect(collect.calls).toEqual([{ platforms: ["douyin", "wechat"] }]);
+    expect(collect.calls).toEqual([{ platforms: ["douyin"] }, { platforms: ["wechat"] }]);
   });
 
   it("rejects an explicitly requested disabled platform", async () => {
@@ -262,7 +231,7 @@ describe("CreatorWorkbenchService.syncPublish", () => {
     expect(collect.calls).toEqual([]);
   });
 
-  it("does not use a fresh cache that omits an enabled platform", async () => {
+  it("does not reuse the unscoped legacy cache for account-bound collection", async () => {
     const service = await syncService({ enabledPlatforms: ["douyin", "wechat"] });
     const dataDir = (service as unknown as { dataDir: string }).dataDir;
     await saveCollectCache(dataDir, {
@@ -271,7 +240,7 @@ describe("CreatorWorkbenchService.syncPublish", () => {
 
     await service.syncPublish({}, new AbortController().signal);
 
-    expect(collect.calls).toEqual([{ platforms: ["douyin", "wechat"] }]);
+    expect(collect.calls).toEqual([{ platforms: ["douyin"] }, { platforms: ["wechat"] }]);
   });
 
   it("checks a requested content id before the empty-platform early return", async () => {

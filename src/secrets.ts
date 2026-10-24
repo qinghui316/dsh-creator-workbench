@@ -1,7 +1,8 @@
 import { IMAGE_CREDENTIAL } from "./covers/types.ts";
+import { ASR_CREDENTIAL } from "./production/types.ts";
 import type { CreatorSecrets, SecretKind, SecretView } from "./types.ts";
 
-export const SUBTITLE_KEY_REFS = ["DASHSCOPE_API_KEY", "BAILIAN_API_KEY"] as const;
+export const SUBTITLE_KEY_REFS = [ASR_CREDENTIAL] as const;
 export const COVER_KEY_REFS = [IMAGE_CREDENTIAL] as const;
 
 export function refsFor(kind: SecretKind): readonly string[] {
@@ -9,7 +10,7 @@ export function refsFor(kind: SecretKind): readonly string[] {
 }
 
 export function primaryRef(kind: SecretKind): string {
-  return refsFor(kind)[0] ?? "DASHSCOPE_API_KEY";
+  return refsFor(kind)[0] ?? ASR_CREDENTIAL;
 }
 
 export function emptySecretView(kind: SecretKind): SecretView {
@@ -56,6 +57,6 @@ export function viewFromDescribe(
 
 export function missingSecretMessage(kind: SecretKind): string {
   return kind === "subtitle"
-    ? "先到设置 → 插件 → 内容工作台 填写百炼 API Key"
+    ? "先到工作台设置 → 语音转文字填写火山语音 API Key"
     : "先到工作台的数据与设置填写生图服务 API Key";
 }

@@ -115,8 +115,9 @@ function firstLine(value) {
 }
 
 function num(value) {
+  if (typeof value !== "number" && typeof value !== "string" || typeof value === "string" && !value.trim()) return undefined;
   const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
 function dedupe(items) {
@@ -167,9 +168,9 @@ function parseBiliPayload(payload) {
       item.remoteId = bvid;
       item.url = `https://www.bilibili.com/video/${bvid}`;
     }
-    if (Number.isFinite(Number(stat.view))) item.views = Number(stat.view);
-    if (Number.isFinite(Number(stat.like))) item.likes = Number(stat.like);
-    if (Number.isFinite(Number(stat.reply))) item.comments = Number(stat.reply);
+    if (num(stat.view) !== undefined) item.views = num(stat.view);
+    if (num(stat.like) !== undefined) item.likes = num(stat.like);
+    if (num(stat.reply) !== undefined) item.comments = num(stat.reply);
     return [item];
   });
 }
@@ -185,9 +186,9 @@ function parseWechatPayload(payload) {
       item.remoteId = id;
       item.url = "https://channels.weixin.qq.com/platform/post/list";
     }
-    if (Number.isFinite(Number(row.readCount))) item.views = Number(row.readCount);
-    if (Number.isFinite(Number(row.likeCount))) item.likes = Number(row.likeCount);
-    if (Number.isFinite(Number(row.commentCount))) item.comments = Number(row.commentCount);
+    if (num(row.readCount) !== undefined) item.views = num(row.readCount);
+    if (num(row.likeCount) !== undefined) item.likes = num(row.likeCount);
+    if (num(row.commentCount) !== undefined) item.comments = num(row.commentCount);
     return [item];
   });
 }
@@ -238,20 +239,17 @@ async function xhsState() {
           const title = String(note.display_title || note.title || "").split(/\n/)[0].trim();
           if (!title) continue;
           const id = note.id ? String(note.id) : title;
-          const token = note.xsec_token ? String(note.xsec_token) : "";
           const item = { title };
           if (note.id) {
             item.remoteId = String(note.id);
-            item.url = token
-              ? "https://www.xiaohongshu.com/explore/" + note.id + "?xsec_token=" + encodeURIComponent(token)
-              : "https://www.xiaohongshu.com/explore/" + note.id;
+            item.url = "https://www.xiaohongshu.com/explore/" + note.id;
           }
           const views = Number(note.view_count);
           const likes = Number(note.likes);
           const comments = Number(note.comments_count);
-          if (Number.isFinite(views)) item.views = views;
-          if (Number.isFinite(likes)) item.likes = likes;
-          if (Number.isFinite(comments)) item.comments = comments;
+          if (note.view_count != null && note.view_count !== "" && Number.isFinite(views) && views >= 0) item.views = views;
+          if (note.likes != null && note.likes !== "" && Number.isFinite(likes) && likes >= 0) item.likes = likes;
+          if (note.comments_count != null && note.comments_count !== "" && Number.isFinite(comments) && comments >= 0) item.comments = comments;
           byId.set(id, item);
         }
       }
@@ -367,9 +365,9 @@ async function collectDouyin() {
           const views = Number(stats.play_count);
           const likes = Number(stats.digg_count);
           const comments = Number(stats.comment_count);
-          if (Number.isFinite(views)) item.views = views;
-          if (Number.isFinite(likes)) item.likes = likes;
-          if (Number.isFinite(comments)) item.comments = comments;
+          if (stats.play_count != null && stats.play_count !== "" && Number.isFinite(views) && views >= 0) item.views = views;
+          if (stats.digg_count != null && stats.digg_count !== "" && Number.isFinite(likes) && likes >= 0) item.likes = likes;
+          if (stats.comment_count != null && stats.comment_count !== "" && Number.isFinite(comments) && comments >= 0) item.comments = comments;
           byId.set(id, item);
         }
       }

@@ -13,6 +13,11 @@ const libraryListeners = new Set<Listener>();
 const profileListeners = new Set<Listener>();
 const initialUi = loadCreatorUiState(browserCreatorStorage());
 let selectedId = initialUi.selectedId;
+let selectionEpoch = 0;
+export function captureContentSelection(): () => boolean {
+  const epoch = selectionEpoch;
+  return () => epoch === selectionEpoch;
+}
 let libraryEpoch = 0;
 let profileEpoch = 0;
 function emit(): void {
@@ -81,6 +86,7 @@ export function getSelectedContentId(): string | null {
 
 export function setSelectedContentId(id: string | null): void {
   if (selectedId === id) return;
+  selectionEpoch += 1;
   selectedId = id;
   const state = loadCreatorUiState(browserCreatorStorage());
   saveCreatorUiState(browserCreatorStorage(), { ...state, selectedId });

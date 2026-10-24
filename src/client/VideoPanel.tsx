@@ -20,7 +20,6 @@ type Props = Pick<
   t: (key: CreatorKey) => string;
 };
 export function VideoPanel({ detail, t, ...face }: Props) {
-  const [removed, setRemoved] = useState<string>();
   const [source, setSource] = useState<string>();
   const [name, setName] = useState("");
   const [task, setTask] = useState<VideoImportState | undefined>(() =>
@@ -40,11 +39,6 @@ export function VideoPanel({ detail, t, ...face }: Props) {
       player.current?.pause();
     };
   }, []);
-  useEffect(() => {
-    if (!removed) return;
-    const timer = setTimeout(() => setRemoved(undefined), 10_000);
-    return () => clearTimeout(timer);
-  }, [removed]);
   const report = (cause: unknown) => {
     if (alive.current)
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -115,7 +109,7 @@ export function VideoPanel({ detail, t, ...face }: Props) {
     }
     try {
       await face.setVideoVisibility(detail.id, file, detail.folderPath, hidden);
-      if (alive.current) setRemoved(hidden ? file : undefined);
+      if (alive.current) bumpLibrary();
     } catch (cause) {
       report(cause);
     } finally {
@@ -289,20 +283,6 @@ export function VideoPanel({ detail, t, ...face }: Props) {
           {error}
         </p>
       )}
-      {removed && (
-        <div className="creatorInlineStatus" role="status">
-          <span>已从列表移除，磁盘文件保留</span>
-          <ActionButton
-            tone="ghost"
-            disabled={busy}
-            onClick={() => {
-              void visibility(removed, false);
-            }}
-          >
-            撤销
-          </ActionButton>
-        </div>
-      )}
       <details className="creatorDisclosure">
         <summary>管理视频 · {detail.videos?.length ?? 0}</summary>
         {(detail.videos ?? []).map((v) => (
@@ -325,27 +305,7 @@ export function VideoPanel({ detail, t, ...face }: Props) {
             </ActionButton>
           </div>
         ))}
-        {!!detail.hiddenVideos?.length && (
-          <details className="creatorDisclosure">
-            <summary>已移除视频 · {detail.hiddenVideos.length}</summary>
-            {detail.hiddenVideos.map((v) => (
-              <div className="creatorAssetRow" key={v.name}>
-                <div className="creatorRowCopy">
-                  <strong>{v.name}</strong>
-                  {v.missing && <small>文件已找不到</small>}
-                </div>
-                <ActionButton
-                  disabled={busy || running || v.missing}
-                  onClick={() => {
-                    void visibility(v.name, false);
-                  }}
-                >
-                  恢复
-                </ActionButton>
-              </div>
-            ))}
-          </details>
-        )}
+
       </details>
     </section>
   );

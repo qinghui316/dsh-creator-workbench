@@ -92,7 +92,7 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
     try {
       const detail = await face.getContent(id);
       if (!alive.current || currentSelection.current !== id || !isCurrent()) return;
-      await startContentSession(service, { id, folderPath: detail.folderPath }, face.pickDirectory);
+      await startContentSession(service, { id, folderPath: detail.folderPath }, async () => detail.folderPath);
     } catch (cause) {
       if (alive.current && isCurrent()) setError(cause instanceof Error ? cause.message : t("empty.error"));
     } finally {

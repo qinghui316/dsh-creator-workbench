@@ -57,7 +57,9 @@ export const CREATOR_WORKBENCH_SKILL = {
 
 每次只推进当前缺失的下一步：创建或选择内容 → 导入视频并选择当前视频 → 封面与发布材料 → 发布草稿 → 用户最终发表 → 同步数据。独立字幕可选。
 
-- \`creator_import_video\`、\`creator_generate_subtitles\`、\`creator_burn_subtitles\` 返回 Harness job id。用 \`job_output\` 的 \`wait=true\` 等待并查看完成结果，用 \`job_kill\` 取消，不轮询文件夹冒充任务控制器。
+- \`creator_import_video\`、\`creator_generate_subtitles\` 返回 Harness job id。用 \`job_output\` 的 \`wait=true\` 等待并查看完成结果，用 \`job_kill\` 取消，不轮询文件夹冒充任务控制器。字幕使用火山录音文件识别或导入已有 SRT/ASS；不运行 Mac 专属安装、MLX 或烧录入口。
+- 上传、公众号和数据使用 \`creator_production_state\` / \`creator_production_action\` 的工作台入口，复用锁定版本外部 Skill。账号、精确视频、封面和任务在启动时绑定，不直接运行绕过账号检查的脚本。用户接管浏览器后停止；中断优先检查并恢复原任务；上传完成、草稿就绪和已发表分别记录。
+- 文章由用户发送原生制作请求；用 \`creator_prepare_article\` 读取绑定的真实转写、图片附件和 WeWrite Skill，按返回的成熟写作流程、规则与定向检查制作。缺字幕时等待返回的火山 Job，再继续读取。用当前 Harness 模型看图；文字与画面不足时说明缺口。用 \`creator_save_article\` 保存并排版新版本，以返回任务 receipt 的 HTML 作为成品链接；Markdown 是可编辑源稿。只引用本次真实截图，不用脚本冒充实录。公众号先本地预览，再准备草稿；不自动发表。数据只按用户操作手动刷新，按账号和平台内容标识精确匹配，未知值不能写成零。
 - 封面使用原生 Agent 流程：界面提供的制作请求包含固定 id、folderPath、runId；先调用 \`creator_prepare_cover\` 查看真实候选画面，读取返回的 oil-cover 规则与 agent-native-flow，用当前模型选帧和分析。看不到图片时要求用户在 Harness 中换支持看图的模型，不调用外部分析服务。
 - 标题遵循用户指定文本；字幕可选。分析完成后直接调用 \`creator_generate_cover\`，默认 reference 模式，提交完整逐画幅提示词和本次 frameIds；只有用户明确接受纯文字制作才用 text。无额外方案审批。该工具返回原生 Job id，使用 job_output/job_kill 管理；不自动重试结果未确认的付费请求。
 - 任务结束调用 \`creator_read_cover_results\`，逐幅查看真实图片后用 \`creator_review_cover\` 保存具体检查结论，pass 时可选为当前版；缺失、失败或看不到图片不能标为通过。只重做用户指定或实际失败的画幅，旧成果保留。

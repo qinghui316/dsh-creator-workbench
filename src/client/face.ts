@@ -1,4 +1,5 @@
 import type { CoverScope, CoverAction, CoverState, ImageSettings } from "../covers/types.ts";
+import type { ProductionClient } from "./productionApi.ts";
 import type {
   VideoImportState,
   ContentDetail,
@@ -18,6 +19,12 @@ import type {
 } from "../types.ts";
 
 export interface CreatorViewFace {
+  production?: ProductionClient;
+  inspectProject?: (id: string, folderPath: string) => Promise<string[]>;
+  projectRemoved?: (id: string, folderPath: string) => Promise<boolean>;
+  removeProject?: (id: string, folderPath: string, cancelTasks: boolean) => Promise<void>;
+  joinProject?: () => Promise<{ id: string; folderPath: string } | null>;
+  prepareCoverRequest?: (detail: ContentDetail, ratios: import("../covers/types.ts").CoverRatio[], append?: boolean) => Promise<void>;
   getCoverState: (scope: CoverScope) => Promise<CoverState>;
   coverAction: (request: CoverAction) => Promise<CoverState>;
   getCoverImage: (request: CoverScope & { versionId: string }) => Promise<{ mime: string; base64: string }>;
@@ -30,6 +37,7 @@ export interface CreatorViewFace {
   ready: () => boolean;
   captureNavigation: () => () => boolean;
   listContents: (query: string, filter: ContentFilter) => Promise<ListContentsResult>;
+  setContentVisibility: (id: string, folderPath: string, hidden: boolean) => Promise<ListContentsResult>;
   getRevision: () => Promise<number>;
   getContent: (id: string) => Promise<ContentDetail>;
   getCoverThumb: (id: string) => Promise<CoverThumbResult>;
@@ -50,7 +58,7 @@ export interface CreatorViewFace {
   setScriptRules: (text: string) => Promise<void>;
   refreshCatalog: () => Promise<ListContentsResult>;
   createContent: (title: string) => Promise<{ id: string; folderPath: string }>;
-  setPublish: (id: string, platform: PublishPlatform, status: PublishMark, url?: string) => Promise<ContentDetail>;
+  setPublish: (id: string, platform: PublishPlatform, status: PublishMark, url?: string, folderPath?: string) => Promise<ContentDetail>;
   syncPublish: (request?: { platform?: PublishPlatform; id?: string }) => Promise<SyncPublishResult>;
   openSubtitlePreview: (id: string) => Promise<SubtitlePreviewResult>;
   startSubtitleBurn: (id: string) => Promise<ContentDetail>;

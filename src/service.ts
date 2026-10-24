@@ -1,16 +1,24 @@
 import { CoverWorkflow } from "./covers/workflow.ts";
+import { ProductionWorkflow } from "./production/workflow.ts";
+import { projectProduction } from "./production/projection.ts";
+import { removedContentIds, setContentHidden } from "./contentVisibility.ts";
+import { restoreProjectSessionMembership } from "./projectSessionsHost.ts";
+import type { ContentScope, ProductionAction, ProductionSettingsAction, ProductionSettingsView, ProductionState } from "./production/types.ts";
+import { resolveWorkbenchCredential, workbenchCredentialConfigured, saveWorkbenchCredential } from "./secretsHost.ts";
 import type { CoverAction, CoverScope, CoverState, ImageSettings } from "./covers/types.ts";
 import { readImageSettings, saveImageSettings, beginImageUpdate, completeImageUpdate, checkImageConnection, saveImageCheck, safeImageError } from "./covers/provider.ts";
-import { atomicJson } from "./covers/files.ts";
+import { atomicJson, coverLock, readCoverState, writeCoverState } from "./covers/files.ts";
+import { readState, updateState } from "./production/storage.ts";
 import { resolveVideoSelection, sameVideoName } from "./videoSelection.ts";
 import type { JobRegistry } from "@deepseek-ai/dsh-jobs";
 import { VideoImports } from "./videoImport.ts";
+import { openExternalPath } from "./openExternalPath.ts";
 import { contentFolder, videoFile } from "./videoFiles.ts";
 import type { VideoImportRequest, VideoImportState } from "./types.ts";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { readdir, realpath, stat } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
 
 import type { Context } from "@deepseek-ai/cordis";
 import { TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
@@ -147,6 +155,7 @@ export class CreatorWorkbenchService extends TypertRemoteService {
   watchedRoot: string | undefined;
   imports = new VideoImports();
   covers: CoverWorkflow;
+  production: ProductionWorkflow;
   importJobs: JobRegistry | undefined;
   previews = new Map<string, { url: string; port: number; pid: number }>();
   videos = new Map<string, { url: string; path: string; close: () => void }>();
@@ -158,6 +167,12 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     this.dataDir = resolveUserPath(resolveDataDir(config));
     this.subtitleSkillDirConfig = config.subtitleSkillDir;
     this.coverSkillDirConfig = config.coverSkillDir;
+    this.production = new ProductionWorkflow({ dataDir: this.dataDir,
+      published: async (scope, record) => { if (record.platform === "official-account") return; const platform = record.platform; await this.patchItem(scope.id, (item) => { item.publish ??= {}; item.publish[platform] = { status: "published", verifiedAccountId: record.accountId, remoteId: record.remoteId, ...(record.url ? { url: record.url } : {}), ...(record.syncedAt ? { syncedAt: record.syncedAt } : {}) }; }, new AbortController().signal, scope.folderPath); },
+      platforms: async () => (await loadOverlay(this.dataDir)).profile?.enabledPlatforms ?? emptyProfile().enabledPlatforms,
+      resolve: async (scope) => { const detail = await this.getContent({ id: scope.id }, new AbortController().signal); if (detail.folderPath !== scope.folderPath) throw new Error("资料位置已切换，请重新打开内容。"); return detail; },
+      key: (ref) => resolveWorkbenchCredential(this.ctx, ref), hasKey: (ref) => workbenchCredentialConfigured(this.ctx, ref), setKey: (ref, value) => saveWorkbenchCredential(this.ctx, ref, value), jobs: () => this.importJobs, changed: () => this.invalidateCatalog(),
+    });
     this.covers = new CoverWorkflow({ dataDir: this.dataDir,
       resolve: async (scope) => {
         const detail = await this.getContent({ id: scope.id }, new AbortController().signal);
@@ -172,6 +187,7 @@ export class CreatorWorkbenchService extends TypertRemoteService {
       this.stopWatch();
       this.imports.dispose();
       this.covers.dispose();
+      this.production.dispose();
       await this.stopServers();
     }, "creator-workbench: library watch");
   }
@@ -272,7 +288,7 @@ export class CreatorWorkbenchService extends TypertRemoteService {
       if (this.cache?.libraryRoot === libraryRoot) {
         return { overlay, libraryRoot, items: this.cache.items };
       }
-      const items = await scanLibrary(libraryRoot, overlay);
+      const items = await Promise.all((await scanLibrary(libraryRoot, overlay)).map((item) => projectProduction(item, this.dataDir)));
       this.cache = { libraryRoot, items };
       return { overlay, libraryRoot, items };
     });
@@ -293,20 +309,71 @@ export class CreatorWorkbenchService extends TypertRemoteService {
   ): Promise<ListContentsResult> {
     signal.throwIfAborted();
     const { overlay, libraryRoot, items: scanned } = await this.scanned();
-    const items = scanned.filter((item) =>
+    const hidden = new Set(removedContentIds(overlay, libraryRoot));
+    const visible = scanned.filter((item) => !hidden.has(item.id));
+    const items = visible.filter((item) =>
       matchesFilter(item, request.filter) && matchesQuery(item, request.query)
     );
     return {
       settings: await this.settingsOf(libraryRoot, overlay),
       items,
-      counts: countsOf(scanned),
+      removedItems: scanned.filter((item) => hidden.has(item.id)),
+      counts: countsOf(visible),
       revision: this.catalogRevision,
     };
   }
 
+  async setContentVisibility(request: { id: string; folderPath: string; hidden: boolean }, signal: AbortSignal): Promise<ListContentsResult> {
+    await this.projectAction({ ...request, action: request.hidden ? "remove" : "join" }, signal);
+    return this.listContents({ query: "", filter: "all" }, signal);
+  }
+
+  async projectAction(request: { id: string; folderPath: string; action: "inspect" | "remove" | "join"; cancelTasks?: boolean }, signal: AbortSignal): Promise<{ tasks: string[]; removed: boolean }> {
+    signal.throwIfAborted();
+    const { libraryRoot, overlay } = await this.scanned();
+    const folder = await contentFolder(request.action === "inspect" ? dirname(request.folderPath) : libraryRoot, request.folderPath);
+    if (basename(folder) !== request.id) throw new Error("项目目录已变化，请刷新后重试。");
+    if (request.action === "join") {
+      await setContentHidden(this.dataDir, libraryRoot, request.id, folder, false); this.invalidateCatalog();
+      return { tasks: [], removed: false };
+    }
+    const production = await readState(folder), cover = await readCoverState(folder);
+    const tasks = production.tasks.filter((t) => ["queued", "running", "waiting-agent"].includes(t.status)).map((t) => t.step ?? ({ upload: "上传视频", article: "文章制作", asr: "语音转文字", metrics: "同步数据", wechat: "公众号草稿" }[t.kind]));
+    tasks.push(...cover.runs.filter((r) => ["preparing", "running"].includes(r.status) || r.status === "waiting_agent" && Boolean(r.deliveredAt || r.frames.length)).map((r) => r.status === "waiting_agent" ? "封面制作请求" : "封面制作"));
+    const imports = [...this.imports.tasks.values()].filter((t) => t.folder === folder && t.state.status === "running");
+    tasks.push(...imports.map(() => "导入视频"));
+    if (request.action === "inspect") return { tasks, removed: removedContentIds(overlay, dirname(folder)).includes(request.id) };
+    if (tasks.length && !request.cancelTasks) throw new Error("项目仍有任务，请确认‘取消任务并移除’。");
+    // Persist the admission barrier first, including when a later host cleanup fails.
+    await setContentHidden(this.dataDir, libraryRoot, request.id, folder, true); this.invalidateCatalog();
+    for (const task of this.production.active.values()) if (task.folder === folder) task.controller.abort();
+    this.covers.active.get(folder)?.controller.abort();
+    for (const task of imports) task.controller.abort();
+    const stoppingDeadline = Date.now() + 10_000;
+    const stillRunning = () => [...this.production.active.values()].some((task) => task.folder === folder) || this.covers.active.has(folder) || imports.some((task) => task.state.status === "running");
+    while (stillRunning() && Date.now() < stoppingDeadline) { signal.throwIfAborted(); await new Promise((resolve) => setTimeout(resolve, 50)); }
+    if (stillRunning()) throw new Error("项目已停止接收新任务，部分本地任务尚未确认结束。请稍后重试移除；现有文件和远端结果保留。");
+    await updateState(folder, (state) => { for (const task of state.tasks) if (["queued", "running", "waiting-agent"].includes(task.status)) { task.status = task.status === "running" && (task.kind === "upload" || task.kind === "wechat") ? "unconfirmed" : "cancelled"; task.error = "项目已移除；已完成文件保留，远端结果未撤回。"; task.updatedAt = Date.now(); } });
+    await coverLock(folder, async () => { const state = await readCoverState(folder); for (const run of state.runs) if (["waiting_agent", "preparing", "running"].includes(run.status)) { run.status = this.covers.active.has(folder) ? "unconfirmed" : "cancelled"; run.updatedAt = Date.now(); } await writeCoverState(folder, state); });
+    this.videos.get(request.id)?.close(); this.videos.delete(request.id);
+    this.invalidateCatalog();
+    return { tasks, removed: true };
+  }
+
+  async restoreProjectSession(request: { id: string; folderPath: string; sessionId: string }, signal: AbortSignal): Promise<Record<string, never>> {
+    const detail = await this.getContent({ id: request.id }, signal);
+    const folder = await contentFolder(dirname(detail.folderPath), request.folderPath);
+    if (await realpath(detail.folderPath) !== await realpath(folder)) throw new Error("项目位置已变化，请刷新后重新加入。");
+    await restoreProjectSessionMembership(this.ctx, folder, request.sessionId, signal);
+    return {};
+  }
+
   async getContent(request: IdRequest, signal: AbortSignal): Promise<ContentDetail> {
     signal.throwIfAborted();
-    const item = await this.find(request.id);
+    const catalog = await this.scanned();
+    if (removedContentIds(catalog.overlay, catalog.libraryRoot).includes(request.id)) throw new Error("此项目已从工作台移除，请通过‘使用已有目录’重新加入。");
+    const found = await this.find(request.id);
+    const item = found ? await projectProduction(found, this.dataDir) : undefined;
     if (item === undefined) {
       throw new Error(`content not found: ${request.id}`);
     }
@@ -348,7 +415,7 @@ export class CreatorWorkbenchService extends TypertRemoteService {
 
   async getArticleMedia(request: IdRequest, signal: AbortSignal): Promise<ArticleMediaResult> {
     signal.throwIfAborted();
-    const item = await this.find(request.id);
+    const item = await this.getContent(request, signal);
     if (item?.articlePath === undefined) return { found: false, origin: "" };
     const root = dirname(item.articlePath);
     const existing = this.articles.get(request.id);
@@ -363,7 +430,8 @@ export class CreatorWorkbenchService extends TypertRemoteService {
 
   async getSubtitleText(request: IdRequest, signal: AbortSignal): Promise<SubtitleTextResult> {
     signal.throwIfAborted();
-    const item = await this.find(request.id);
+    const found = await this.find(request.id);
+    const item = found ? await projectProduction(found, this.dataDir) : undefined;
     if (item === undefined) return { text: "", cues: [] };
     const cues = await readSubtitleCues(item);
     const text = cues.length > 0 ? cues.map((cue) => cue.text).join("\n") : await readSubtitleText(item);
@@ -569,110 +637,41 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     }
     return this.patchItem(request.id, (item) => {
       item.publish = patchOverlayPublish(item.publish, request.platform, request.status, request.url);
-    }, signal);
+    }, signal, request.folderPath);
   }
 
   async syncPublish(request: SyncPublishRequest, signal: AbortSignal): Promise<SyncPublishResult> {
     signal.throwIfAborted();
     const configured = await loadOverlay(this.dataDir);
-    const enabledPlatforms = configured.profile?.enabledPlatforms ?? emptyProfile().enabledPlatforms;
-    if (request.platform !== undefined && !enabledPlatforms.includes(request.platform)) {
-      throw new Error(`publish platform is disabled: ${request.platform}`);
-    }
-    const platforms = request.platform === undefined ? enabledPlatforms : [request.platform];
-    const scopedId = request.id === undefined || request.id === "" ? undefined : request.id;
-    const cached = await loadCollectCache(this.dataDir);
+    const enabled = configured.profile?.enabledPlatforms ?? emptyProfile().enabledPlatforms;
+    if (request.platform && !enabled.includes(request.platform)) throw new Error(`publish platform is disabled: ${request.platform}`);
+    const platforms = request.platform ? [request.platform] : enabled;
     const { items } = await this.scanned();
-    const scoped = filterMatchItems(items, scopedId);
-    if (scopedId !== undefined && scoped.length === 0) {
-      throw new Error(`content not found: ${scopedId}`);
-    }
-    if (platforms.length === 0) return { matched: 0, platforms: [] };
-    const targets: CollectTarget[] | undefined = scopedId === undefined
-      ? undefined
-      : scoped.map((item) => {
-        const known = knownFromPublish(item.publish);
-        const remoteIds = Object.values(known)
-          .map((row) => row.remoteId)
-          .filter((value): value is string => value !== undefined && value !== "");
-        const urls = Object.values(known)
-          .map((row) => row.url)
-          .filter((value): value is string => value !== undefined && value !== "");
-        const target: CollectTarget = { title: item.title };
-        if (remoteIds.length > 0) target.remoteIds = remoteIds;
-        if (urls.length > 0) target.urls = urls;
-        return target;
-      });
-    let collected: CollectResult;
-    let fromCache = false;
-    const cachedSlice = cached === undefined ? undefined : filterCollected(cached.result, platforms);
-    const cacheCoversPlatforms = cachedSlice !== undefined
-      && platforms.every((platform) => cachedSlice.collected.some((page) => page.platform === platform));
-    if (
-      request.force !== true
-      && cached !== undefined
-      && cacheIsFresh(cached.fetchedAt)
-      && cacheCoversPlatforms
-      && cacheCoversTargets(cachedSlice ?? cached.result, targets, cached.scope)
-    ) {
-      collected = cachedSlice ?? cached.result;
-      fromCache = true;
-    } else {
-      try {
-        collected = await runCollectPublish(collectScriptPath(), signal, {
-          ...(platforms === undefined ? {} : { platforms }),
-          ...(targets === undefined ? {} : { targets }),
-          registryPath: collectRegistryPathForDataDir(this.dataDir),
-        });
-        const merged = scopedId === undefined
-          ? mergeCollected(cached?.result, collected, platforms)
-          : unionCollected(cached?.result, collected);
-        await saveCollectCache(this.dataDir, merged, {
-          scope: nextCollectCacheScope(cached?.scope, scopedId !== undefined),
-        });
-        collected = filterCollected(merged, platforms);
-      } catch (cause) {
-        if (signal.aborted || (cause instanceof Error && cause.name === "AbortError")) throw cause;
-        if (
-          cached === undefined
-          || !cacheIsFresh(cached.fetchedAt)
-          || !cacheCoversPlatforms
-          || !cacheCoversTargets(cachedSlice ?? cached.result, targets, cached.scope)
-        ) {
-          throw cause;
+    const targets = request.id ? items.filter((item) => item.id === request.id) : items;
+    if (request.id && !targets.length) throw new Error(`content not found: ${request.id}`);
+    const result: SyncPublishResult = { matched: 0, platforms: [] };
+    for (const platform of platforms) {
+      let count = 0; const errors: string[] = [];
+      for (const item of targets) {
+        const startedAt = Date.now(), scope = { id: item.id, folderPath: item.folderPath };
+        const started = await this.production.action({ ...scope, action: "refresh-metrics", platform }, signal);
+        const task = [...started.tasks].reverse().find((row) => row.kind === "metrics");
+        while (task && this.production.active.has(task.id) && Date.now() - startedAt < 185_000) {
+          if (signal.aborted) this.production.active.get(task.id)?.controller.abort();
+          signal.throwIfAborted();
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
-        collected = cachedSlice ?? cached.result;
-        fromCache = true;
+        if (task && this.production.active.has(task.id)) throw new Error(`同步仍在后台处理，请查询原任务 ${task.id}，未另建任务。`);
+        const latest = await this.production.state(scope);
+        const matches = latest.metrics.filter((row) => row.platform === platform && row.state === "ok" && (row.syncedAt ?? 0) >= startedAt);
+        count += matches.length;
+        const finished = task && latest.tasks.find((row) => row.id === task.id);
+        if (finished?.error) errors.push(finished.error);
       }
+      result.matched += count;
+      result.platforms.push({ platform, count, ...(errors.length ? { error: errors.join("；") } : {}) });
     }
-    const matches = matchCollected(
-      scoped.map((item) => ({
-        id: item.id,
-        title: item.title,
-        known: knownFromPublish(item.publish),
-      })),
-      collected.collected,
-    );
-    await withOverlayLock(this.dataDir, async () => {
-      const latest = await loadOverlay(this.dataDir);
-      latest.items = applyMatchesToOverlay(latest.items, matches);
-      await saveOverlay(this.dataDir, latest);
-      this.invalidateCatalog();
-    });
-    const result: SyncPublishResult = {
-      matched: matches.length,
-      platforms: collected.collected.map((page) => {
-        const row: SyncPublishResult["platforms"][number] = {
-          platform: page.platform,
-          count: page.items.length,
-        };
-        if (page.loginRequired === true) row.loginRequired = true;
-        if (page.error !== undefined && page.error !== "") row.error = page.error;
-        return row;
-      }),
-    };
-    if (fromCache) result.cached = true;
-    return result;
+    this.invalidateCatalog(); return result;
   }
 
   async openSubtitlePreview(
@@ -770,25 +769,16 @@ export class CreatorWorkbenchService extends TypertRemoteService {
 
   async startSubtitleGenerate(request: IdRequest, signal: AbortSignal): Promise<ContentDetail> {
     signal.throwIfAborted();
-    const item = await this.find(request.id);
-    if (item === undefined) throw new Error(`content not found: ${request.id}`);
-    if (item.subtitleJob.status === "running" && jobPidMatches(item.subtitleJob.pid, JOB_COMMAND.subtitleJob)) {
-      return this.getContent({ id: request.id }, signal);
-    }
-    if (item.burn.status === "running" && jobPidMatches(item.burn.pid, JOB_COMMAND.burn)) {
-      return this.getContent({ id: request.id }, signal);
-    }
-    const subtitleKey = await resolveCreatorSecret(this.ctx, "subtitle");
-    if (subtitleKey === undefined) throw new Error(missingSecretMessage("subtitle"));
-    const skill = await this.subtitleSkill();
-    const workflow = await pickSubtitleWorkflow(item, skill.root);
-    const env: Record<string, string> = { ...secretEnv("subtitle", subtitleKey) };
-    return this.startChainedJob(request.id, "subtitleJob", {
-      python: skill.python,
-      steps: workflow.steps,
-      env,
-    }, signal);
+    const detail = await this.getContent(request, signal);
+    await this.production.action({ id: request.id, folderPath: detail.folderPath, action: "transcribe" }, signal);
+    return this.getContent(request, signal);
   }
+
+  async getProductionSettings(_request: Record<string, never>, signal: AbortSignal): Promise<ProductionSettingsView> { signal.throwIfAborted(); return this.production.settings(); }
+  async productionSettingsAction(request: ProductionSettingsAction, signal: AbortSignal): Promise<ProductionSettingsView> { return this.production.settingsAction(request, signal); }
+  async getProductionState(request: ContentScope, signal: AbortSignal): Promise<ProductionState> { signal.throwIfAborted(); return this.production.state(request); }
+  async productionAction(request: ProductionAction, signal: AbortSignal): Promise<ProductionState> { return this.production.action(request, signal); }
+  async getProductionPreview(request: ContentScope & { taskId?: string; articleFile?: string }, signal: AbortSignal): Promise<{ html: string; path: string }> { signal.throwIfAborted(); return this.production.preview(request, request, signal); }
 
   async startCoverGenerate(_request: IdRequest & { title?: string }, _signal: AbortSignal): Promise<ContentDetail> {
     throw new Error("请使用‘让 Agent 制作封面’；由 Harness 当前 Agent 分析后调用新的封面工具。");
@@ -937,6 +927,11 @@ export class CreatorWorkbenchService extends TypertRemoteService {
   ): Promise<void> {
     const signal = new AbortController().signal;
     const detail = await this.getContent({ id }, signal);
+    if (field === "subtitleJob" && this.production) {
+      const state = await this.production.state({ id, folderPath: detail.folderPath });
+      const task = [...state.tasks].reverse().find((row) => row.kind === "asr" && ["running", "queued"].includes(row.status));
+      if (task) { await this.production.action({ id, folderPath: detail.folderPath, action: "cancel", taskId: task.id }, signal); return; }
+    }
     const job = detail[field];
     if (job.status !== "running") return;
     await terminateOwnedProcess(job.pid, JOB_COMMAND[field]);
@@ -953,13 +948,15 @@ export class CreatorWorkbenchService extends TypertRemoteService {
   }
 
   async find(id: string) {
-    const { items } = await this.scanned();
+    const { items, overlay, libraryRoot } = await this.scanned();
+    if (removedContentIds(overlay, libraryRoot).includes(id)) return undefined;
     return items.find((item) => item.id === id);
   }
 
   async saveVideoSelection(libraryRoot: string, id: string, name: string, allowRestore = true): Promise<void> {
     await withOverlayLock(this.dataDir, async () => {
       const overlay = await loadOverlay(this.dataDir);
+      if (removedContentIds(overlay, libraryRoot).includes(id)) throw new Error("项目已移除，导入文件保留但未更改选择。");
       if (!allowRestore && ((overlay.libraryRoot ?? this.libraryRoot) !== libraryRoot || overlay.hiddenVideos?.[libraryRoot]?.[id]?.some((n) => sameVideoName(n, name, process.platform === "win32")))) throw new Error("资料库或视频可见性已变化，请刷新后重选。");
       overlay.videoSelections ??= {};
       overlay.videoSelections[libraryRoot] ??= {};
@@ -1067,9 +1064,13 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     id: string,
     mutate: (item: OverlayItem) => void,
     signal: AbortSignal,
+    expectedFolder?: string,
   ): Promise<ContentDetail> {
     await withOverlayLock(this.dataDir, async () => {
       const overlay = await loadOverlay(this.dataDir);
+      const root = overlay.libraryRoot ?? this.libraryRoot;
+      if (removedContentIds(overlay, root).includes(id)) throw new Error("项目已移除，请重新加入后操作。");
+      if (expectedFolder && basename(await contentFolder(root, expectedFolder)) !== id) throw new Error("资料位置已变化，结果未写回。");
       const current = overlay.items[id] ?? {};
       const next = { ...current };
       mutate(next);
@@ -1173,22 +1174,6 @@ async function reconcileOverlayBurns(overlay: OverlayStore): Promise<OverlayStor
     items[id] = nextItem;
   }
   return dirty ? { ...overlay, items } : undefined;
-}
-
-function openExternalPath(path: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const command = process.platform === "darwin"
-      ? { file: "open", args: [path] }
-      : process.platform === "win32"
-        ? { file: "explorer.exe", args: [path] }
-        : { file: "xdg-open", args: [path] };
-    const child = spawn(command.file, command.args, { stdio: "ignore" });
-    child.once("error", reject);
-    child.once("exit", (code) => {
-      if (code === 0 || code === null) resolve();
-      else reject(new Error(`${command.file} failed: ${code}`));
-    });
-  });
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {

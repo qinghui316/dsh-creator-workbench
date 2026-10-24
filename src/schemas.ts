@@ -50,6 +50,7 @@ const platformPublishSchema = z.object({
   likes: z.number().optional(),
   comments: z.number().optional(),
   syncedAt: z.number().optional(),
+  verifiedAccountId: z.string().optional(),
 });
 
 const contentPublishSchema = z.object(
@@ -135,6 +136,7 @@ export const listContentsRequestSchema = z.object({
 export const listContentsResultSchema = z.object({
   settings: librarySettingsSchema,
   items: z.array(contentSummarySchema),
+  removedItems: z.array(contentSummarySchema).optional(),
   counts: z.object({
     total: z.number().int().nonnegative(),
     cover: z.number().int().nonnegative(),
@@ -187,6 +189,7 @@ export const subtitleTextResultSchema = z.object({
 });
 
 export const setPublishRequestSchema = z.object({
+  folderPath: z.string().min(1).optional(),
   id: z.string().min(1),
   platform: publishPlatformSchema,
   status: publishMarkSchema,

@@ -113,7 +113,7 @@
   display: block;
   padding: 5px 8px;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   list-style: none;

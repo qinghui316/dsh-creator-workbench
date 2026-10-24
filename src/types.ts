@@ -12,6 +12,7 @@ export type PublishMark = "unpublished" | "draft" | "published";
 export type PublishSource = "none" | "publisher" | "overlay" | "sync";
 
 export interface PublishMetrics {
+  verifiedAccountId?: string;
   views?: number;
   likes?: number;
   comments?: number;
@@ -174,8 +175,11 @@ export interface ListContentsRequest {
 }
 
 export interface ListContentsResult {
+  /** Client-side public-host cleanup feedback; never a replacement for the content list. */
+  cleanupWarnings?: string[];
   settings: LibrarySettings;
   items: ContentSummary[];
+  removedItems?: ContentSummary[];
   counts: LibraryCounts;
   revision: number;
 }
@@ -237,6 +241,7 @@ export interface OverlayItem {
 }
 
 export interface SetPublishRequest {
+  folderPath?: string;
   id: string;
   platform: PublishPlatform;
   status: PublishMark;
@@ -269,6 +274,7 @@ export interface OverlayStore {
   schemaVersion: 1;
   videoSelections?: Record<string, Record<string, string | null>>;
   hiddenVideos?: Record<string, Record<string, string[]>>;
+  hiddenContents?: Record<string, string[]>;
   libraryRoot?: string;
   profile?: CreatorProfile;
   scriptRules?: string;
