@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-25T13:35:00.965027+00:00",
+  "generatedAt": "2026-10-25T13:46:29.845614+00:00",
   "title": "Design System: 创作工作台",
   "extensions": {
     "colorMeta": {
@@ -268,14 +268,14 @@
     {
       "name": "项目图片网格",
       "kind": "custom",
-      "description": "图片页按需读取项目图片，缩略图保留比例；尺寸和移除相邻，在业务区内预览。浅色为图片增加可见边界与悬停反馈。片段展示读取占位。",
+      "description": "项目图片在所属业务区分组浏览；点击图片进入DSH内容视口中央图片层，预览与移除分开。",
       "html": "<section class=\"ds-gallery\" aria-label=\"项目图片\"><div class=\"ds-image-item\"><button class=\"ds-image-button\" type=\"button\" aria-label=\"预览项目图片\"><span>读取图片…</span></button><div class=\"ds-image-meta\"><span>1024×1365</span><button type=\"button\">移除</button></div></div><div class=\"ds-image-item\"><button class=\"ds-image-button\" type=\"button\" aria-label=\"预览项目图片\"><span>读取图片…</span></button><div class=\"ds-image-meta\"><span>1536×1024</span><button type=\"button\">移除</button></div></div></section>",
       "css": ".ds-gallery{container-type:inline-size;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin:14px 0;color:var(--dsw-alias-label-primary)}.ds-image-item{min-width:0}.ds-image-button{display:block;width:100%;min-height:130px;padding:0;border:0;border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer}.ds-image-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:5px;font-size:12px;color:var(--dsw-alias-label-secondary)}.ds-image-meta button{height:28px;padding:0 10px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:inherit;font-size:12px;cursor:pointer}.ds-image-meta button:hover{background:var(--dsw-alias-interactive-bg-hover)}.ds-gallery button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
     }
   ],
   "narrative": {
     "northStar": "原生创作工具",
-    "overview": "这是一套在 Windows DSH Desktop 中完成内容整理与编辑的操作界面。视觉延续宿主的文字、主题和按钮语言，以简洁的 Beaver 式表单分组、连续历史列表和真实媒体预览组织任务。密度紧凑，标题克制，主要动作通过原生按钮与清晰文案建立层级。\n\n本文件记录 0.6.0 当前工作区源码中可复用的视觉与交互规则，面向 Windows 原生操作场景。宿主提供字体与主题变量，插件不另建固定品牌色或字体栈。原生对话与业务区的分栏、业务区左侧项目历史与右侧详情，是承载这套视觉系统的现有布局。概览直接呈现已有成果，视频、脚本、字幕、文章、图片与发布各有所属编辑页面，同一项目中的共用成果和平台材料保持清楚的边界。新增页面与交互的本机验收另行记录。",
+    "overview": "这是一套在 Windows DSH Desktop 中完成内容整理与编辑的操作界面。视觉延续宿主的文字、主题和按钮语言，以简洁的 Beaver 式表单分组、连续历史列表和真实媒体预览组织任务。密度紧凑，标题克制，主要动作通过原生按钮与清晰文案建立层级。\n\n本文件记录 0.7.1 工作区源码中可复用的视觉与交互规则，面向 Windows 原生操作场景。宿主提供字体与主题变量，插件不另建固定品牌色或字体栈。原生对话与业务区的分栏、业务区左侧项目历史与右侧详情，是承载这套视觉系统的现有布局。概览直接呈现已有成果，视频、脚本、字幕、文章、图片与发布各有所属编辑页面，同一项目中的共用成果和平台材料保持清楚的边界。新增页面与交互的本机验收另行记录。",
     "keyCharacteristics": [
       "继承宿主语义主题，浅色局部增强分区、边界、悬停与选中关系。",
       "正文、说明与详情标题形成紧凑的三级文字关系。",
@@ -298,7 +298,7 @@
       },
       {
         "name": "The Owning Container Rule",
-        "body": "响应式变化由实际业务容器决定；同时保留原生对话与业务区、项目栏与详情的关系，局部预览在所属业务区中展开。",
+        "body": "响应式变化由实际业务容器决定；同时保留原生对话与业务区、项目栏与详情的关系，正文编辑和辅助面板在所属业务区内展开，图片查看使用居中的视口弹层。",
         "section": "layout"
       },
       {
@@ -318,7 +318,7 @@
     ],
     "donts": [
       "**Don't** 从单张浅色截图推导固定主题色或自行指定宿主字体。",
-      "**Don't** 让局部预览遮住原生导航或对话区。",
+      "**Don't** 让辅助编辑面板越出业务区；图片弹层关闭后恢复原界面与焦点。",
       "**Don't** 用装饰性大标题或密集卡片边框替换当前紧凑表单与连续行。",
       "**Don't** 以窄容器为由隐藏项目栏或把项目与详情改成互斥页面。",
       "**Don't** 为局部界面调整全局字体、字号或缩放。"

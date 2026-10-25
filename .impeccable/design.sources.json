@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-25T13:35:00.965027+00:00",
+  "generatedAt": "2026-10-25T13:46:29.845614+00:00",
   "sourceRoot": ".",
   "method": "scan",
   "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
@@ -193,7 +193,7 @@
     },
     {
       "path": "DESIGN.md",
-      "sha256": "becabbd5a32ba63ea0caad9a3c0c09db24caa3614d7b7a8d61e28ee895e760d7"
+      "sha256": "d34c70d921f3e1caa76fc255431941ca72196b684e0972f9f1b6d68a26ea58e3"
     },
     {
       "path": "src/client/InteractionPolish.css",
@@ -349,11 +349,11 @@
   "artifacts": [
     {
       "path": "DESIGN.md",
-      "sha256": "a1cd20d559bf1b5a1dfc5d67e4f89bc3202e85e6af7243c34c10538d9082a525"
+      "sha256": "d34c70d921f3e1caa76fc255431941ca72196b684e0972f9f1b6d68a26ea58e3"
     },
     {
       "path": ".impeccable/design.json",
-      "sha256": "7c5147eee092f4be5dff1fd156fab14a6ad926a337dbb0ea6bbd32e25ca50698"
+      "sha256": "d3aba245805ed978bdc3c053c21ec5363beae0b0a236fd8f1a5f7afbbfb7c655"
     }
   ],
   "evidenceMap": {
@@ -385,10 +385,15 @@
     "stateAndFocus": [
       "src/client/ui/SectionPanel.tsx",
       "src/client/CreatorSettingsCard.tsx",
-      "src/client/CoverPanel.tsx"
+      "src/client/CoverPanel.tsx",
+      "src/client/ImagePreview.tsx",
+      "src/client/ui/SecretInput.tsx"
     ],
     "motion": [
-      "src/client/sidebar/ContentSidebarPanel.css"
+      "src/client/sidebar/ContentSidebarPanel.css",
+      "src/client/InteractionPolish.css",
+      "src/client/ui/SelectionRail.tsx",
+      "src/client/ImagePreview.css"
     ],
     "sharedAssetsAndPlatformMaterials": [
       "src/client/ImageLibraryPanel.tsx",
@@ -431,18 +436,22 @@
       "src/client/WorkbenchContrast.css",
       "src/client/ui/ActionButton.tsx",
       "src/client/CreatorWorkbench.tsx"
+    ],
+    "imageLightbox": [
+      "src/client/ImagePreview.tsx",
+      "src/client/ImagePreview.css",
+      "src/client/imageDescriptors.ts",
+      "src/client/ArticlePreview.tsx"
     ]
   },
   "generator": "Impeccable v4.1.1 reference/document.md Step 4b schema; shipped parseDesignMd validates and extracts narrative. This version ships no sidecar generator CLI.",
   "scope": "Visual and implemented interaction documentation with scoped native UI and local installation evidence. Remote publishing acceptance follows its separate Change evidence and is not inferred from these captures.",
-  "renderedEvidenceScope": "v060 原生证据覆盖成果概览、视频与图片预览、逐份平台状态、文章预览及新版本、图片页、原生Agent读取来源与保存版本两工具、深色界面及最终浅色增强。light-contrast-loaded记录分区/项目选中/页签，light-contrast-hover记录真实管理按钮悬停，final-agent-revision-visible记录Agent新版本在文章页可见。320/520/800 CSS px概览以geometry.json实测为准，布局已恢复、zoom为1；当前跟随系统浅色，宿主字体与缩放保持。执行方已核对Agent版本继承手工版本，18个原文件哈希一致，最终包49文件逐字节安装并完整退出重开；已安装版本、运行条目及切换入口使用各自截图。",
   "reviewEvidence": [
     {
       "path": ".impeccable/review/v050/finish-review-final.md",
       "sha256": "249bf8e5e1c44904ac880108e260ca3ebec1951e6a3fbda8a780561af308d210"
     }
   ],
-  "styleResolution": "0.7.0 browser supplement: light/dark320/520/800have no horizontal overflow; project rail remains visible,14px/zoom1. Hover and2pxfocus distinct. Dark monochrome Douyin mark confirmed white. Modal images/keyboard and existing article/WeWrite local preview checked; native shell not substituted.",
   "geometryEvidence": [
     {
       "path": ".impeccable/review/v060/geometry.json",
@@ -452,21 +461,6 @@
       "path": ".impeccable/review/v060/light-final-geometry.json",
       "sha256": "382fabf21deec78873d47dbe61645b6bc83e6caa3f547e3265380ca11dac1caa"
     }
-  ],
-  "localInstallation": {
-    "version": "0.7.0",
-    "packageFile": ".artifacts/dsh-creator-workbench-0.7.0-f38d13cc0c84.tgz",
-    "sha256": "f38d13cc0c8432a039280ed6072ade1308dd82036587b63784848125100ed97f",
-    "installedFileCount": 50,
-    "byteVerification": "All50installed files match; current rendered local-service asset contains complete installed client bytes.",
-    "browserEvidence": [
-      ".artifacts/v070-browser-acceptance/installed-running-browser.png",
-      ".artifacts/v070-browser-acceptance/switch-menu-browser.png"
-    ],
-    "nativeEvidence": []
-  },
-  "nativeUnverified": [
-    "0.7.0 native Desktop shell window/theme/geometry/loaded-state observation; tool reports no targetable DSH window."
   ],
   "v070NativeStatus": "pending after user foreground/maximized and fresh desktop-tool connection; browser supplement explicitly separate.",
   "historicalNativeInstallation": {
@@ -561,5 +555,41 @@
       "path": ".artifacts/v071-native/final-switch.jpg",
       "sha256": "185bb8a0ffc9db8f5815b8c71082dedd10ce9313f257bfcc8ece87d471aff7b6"
     }
-  ]
+  ],
+  "historicalV070LocalInstallation": {
+    "version": "0.7.0",
+    "packageFile": ".artifacts/dsh-creator-workbench-0.7.0-f38d13cc0c84.tgz",
+    "sha256": "f38d13cc0c8432a039280ed6072ade1308dd82036587b63784848125100ed97f",
+    "installedFileCount": 50,
+    "byteVerification": "All50installed files match; current rendered local-service asset contains complete installed client bytes.",
+    "browserEvidence": [
+      ".artifacts/v070-browser-acceptance/installed-running-browser.png",
+      ".artifacts/v070-browser-acceptance/switch-menu-browser.png"
+    ],
+    "nativeEvidence": []
+  },
+  "historicalV070NativeUnverified": [
+    "0.7.0 native Desktop shell window/theme/geometry/loaded-state observation; tool reports no targetable DSH window."
+  ],
+  "historicalV070StyleResolution": "0.7.0 browser supplement: light/dark320/520/800have no horizontal overflow; project rail remains visible,14px/zoom1. Hover and2pxfocus distinct. Dark monochrome Douyin mark confirmed white. Modal images/keyboard and existing article/WeWrite local preview checked; native shell not substituted.",
+  "historicalV070RenderedEvidenceScope": "v060 原生证据覆盖成果概览、视频与图片预览、逐份平台状态、文章预览及新版本、图片页、原生Agent读取来源与保存版本两工具、深色界面及最终浅色增强。light-contrast-loaded记录分区/项目选中/页签，light-contrast-hover记录真实管理按钮悬停，final-agent-revision-visible记录Agent新版本在文章页可见。320/520/800 CSS px概览以geometry.json实测为准，布局已恢复、zoom为1；当前跟随系统浅色，宿主字体与缩放保持。执行方已核对Agent版本继承手工版本，18个原文件哈希一致，最终包49文件逐字节安装并完整退出重开；已安装版本、运行条目及切换入口使用各自截图。",
+  "localInstallation": {
+    "version": "0.7.1",
+    "packageFile": ".artifacts/dsh-creator-workbench-0.7.1-a7f329dad04c.tgz",
+    "sha256": "a7f329dad04c975d12c855d29bcb6efc36b8d8e17defbb8b6c429ca13e6bc03d",
+    "installedFileCount": 50,
+    "byteVerification": "All50 final installed files match; native details show final package source and running0.7.1.",
+    "nativeEvidence": [
+      ".artifacts/v071-native/final-installed.jpg",
+      ".artifacts/v071-native/final-switch.jpg",
+      ".artifacts/v071-native/final-business.jpg",
+      ".artifacts/v071-native/final-central-lightbox.jpg"
+    ]
+  },
+  "nativeUnverified": [
+    "Exhaustive native OS/DPI/theme/window-size matrix; browser CSS-size/theme supplement is separately identified.",
+    "Older Desktop fallback is unit-covered; current Desktop uses its public headless Modal."
+  ],
+  "styleResolution": "0.7.1 native light normal window: centered stable media, safe close control, business split and loaded final source confirmed. Same-local-service browser42 cases cover two themes and320/520/800CSSpx without overflow, reduced motion and focus/scroll. Transition/loading frames excluded.",
+  "renderedEvidenceScope": "Current0.7.1 native and browser evidence are separate. See currentNativeEvidence and .artifacts/v071-browser/ JSON. Native confirms final package and image layer; browser provides exact CSS widths, theme and iframe-focus checks."
 }
