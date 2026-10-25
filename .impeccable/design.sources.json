@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-25T13:46:29.845614+00:00",
+  "generatedAt": "2026-10-25T18:24:37.066955+00:00",
   "sourceRoot": ".",
   "method": "scan",
   "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
-  "authority": "Approved0.7.1 design; current source, independent code/visual review, installed-byte proof, real native DSH window and same-local-service browser supplement. Historical0.7.0 deferral remains historical.",
-  "hostValues": "Font family, basic theme colors and dark appearance remain owned by DSH. Six approved light-only local role colors are extracted exactly from WorkbenchContrast.css, without synthesized tonal ramps. Existing 16px/600/24px project heading is documented from InternalUi.css.",
+  "authority": "Approved0.7.2 source and measured same-local-service browser geometry/keyboard evidence. Native0.7.2 checks remain pending; prior0.7.1 native proof is historical only.",
+  "hostValues": "Host font/zoom/chrome and18px outer business inset unchanged. Plugin header approximately40px, controls28px/fields36px, title16px from ContentInspector.css. Six light role colors and existing video backdrop are extracted source facts.",
   "sourceFiles": [
     {
       "path": "PRODUCT.md",
-      "sha256": "7c9efe07fdddac129019e4aa05440751c8695d045883fd0656db1c4b63ce81ef"
+      "sha256": "66f984465d9ee8dcc89e7952299925ad71f683f089da71422c29811f65f93d8e"
     },
     {
       "path": "src/client/InternalUi.css",
-      "sha256": "2596b93cb46fd02f8123e6c265abd6d71730422735203cccdc31d3a5655d1cfa"
+      "sha256": "e01815cd68616e3b2f2d8a83e1a66013985a988c4c36c1a9d519e81298a11c10"
     },
     {
       "path": "src/client/CreatorWorkbench.css",
-      "sha256": "a96dc43911f604f35c864802e375f11dd5e909544d5e9dca0d71405aecf31bd8"
+      "sha256": "454379d9ef93b78f9f84bc7e18cc2ceaa939df2b60f3689844cc5fd61e7fa888"
     },
     {
       "path": "src/client/CoverPanel.css",
@@ -29,11 +29,11 @@
     },
     {
       "path": "src/client/CreatorSettingsCard.css",
-      "sha256": "d213e1e1776553dd40e7843d55da6edbd1aa95efb4d17ebe993172f4c38170fb"
+      "sha256": "c40696e2f2ea2bf1c38075397e95def0d9c24f88ebefad2c133e23db4d5d98fe"
     },
     {
       "path": "src/client/ContentInspector.css",
-      "sha256": "fec70d9696638dd60af1188a3b928cb1bd09c6c635e5d31393f55efe1084cb91"
+      "sha256": "9a4dc05ea862dbc6668d5ea504bd2dc5b61a875a7b54e78b8f430af1aee6183c"
     },
     {
       "path": "src/client/ui/ActionButton.tsx",
@@ -49,11 +49,11 @@
     },
     {
       "path": "src/client/CreatorWorkbench.tsx",
-      "sha256": "148fc096ff0e8a79cae1454470d10ca5bea0ff6dc07b21058521e573df83abf2"
+      "sha256": "64bdce489af2244c8d3520011fa7235d72733df93e87bef4fefd3ad806d8bf72"
     },
     {
       "path": "src/client/ContentInspector.tsx",
-      "sha256": "8f5613b6b61ce27e0cf8f32960ca47a4cd12548c98cc467c265b070835174a10"
+      "sha256": "4b16a66b218538a17e972b75b4449b0314da1fb705a35f8a7d6917300585ba58"
     },
     {
       "path": "src/client/CoverPanel.tsx",
@@ -81,7 +81,7 @@
     },
     {
       "path": "src/client/ProductionPanel.css",
-      "sha256": "00e4120f318ee23a5b6eee3a935a7565d4570cbee25ed1230378edf6253c1f13"
+      "sha256": "6ad765592fa65d99f081e0d8d8d48ed3f618b7955e58e56523dbad19af9ea4d9"
     },
     {
       "path": "src/production/creations.ts",
@@ -93,7 +93,7 @@
     },
     {
       "path": "src/client/ProjectPages.css",
-      "sha256": "1f2e13f27c6d994a998559822eafa1930bb7d59844200f06c1f35e5323d5a5ba"
+      "sha256": "b206d8e660c1be76b65a2d1d5048dc7ac7939d36756b820180405cea0f5102bf"
     },
     {
       "path": "src/client/OverviewPage.tsx",
@@ -101,7 +101,7 @@
     },
     {
       "path": "src/client/ArticlePanel.tsx",
-      "sha256": "68242f8bd46205fecbfa45f360df49979478fe818257c79586dfe5b90238c81f"
+      "sha256": "881505d0319923fb1e6434b2206300e71bf0d8b923820cbcde004f240464e9c3"
     },
     {
       "path": "src/client/ImageLibraryPanel.tsx",
@@ -113,11 +113,11 @@
     },
     {
       "path": "src/client/PublicationPanel.tsx",
-      "sha256": "4896265b85115700322b8d43b69a8618a804a0cf3cd25d9815dba65246ffa4f9"
+      "sha256": "53193d2229b676b95b5eb29b964e2b96dc3f16e7dc054205c9fb8de9adbe839d"
     },
     {
       "path": "src/client/SubtitlePanel.tsx",
-      "sha256": "1988db7edb370307a3e7d11d8d63c591014a63b26eec02a44f0da1d952f8670e"
+      "sha256": "f1eb143a627bcf30cae03f5d68ee93727d4fb554a115648bceaf6754a455de6e"
     },
     {
       "path": "src/client/LegacyPublishingPanel.tsx",
@@ -157,15 +157,15 @@
     },
     {
       "path": "src/client/WorkbenchContrast.css",
-      "sha256": "3709dd5d1910704e507e229b792c30a007b20c614f50545d336a892cba73cab9"
+      "sha256": "00eb84e7f4a908e3dc14206b747d7880e3afc904edb9ce1f4022738e47847bd5"
     },
     {
       "path": "src/client/PublicationPanel.css",
-      "sha256": "4fb4d1036876363a5ea1481e87cae28fd04b14a35c9d62583318c052737c8f2b"
+      "sha256": "cf4b0a124d25e8d63c9f752b35d6ce2897a13c78c424f4c45b70ecc72bbbfc7c"
     },
     {
       "path": "src/client/PublicationEditorPanel.tsx",
-      "sha256": "56ff91be3d199a6251a6eec8fa9b12f320cc329b811fa108718624e675bcc0a4"
+      "sha256": "c9fabc8224d6242aa078ee5770a75af8a5a3b059a8ef6548eba58a5b3d3abe93"
     },
     {
       "path": "src/client/PublicationResults.tsx",
@@ -193,11 +193,11 @@
     },
     {
       "path": "DESIGN.md",
-      "sha256": "d34c70d921f3e1caa76fc255431941ca72196b684e0972f9f1b6d68a26ea58e3"
+      "sha256": "c611acd962960890ed4ff1913449d08e4c0a64c99b733a48cccd4d35d72fc6f4"
     },
     {
       "path": "src/client/InteractionPolish.css",
-      "sha256": "0ef0199bdad50243dc60932b0bffe0966083fdadf5a98ab7dc55dc8873367aa2"
+      "sha256": "d1b8803fd4899a9078f3616048eb4676bb5f33924eed647c2a6a6f87a4440a72"
     },
     {
       "path": "src/client/imageDescriptors.ts",
@@ -209,17 +209,45 @@
     },
     {
       "path": "src/client/ui/SelectionRail.tsx",
-      "sha256": "f6d8bad01213c2e6c72030f72930fe8167a0b87e5bc1f7893066ff3f33d49103"
+      "sha256": "f6d31fc83d5ce2312b700bc0fec11ac4674dbcff105fc6a9f715e483306de7d8"
+    },
+    {
+      "path": "src/client/ui/ActionMenu.tsx",
+      "sha256": "d76a16c19cededcc922defb401a92043052e9acb9e72568bab1bdf43044441b0"
+    },
+    {
+      "path": "src/client/ui/ActionMenu.css",
+      "sha256": "1a30c4835cd363ffaca433d5af6f87d48b48e56b3bf69bcdd83bd9c0351679a5"
+    },
+    {
+      "path": "src/client/publicationReadiness.ts",
+      "sha256": "875d6078c2e54f4d03b7038cee835d30d17feeed87bd00fedf35c5bed2067593"
+    },
+    {
+      "path": "tests/subtitleFeedbackUi.test.ts",
+      "sha256": "7815d2111724d3eb10e8013df84452274e20a759789f6b70ba08115731b255df"
+    },
+    {
+      "path": "tests/publicationReadiness.test.ts",
+      "sha256": "8db1b471867e603d484d9b15445a86184a90105d683710515cede22dcbdfd783"
+    },
+    {
+      "path": "tests/interactionControls.test.ts",
+      "sha256": "b1bcc3823f291c296506a6a55e24b97336e453c9742fbd285767f26b45250b5d"
+    },
+    {
+      "path": "docs/ui-consistency.md",
+      "sha256": "1753b5fbb13cd464c757d1d86426c587fadd8ffd0557b34a452dce96b331c654"
     }
   ],
   "artifacts": [
     {
       "path": "DESIGN.md",
-      "sha256": "d34c70d921f3e1caa76fc255431941ca72196b684e0972f9f1b6d68a26ea58e3"
+      "sha256": "c611acd962960890ed4ff1913449d08e4c0a64c99b733a48cccd4d35d72fc6f4"
     },
     {
       "path": ".impeccable/design.json",
-      "sha256": "d3aba245805ed978bdc3c053c21ec5363beae0b0a236fd8f1a5f7afbbfb7c655"
+      "sha256": "05b6026961187972549fea18ce1e271bc5142cbbbe5876e168d4e480e56eaa1e"
     }
   ],
   "evidenceMap": {
@@ -246,7 +274,9 @@
       "src/projectView.ts",
       "src/client/ContentInspector.tsx",
       "src/client/ContentInspector.css",
-      "src/client/CreatorSettingsCard.tsx"
+      "src/client/CreatorSettingsCard.tsx",
+      "src/client/ui/SelectionRail.tsx",
+      "src/client/ui/ActionMenu.tsx"
     ],
     "stateAndFocus": [
       "src/client/ui/SectionPanel.tsx",
@@ -275,7 +305,9 @@
       "src/client/InternalUi.css",
       "src/client/ArticlePanel.tsx",
       "src/client/PublicationPanel.tsx",
-      "src/client/ImageLibraryPanel.tsx"
+      "src/client/ImageLibraryPanel.tsx",
+      "src/client/publicationReadiness.ts",
+      "src/client/SubtitlePanel.tsx"
     ],
     "overview": [
       "src/client/OverviewPage.tsx",
@@ -326,24 +358,6 @@
     ]
   },
   "historicalNativeFinalConfirmation": "Tab moved focus from service address to empty saved-Key input with clear visible ring. Light business width320/client320/scroll320, body310/310; original width486.125 restored. Plugin font14px, body default16px, zoom1 unchanged.",
-  "currentNativeEvidence": [
-    {
-      "path": ".artifacts/v071-native/final-business.jpg",
-      "sha256": "799739a5350bcc252b01bd52d80f52465bd0a558f161cb6740efcb4af3cea8d4"
-    },
-    {
-      "path": ".artifacts/v071-native/final-central-lightbox.jpg",
-      "sha256": "fc2c66a41012cd6c1d0b13f868bf4be83ba0d4fdebc1b6daa2f8c56c72563e0b"
-    },
-    {
-      "path": ".artifacts/v071-native/final-installed.jpg",
-      "sha256": "de0ed97c2ff40f60c223ec722758d67b4c64f305cc8489b48c6b797cb5d40658"
-    },
-    {
-      "path": ".artifacts/v071-native/final-switch.jpg",
-      "sha256": "185bb8a0ffc9db8f5815b8c71082dedd10ce9313f257bfcc8ece87d471aff7b6"
-    }
-  ],
   "historicalV070LocalInstallation": {
     "version": "0.7.0",
     "packageFile": ".artifacts/dsh-creator-workbench-0.7.0-f38d13cc0c84.tgz",
@@ -360,25 +374,8 @@
     "0.7.0 native Desktop shell window/theme/geometry/loaded-state observation; tool reports no targetable DSH window."
   ],
   "historicalV070StyleResolution": "0.7.0 browser supplement: light/dark320/520/800have no horizontal overflow; project rail remains visible,14px/zoom1. Hover and2pxfocus distinct. Dark monochrome Douyin mark confirmed white. Modal images/keyboard and existing article/WeWrite local preview checked; native shell not substituted.",
-  "localInstallation": {
-    "version": "0.7.1",
-    "packageFile": ".artifacts/dsh-creator-workbench-0.7.1-a7f329dad04c.tgz",
-    "sha256": "a7f329dad04c975d12c855d29bcb6efc36b8d8e17defbb8b6c429ca13e6bc03d",
-    "installedFileCount": 50,
-    "byteVerification": "All50 final installed files match; native details show final package source and running0.7.1.",
-    "nativeEvidence": [
-      ".artifacts/v071-native/final-installed.jpg",
-      ".artifacts/v071-native/final-switch.jpg",
-      ".artifacts/v071-native/final-business.jpg",
-      ".artifacts/v071-native/final-central-lightbox.jpg"
-    ]
-  },
-  "nativeUnverified": [
-    "Exhaustive native OS/DPI/theme/window-size matrix; browser CSS-size/theme supplement is separately identified.",
-    "Older Desktop fallback is unit-covered; current Desktop uses its public headless Modal."
-  ],
-  "styleResolution": "0.7.1 native light normal window: centered stable media, safe close control, business split and loaded final source confirmed. Same-local-service browser42 cases cover two themes and320/520/800CSSpx without overflow, reduced motion and focus/scroll. Transition/loading frames excluded.",
-  "renderedEvidenceScope": "Current0.7.1 native and browser evidence are separate. See currentNativeEvidence and .artifacts/v071-browser/ JSON. Native confirms final package and image layer; browser provides exact CSS widths, theme and iframe-focus checks.",
+  "styleResolution": "Component-owned stable selected styles, local navigation visibility, aligned shell and one-level menus. No Remote/schema changes.",
+  "renderedEvidenceScope": "No usable new screenshot returned yet; no visual PASS inferred from DOM geometry.",
   "historicalRenderedEvidence": [
     {
       "path": ".impeccable/review/01-overview.jpg",
@@ -592,7 +589,8 @@
     }
   ],
   "historicalV060RenderedEvidenceScope": "v060 原生证据覆盖成果概览、视频与图片预览、逐份平台状态、文章预览及新版本、图片页、原生Agent读取来源与保存版本两工具、深色界面及最终浅色增强。light-contrast-loaded记录分区/项目选中/页签，light-contrast-hover记录真实管理按钮悬停，final-agent-revision-visible记录Agent新版本在文章页可见。320/520/800 CSS px概览以geometry.json实测为准，布局已恢复、zoom为1；当前跟随系统浅色，宿主字体与缩放保持。执行方已核对Agent版本继承手工版本，18个原文件哈希一致，最终包49文件逐字节安装并完整退出重开；已安装版本、运行条目及切换入口使用各自截图。",
-  "renderedEvidence": [
+  "browserSupplementScope": "Measured actual CSS widths, themes, menu bounds and reduced motion on same-local DSH service; screenshot capture timed out.",
+  "historicalV071CurrentNativeEvidence": [
     {
       "path": ".artifacts/v071-native/final-business.jpg",
       "sha256": "799739a5350bcc252b01bd52d80f52465bd0a558f161cb6740efcb4af3cea8d4"
@@ -610,7 +608,42 @@
       "sha256": "185bb8a0ffc9db8f5815b8c71082dedd10ce9313f257bfcc8ece87d471aff7b6"
     }
   ],
-  "reviewEvidence": [
+  "historicalV071LocalInstallation": {
+    "version": "0.7.1",
+    "packageFile": ".artifacts/dsh-creator-workbench-0.7.1-a7f329dad04c.tgz",
+    "sha256": "a7f329dad04c975d12c855d29bcb6efc36b8d8e17defbb8b6c429ca13e6bc03d",
+    "installedFileCount": 50,
+    "byteVerification": "All50 final installed files match; native details show final package source and running0.7.1.",
+    "nativeEvidence": [
+      ".artifacts/v071-native/final-installed.jpg",
+      ".artifacts/v071-native/final-switch.jpg",
+      ".artifacts/v071-native/final-business.jpg",
+      ".artifacts/v071-native/final-central-lightbox.jpg"
+    ]
+  },
+  "historicalV071NativeUnverified": [
+    "Exhaustive native OS/DPI/theme/window-size matrix; browser CSS-size/theme supplement is separately identified.",
+    "Older Desktop fallback is unit-covered; current Desktop uses its public headless Modal."
+  ],
+  "historicalV071RenderedEvidence": [
+    {
+      "path": ".artifacts/v071-native/final-business.jpg",
+      "sha256": "799739a5350bcc252b01bd52d80f52465bd0a558f161cb6740efcb4af3cea8d4"
+    },
+    {
+      "path": ".artifacts/v071-native/final-central-lightbox.jpg",
+      "sha256": "fc2c66a41012cd6c1d0b13f868bf4be83ba0d4fdebc1b6daa2f8c56c72563e0b"
+    },
+    {
+      "path": ".artifacts/v071-native/final-installed.jpg",
+      "sha256": "de0ed97c2ff40f60c223ec722758d67b4c64f305cc8489b48c6b797cb5d40658"
+    },
+    {
+      "path": ".artifacts/v071-native/final-switch.jpg",
+      "sha256": "185bb8a0ffc9db8f5815b8c71082dedd10ce9313f257bfcc8ece87d471aff7b6"
+    }
+  ],
+  "historicalV071ReviewEvidence": [
     {
       "path": ".artifacts/v071-independent-visual-review.md",
       "sha256": "1c266e2f26d1c967d666da7cf264d2ca4857c23691948db0f20d250b7fd6c57e"
@@ -620,13 +653,13 @@
       "sha256": "4e7518d581963d4a6ea51b79b5d092df52cd69d4daec58e40d4cc03ebbb4317c"
     }
   ],
-  "geometryEvidence": [
+  "historicalV071GeometryEvidence": [
     {
       "path": ".artifacts/v071-browser/layout-results.json",
       "sha256": "27965eb929bea0b050e1df8891585a0c80af198b4736adcb912c271507764c1f"
     }
   ],
-  "browserSupplement": [
+  "historicalV071BrowserSupplement": [
     {
       "path": ".artifacts/v071-browser/layout-results.json",
       "sha256": "27965eb929bea0b050e1df8891585a0c80af198b4736adcb912c271507764c1f"
@@ -660,5 +693,27 @@
       "sha256": "605f5326c187e6b8642317d5b9bcb7eb1206d19eb39c5ffa2b340547ed3a2fa2"
     }
   ],
-  "browserSupplementScope": "Same-local-service candidate interaction/geometry evidence, with final CSS close-position correction separately confirmed by final native window. These browser captures do not substitute for native or imply final browser asset identity."
+  "renderedEvidence": [],
+  "currentNativeEvidence": [],
+  "nativeUnverified": [
+    "Final0.7.2 installed entry, switch menu and native business window; desktop tools currently expose no DSH window."
+  ],
+  "geometryEvidence": [
+    {
+      "path": ".artifacts/v072-browser-layout.json",
+      "sha256": "849c60cf37fffaa95a4ef3f4550ddde11ce37401cac97917d0a9424e8b06850e"
+    }
+  ],
+  "reviewEvidence": [
+    {
+      "path": ".artifacts/v072-independent-code-review.md",
+      "sha256": "3b4c547b7b5e742cbbb19ddf53b35cc1f252ab301897862cbd442b82cf635ca5"
+    }
+  ],
+  "browserSupplement": [
+    {
+      "path": ".artifacts/v072-browser-layout.json",
+      "sha256": "849c60cf37fffaa95a4ef3f4550ddde11ce37401cac97917d0a9424e8b06850e"
+    }
+  ]
 }
