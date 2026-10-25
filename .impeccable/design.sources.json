@@ -169,11 +169,11 @@
     },
     {
       "path": "src/client/PublicationResults.tsx",
-      "sha256": "582cf72ed34f17eb9c78c3abc9ce1307f8e0f3e202af220f65a4de51de7788a5"
+      "sha256": "971b7c152669d4eefc2abe7ae18fb1924a847561ab60155cdccc904f346f772c"
     },
     {
       "path": "src/client/PublicationHistory.tsx",
-      "sha256": "4c43e0eaa1869487e2830524a83dacfd71367320a05cec805769afda6ea1b75a"
+      "sha256": "27c8518cb28fad0690c66475d82754be1c44e68f59517b948ee9208bbf664d90"
     },
     {
       "path": "src/client/ImagePreview.tsx",

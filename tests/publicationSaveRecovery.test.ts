@@ -66,6 +66,17 @@ describe("durable publication save operations", () => {
 });
 
 describe("account-owned work association", () => {
+  it("starts the first exact-work sync from an uploaded record without previous metrics",async()=>{
+    const f=await fixture(),p=await savePublication(f.folder,input);
+    await updateState(f.folder,s=>{s.publications![0]!.platform="bilibili";s.records=[{id:"legacy-work",publicationId:p.id,revision:1,platform:"xiaohongshu",type:"images",accountId:"A",remoteId:"one",state:"uploaded",updatedAt:1}];});
+    const snapshot=await metricsSnapshot(f.dataDir,f.folder,["xiaohongshu"],"xiaohongshu",undefined,{recordId:"legacy-work",expectedAccountId:"A"});
+    expect(snapshot.metricsTargets).toEqual([{platform:"xiaohongshu",accountId:"A",recordId:"legacy-work",publicationId:p.id,remoteId:"one"}]);expect((await readState(f.folder)).metrics).toEqual([]);
+    const task={id:"first-record-sync",kind:"metrics"as const,status:"running"as const,contentId:"p",folderPath:f.folder,createdAt:1,updatedAt:1,...snapshot};
+    await updateState(f.folder,s=>{s.tasks.push(task);});
+    await runMetricsTask({dataDir:f.dataDir,folder:f.folder,task,signal:new AbortController().signal,detail:{id:"p",title:"t",folderPath:f.folder}as ContentDetail,collect:async()=>[{platform:"xiaohongshu",remoteId:"one",title:"one",views:0}],changed:()=>undefined});
+    const state=await readState(f.folder);expect(state.metrics).toHaveLength(1);expect(state.metrics[0]).toMatchObject({recordId:"legacy-work",accountId:"A",remoteId:"one",views:0,state:"ok"});expect(state.records![0]!.state).toBe("published");
+  });
+
   it("does not rewrite other works when a legacy metric has only a material identity",async()=>{
     const f=await fixture(),p=await savePublication(f.folder,input),task={id:"metrics",kind:"metrics"as const,status:"running"as const,contentId:"p",folderPath:f.folder,createdAt:1,updatedAt:1,metricsTargets:[{platform:"xiaohongshu"as const,accountId:"A",publicationId:p.id,remoteId:"one"}]};
     await updateState(f.folder,s=>{s.tasks.push(task);s.records=["one","two"].map(remoteId=>({id:remoteId,publicationId:p.id,revision:1,platform:"xiaohongshu",type:"images",accountId:"A",remoteId,state:"linked",updatedAt:1}));s.metrics.push({platform:"xiaohongshu",accountId:"A",publicationId:p.id,remoteId:"one",checkedAt:1,state:"unassociated"});});

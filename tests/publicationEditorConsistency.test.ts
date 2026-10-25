@@ -37,3 +37,13 @@ it('does not present account A metrics as current while account settings already
  await screen.findByText('账号B');await screen.findByText('播放／阅读 777 · 赞 — · 评论 —');
  expect(screen.getByText('历史账号 · workA')).toBeTruthy();
 });
+
+it.each([['bilibili','images'],['xiaohongshu','video']] as const)('keeps old upload and record ownership after platform/type changes (%s/%s)',async(platform,type)=>{
+ const detail={id:'p',folderPath:`E:/final-review-legacy-${platform}-${type}`,title:'p',tags:[],covers:{},publish:{},videos:[]}as any;
+ const p={id:'moved-pub',platform,type,title:'current material',body:'body',tags:[],imageIds:[],bodyFile:'body.md',revision:2,createdAt:1,updatedAt:2};
+ const state={...emptyProduction(),publications:[p],tasks:[{id:'old-xhs-task',kind:'upload'as const,status:'blocked'as const,step:'原小红书上传待继续',contentId:'p',folderPath:detail.folderPath,platform:'xiaohongshu'as const,publicationId:'moved-pub',publicationType:'images'as const,publicationRevision:1,account:{id:'A',name:'A',platform:'xiaohongshu'as const,checkedAt:1},createdAt:1,updatedAt:1}],records:[{id:'old-xhs-task',publicationId:'moved-pub',revision:1,platform:'xiaohongshu'as const,type:'images'as const,accountId:'A',remoteId:'old-XHS-work',taskId:'old-xhs-task',state:'uploaded'as const,updatedAt:1}]};
+ const settings={revision:'r',accounts:{xiaohongshu:{id:'A',name:'小红书账号A',platform:'xiaohongshu',checkedAt:1},bilibili:{id:'B',name:'B站账号B',platform:'bilibili',checkedAt:1}},accountHistory:[],observations:{},wechat:{appid:'',theme:'claude-editorial',author:''},wechatConfigured:false};
+ const api={state:async()=>state,settings:async()=>settings,publication:async()=>p,action:vi.fn(async()=>state)}as any;
+ render(h(ImagePreviewProvider,null,h(PublicationPanel,{detail,api,enabledPlatforms:['xiaohongshu','bilibili']})));
+ await screen.findByText('小红书账号A');expect(screen.getByText('原小红书上传待继续')).toBeTruthy();expect(screen.getByText('图文 · old-XHS-work')).toBeTruthy();
+});

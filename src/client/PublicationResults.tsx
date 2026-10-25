@@ -13,8 +13,8 @@ export function PublicationResults({ detail, api, edit, accountId, run }: { deta
   const data=useProjectData(api,detail), scope={id:detail.id,folderPath:detail.folderPath}, platform=edit.input.platform;
   const [association,setAssociation]=useState<{accountId:string;platform:PublicationPlatform;recordId?:string;remoteId:string;url:string;candidateAccountId?:string}>(),[notice,setNotice]=useState("");
   useEffect(()=>{if(association&&association.accountId!==accountId){setAssociation(undefined);setNotice("账号已变化，请重新选择作品。");}},[accountId,association?.accountId]);
-  const tasks=data.state?.tasks.filter(t=>t.publicationId===edit.publicationId&&t.kind==="upload")??[];
-  const records=data.state?.records?.filter(r=>r.publicationId===edit.publicationId)??[];
+  const tasks=data.state?.tasks.filter(t=>t.publicationId===edit.publicationId&&t.kind==="upload"&&(t.platform??t.account?.platform??"official-account")===platform&&(!t.publicationType||t.publicationType===edit.input.type))??[];
+  const records=data.state?.records?.filter(r=>r.publicationId===edit.publicationId&&r.platform===platform&&r.type===edit.input.type)??[];
   const syncing=data.state?.tasks.filter(t=>t.kind==="metrics"&&t.metricsTargets?.some(m=>m.platform===platform&&m.accountId===accountId&&m.publicationId===edit.publicationId))??[];
   const associate=(record?:PublicationRecord)=>{if(accountId)setAssociation({accountId,platform,...(record?{recordId:record.id}:{}),remoteId:record?.remoteId??"",url:record?.url??""});};
   const sync=(recordId?:string)=>void run({...scope,action:"refresh-metrics",platform,...(edit.publicationId?{publicationId:edit.publicationId}:{}),...(recordId?{recordId}:{}),...(accountId?{expectedAccountId:accountId}:{})}).catch(()=>undefined);
