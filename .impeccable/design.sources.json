@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-25T18:36:42.457608+00:00",
+  "generatedAt": "2026-10-25T18:56:36.579078+00:00",
   "sourceRoot": ".",
   "method": "scan",
   "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
-  "authority": "Approved0.7.2 source and measured same-local-service browser geometry/keyboard evidence. Native0.7.2 checks remain pending; prior0.7.1 native proof is historical only.",
+  "authority": "Approved0.7.2 source, measured same-local-service browser geometry/keyboard evidence and current native DSH screenshots. Installed version/source/running component, switch entry and business UI are distinct observations; prior0.7.1 proof remains historical.",
   "hostValues": "Host font/zoom/chrome and18px outer business inset unchanged. Plugin header approximately40px, controls28px/fields36px, title16px from ContentInspector.css. Six light role colors and existing video backdrop are extracted source facts.",
   "sourceFiles": [
     {
@@ -213,7 +213,7 @@
     },
     {
       "path": "src/client/ui/ActionMenu.tsx",
-      "sha256": "b1cdbbb3f85cd7605f9bd9b88a320301888c251671b384d517909da7c3d584bf"
+      "sha256": "293c19243a3a1e21183c12a8204046d19063edd6c9ed9bc4a54f18fe9a567e17"
     },
     {
       "path": "src/client/ui/ActionMenu.css",
@@ -233,7 +233,7 @@
     },
     {
       "path": "tests/interactionControls.test.ts",
-      "sha256": "7a2c004e75360c8403acde86ad74b203cbb7846cda5ff26523d6e12e18805455"
+      "sha256": "5be315c7084f94162844a40c61c4c4de33d0b2281fd7de64438f09c79416e0e2"
     },
     {
       "path": "docs/ui-consistency.md",
@@ -247,7 +247,7 @@
     },
     {
       "path": ".impeccable/design.json",
-      "sha256": "d2ae66727b216b32a990b8b5aa9642c2c86153cac7ea2e74496bb1e0eca57bbf"
+      "sha256": "9f35c75848aae7a552fc78f341de31435e2578c0999ad08009c6dac6e5ee0dfa"
     }
   ],
   "evidenceMap": {
@@ -375,7 +375,7 @@
   ],
   "historicalV070StyleResolution": "0.7.0 browser supplement: light/dark320/520/800have no horizontal overflow; project rail remains visible,14px/zoom1. Hover and2pxfocus distinct. Dark monochrome Douyin mark confirmed white. Modal images/keyboard and existing article/WeWrite local preview checked; native shell not substituted.",
   "styleResolution": "Component-owned stable selected styles, local navigation visibility, aligned shell and one-level menus. No Remote/schema changes.",
-  "renderedEvidenceScope": "No usable new screenshot returned yet; no visual PASS inferred from DOM geometry.",
+  "renderedEvidenceScope": "Native Windows DSH light/dark article, images, publishing and central viewer screenshots, independently reviewed. Browser matrix is geometry/interaction evidence; browser screenshot capture timed out.",
   "historicalRenderedEvidence": [
     {
       "path": ".impeccable/review/01-overview.jpg",
@@ -592,17 +592,12 @@
   "browserSupplementScope": "Measured actual CSS widths, themes, menu bounds and reduced motion on same-local DSH service; screenshot capture timed out.",
   "historicalV071CurrentNativeEvidence": [],
   "historicalV071LocalInstallation": {
-    "version": "0.7.1",
-    "packageFile": ".artifacts/dsh-creator-workbench-0.7.1-a7f329dad04c.tgz",
-    "sha256": "a7f329dad04c975d12c855d29bcb6efc36b8d8e17defbb8b6c429ca13e6bc03d",
-    "installedFileCount": 50,
-    "byteVerification": "All50 final installed files match; native details show final package source and running0.7.1.",
-    "nativeEvidence": [
-      ".artifacts/v071-native/final-installed.jpg",
-      ".artifacts/v071-native/final-switch.jpg",
-      ".artifacts/v071-native/final-business.jpg",
-      ".artifacts/v071-native/final-central-lightbox.jpg"
-    ]
+    "version": "0.7.2",
+    "packageFile": "E:\\个人项目\\自媒体工作台\\.artifacts\\dsh-creator-workbench-0.7.2-150b4739f6fa.tgz",
+    "sha256": "150b4739f6fa3896e22360eb6e735913b4d9847a54856b0f8e692a8d2b0b7203",
+    "installedFileCount": 51,
+    "byteVerification": true,
+    "nativeEvidence": []
   },
   "historicalV071NativeUnverified": [
     "Final0.7.2 installed entry, switch menu and native business window; desktop tools currently expose no DSH window."
@@ -611,7 +606,7 @@
   "historicalV071ReviewEvidence": [
     {
       "path": ".artifacts/v072-independent-code-review.md",
-      "sha256": "3b4c547b7b5e742cbbb19ddf53b35cc1f252ab301897862cbd442b82cf635ca5"
+      "sha256": "dcdb7193608873869bd68d1baf89d6574c4a877221d656e06ed2482d22b61e33"
     }
   ],
   "historicalV071GeometryEvidence": [
@@ -627,21 +622,30 @@
     },
     {
       "path": ".artifacts/v072-browser-interactions.json",
-      "sha256": "b081cc41c48759085a8a38ba71c68b21df896ba1889c681813ddfb48d8761bd3"
+      "sha256": "747f46302e72d2b07d2d1247bd31fabf457564199d1e21802ad545b658bb47cc"
     }
   ],
-  "renderedEvidence": [],
-  "currentNativeEvidence": [],
-  "nativeUnverified": [
-    "Final0.7.2 installed entry, switch menu and native business window; desktop tools currently expose no DSH window."
-  ],
+  "nativeUnverified": [],
   "localInstallation": {
     "version": "0.7.2",
-    "packageFile": "E:\\个人项目\\自媒体工作台\\.artifacts\\dsh-creator-workbench-0.7.2-150b4739f6fa.tgz",
-    "sha256": "150b4739f6fa3896e22360eb6e735913b4d9847a54856b0f8e692a8d2b0b7203",
+    "packageFile": "E:\\个人项目\\自媒体工作台\\.artifacts\\dsh-creator-workbench-0.7.2-393c093e0361.tgz",
+    "sha256": "393c093e036120f43d4670e11621b5209eda7c380f52cdccc38e178762748919",
     "installedFileCount": 51,
     "byteVerification": true,
-    "nativeEvidence": []
+    "nativeEvidence": [
+      {
+        "path": ".artifacts/v072-native/installed-detail-final.jpg",
+        "sha256": "eb4dce0cce108fde96fd87e3445e110f0401b474de34452ec7ab474424daa175"
+      },
+      {
+        "path": ".artifacts/v072-native/installed-detail-final.txt",
+        "sha256": "43e73f90a2044e8df1dffa9574d82b52ef2c985b1589a90e43a3c837e902addf"
+      },
+      {
+        "path": ".artifacts/v072-native/switch-final.jpg",
+        "sha256": "9db8d327a8a5fc0eb3290374acdf37d76f5318c6c305791fdbd08545ce9b0a1d"
+      }
+    ]
   },
   "geometryEvidence": [
     {
@@ -652,7 +656,99 @@
   "reviewEvidence": [
     {
       "path": ".artifacts/v072-independent-code-review.md",
-      "sha256": "dcdb7193608873869bd68d1baf89d6574c4a877221d656e06ed2482d22b61e33"
+      "sha256": "c123f701598134451cf8fe7ce7788a74982bbf782364d8f0bf8f59fc74ecff54"
+    },
+    {
+      "path": ".artifacts/v072-independent-visual-review.md",
+      "sha256": "117432ed5c988f5f514e440929fe50894ec0ca1bbb1926b733beded2db255111"
+    }
+  ],
+  "currentNativeEvidence": [
+    {
+      "path": ".artifacts/v072-native/installed-detail-final.jpg",
+      "sha256": "eb4dce0cce108fde96fd87e3445e110f0401b474de34452ec7ab474424daa175"
+    },
+    {
+      "path": ".artifacts/v072-native/installed-detail-final.txt",
+      "sha256": "43e73f90a2044e8df1dffa9574d82b52ef2c985b1589a90e43a3c837e902addf"
+    },
+    {
+      "path": ".artifacts/v072-native/switch-final.jpg",
+      "sha256": "9db8d327a8a5fc0eb3290374acdf37d76f5318c6c305791fdbd08545ce9b0a1d"
+    },
+    {
+      "path": ".artifacts/v072-native/article-final.jpg",
+      "sha256": "ea6119197d41fad0e617a638d048cc097c95d242cba41f69c83884f34e5de2c1"
+    },
+    {
+      "path": ".artifacts/v072-native/article-menu-final.jpg",
+      "sha256": "5be7f41691734a5ddea2516153ea75cb3aa5a5cc4f106c4e7c98417476371731"
+    },
+    {
+      "path": ".artifacts/v072-native/menu-escape-final.jpg",
+      "sha256": "3cbb540e59f1379bd7c90ef8d4832cbc995888ffe8d8e7acfeade24473349cfb"
+    },
+    {
+      "path": ".artifacts/v072-native/menu-escape-result-final.txt",
+      "sha256": "bd322f903388e5a1e1c175b79c273699b5fd4e7b907f617b923e005be5a27128"
+    },
+    {
+      "path": ".artifacts/v072-native/images-final.jpg",
+      "sha256": "04022bc285814c7c4b54218610502ce84a01a1aa00084d86ba1df697ba0e8ef1"
+    },
+    {
+      "path": ".artifacts/v072-native/images-dark-final.jpg",
+      "sha256": "c99a431e247de6a5172e039cabbe32420204bfe7d706872cc09d0f09c8b6543e"
+    },
+    {
+      "path": ".artifacts/v072-native/publication-dark-final.jpg",
+      "sha256": "2edaa96a4ed5d3b77914a38411b03aee8b1758750bc6ffd25e07f8ad1f4eecc8"
+    },
+    {
+      "path": ".artifacts/v072-native/lightbox-stable-final.jpg",
+      "sha256": "d03fa824a8ddebf5dd6f0b057a239115d6b5c6e54f2b1526a0bdcdf6e3382769"
+    },
+    {
+      "path": ".artifacts/v072-native/lightbox-closed-final.txt",
+      "sha256": "e373046221b77358fb578a0a99aa5a7b4cfdb40716f20b80fc17fd5218a23d5d"
+    }
+  ],
+  "renderedEvidence": [
+    {
+      "path": ".artifacts/v072-native/installed-detail-final.jpg",
+      "sha256": "eb4dce0cce108fde96fd87e3445e110f0401b474de34452ec7ab474424daa175"
+    },
+    {
+      "path": ".artifacts/v072-native/switch-final.jpg",
+      "sha256": "9db8d327a8a5fc0eb3290374acdf37d76f5318c6c305791fdbd08545ce9b0a1d"
+    },
+    {
+      "path": ".artifacts/v072-native/article-final.jpg",
+      "sha256": "ea6119197d41fad0e617a638d048cc097c95d242cba41f69c83884f34e5de2c1"
+    },
+    {
+      "path": ".artifacts/v072-native/article-menu-final.jpg",
+      "sha256": "5be7f41691734a5ddea2516153ea75cb3aa5a5cc4f106c4e7c98417476371731"
+    },
+    {
+      "path": ".artifacts/v072-native/menu-escape-final.jpg",
+      "sha256": "3cbb540e59f1379bd7c90ef8d4832cbc995888ffe8d8e7acfeade24473349cfb"
+    },
+    {
+      "path": ".artifacts/v072-native/images-final.jpg",
+      "sha256": "04022bc285814c7c4b54218610502ce84a01a1aa00084d86ba1df697ba0e8ef1"
+    },
+    {
+      "path": ".artifacts/v072-native/images-dark-final.jpg",
+      "sha256": "c99a431e247de6a5172e039cabbe32420204bfe7d706872cc09d0f09c8b6543e"
+    },
+    {
+      "path": ".artifacts/v072-native/publication-dark-final.jpg",
+      "sha256": "2edaa96a4ed5d3b77914a38411b03aee8b1758750bc6ffd25e07f8ad1f4eecc8"
+    },
+    {
+      "path": ".artifacts/v072-native/lightbox-stable-final.jpg",
+      "sha256": "d03fa824a8ddebf5dd6f0b057a239115d6b5c6e54f2b1526a0bdcdf6e3382769"
     }
   ],
   "browserSupplement": [

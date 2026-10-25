@@ -43,6 +43,15 @@ describe("local navigation visibility",()=>{
 });
 
 describe("one-level action menus",()=>{
+  it("moves focus into a pointer or accessibility-opened menu so Escape dismisses it",async()=>{
+    render(h(ActionMenu,{label:"更多",children:[h(ActionButton,{key:"disabled",disabled:true,children:"不可用"}),h(ActionButton,{key:"import",children:"导入"})]}));
+    const trigger=screen.getByRole("button",{name:"更多"});expect(document.activeElement).toBe(document.body);fireEvent.click(trigger);
+    await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("menuitem",{name:"导入"})));await userEvent.setup().keyboard("{Escape}");expect(screen.queryByRole("menu")).toBeNull();expect(document.activeElement).toBe(trigger);
+  });
+  it("focuses the last enabled item when opened with ArrowUp",async()=>{
+    render(h(ActionMenu,{label:"更多",children:[h(ActionButton,{key:"first",children:"第一项"}),h(ActionButton,{key:"last",children:"最后一项"})]}));
+    const trigger=screen.getByRole("button",{name:"更多"});trigger.focus();await userEvent.setup().keyboard("{ArrowUp}");await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("menuitem",{name:"最后一项"})));
+  });
   it("opens from Enter and lets Tab leave through the normal document order",async()=>{
     render(h("div",{},h(ActionMenu,{label:"更多",children:h(ActionButton,{children:"导入"})}),h("button",{},"下一项")));
     const trigger=screen.getByRole("button",{name:"更多"});trigger.focus();const user=userEvent.setup();await user.keyboard("{Enter}");await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("menuitem")));await user.tab();expect(screen.queryByRole("menu")).toBeNull();expect(document.activeElement).toBe(screen.getByRole("button",{name:"下一项"}));

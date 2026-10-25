@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-25T18:36:42.457608+00:00",
+  "generatedAt": "2026-10-25T18:56:36.579078+00:00",
   "title": "Design System: 创作工作台",
   "extensions": {
     "colorMeta": {
@@ -232,7 +232,7 @@
       "kind": "nav",
       "description": "生图服务、发布平台、语音转文字、公众号与常规设置使用统一分组导航，当前组为轻背景选中态。",
       "html": "<nav class=\"ds-settings-tabs\" aria-label=\"设置分组\"><button type=\"button\" aria-current=\"page\">生图服务</button><button type=\"button\">发布平台</button><button type=\"button\">语音转文字</button><button type=\"button\">公众号</button><button type=\"button\">常规</button></nav>",
-      "css": ".ds-settings-tabs{display:flex;overflow-x:auto;overflow-x:auto;overflow-x:auto;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--dsw-alias-border-l1);padding-bottom:10px}.ds-settings-tabs button{border:0;background:none;color:var(--dsw-alias-label-secondary);padding:8px 12px;border-radius:6px;cursor:pointer;font:inherit;white-space:nowrap}.ds-settings-tabs [aria-current]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);font-weight:600}.ds-settings-tabs button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+      "css": ".ds-settings-tabs{display:flex;overflow-x:auto;overflow-x:auto;overflow-x:auto;overflow-x:auto;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--dsw-alias-border-l1);padding-bottom:10px}.ds-settings-tabs button{border:0;background:none;color:var(--dsw-alias-label-secondary);padding:8px 12px;border-radius:6px;cursor:pointer;font:inherit;white-space:nowrap}.ds-settings-tabs [aria-current]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);font-weight:600}.ds-settings-tabs button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
     },
     {
       "name": "资产行",
