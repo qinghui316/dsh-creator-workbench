@@ -24,6 +24,9 @@ vi.mock("../src/client/VideoPanel.tsx", () => ({
 vi.mock("../src/client/CoverPanel.tsx", () => ({
   CoverPanel: () => h("div", null, "封面区域"),
 }));
+vi.mock("../src/client/SubtitlePanel.tsx", () => ({
+  SubtitlePanel: () => h("p", {role:"alert"}, "当前视频没有音轨，无法转写。"),
+}));
 vi.mock("@deepseek-ai/dsh-client-ui-primitives", () => ({
   Button: ({ children, variant, size, ...props }: Record<string, unknown>) =>
     h("button", props, children as never),
@@ -94,6 +97,20 @@ function fixture() {
   };
 }
 describe("original content navigation", () => {
+  it("shows the production ASR error once while preserving independent burn feedback", async () => {
+    const {face,detail}=fixture();detail.subtitleJob={status:"error",error:"当前视频没有音轨，无法转写。"};
+    detail.burn={status:"error",error:"字幕烧录失败，请检查输出目录"};
+    setSelectedContentId("one");render(h(ContentInspector,{...face,production:{} as ProductionClient,t:(key:CreatorKey)=>zh[key]}));
+    await screen.findByText("测试内容");fireEvent.click(screen.getByRole("tab",{name:"字幕"}));
+    expect(screen.getAllByText("当前视频没有音轨，无法转写。")).toHaveLength(1);
+    expect(screen.getByText("字幕烧录失败，请检查输出目录")).toBeTruthy();
+  });
+  it("retains legacy ASR feedback when the production adapter is absent", async () => {
+    const {face,detail}=fixture();detail.subtitleJob={status:"error",error:"旧转写服务未配置"};
+    setSelectedContentId("one");render(h(ContentInspector,{...face,t:(key:CreatorKey)=>zh[key]}));
+    await screen.findByText("测试内容");fireEvent.click(screen.getByRole("tab",{name:"字幕"}));
+    expect(screen.getByText("旧转写服务未配置")).toBeTruthy();
+  });
   it("distinguishes preparing an Agent script request from saving the script", async () => {
     const { face } = fixture(); let complete!: () => void;
     const prepareRequest = vi.fn(() => new Promise<void>(resolve => { complete = resolve; }));

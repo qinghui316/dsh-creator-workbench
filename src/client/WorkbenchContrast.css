@@ -64,7 +64,7 @@ html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.ov
   border-color:var(--dsw-alias-state-business-primary);
   background:var(--creator-light-hover);
 }
-html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(summary,.overviewClose):hover {
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] summary:hover {
   color:var(--dsw-alias-label-primary);
   background:var(--creator-light-hover);
 }

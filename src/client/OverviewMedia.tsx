@@ -18,14 +18,18 @@ export function OverviewVideo({detail,getVideoPlayback}:{detail:ContentDetail;ge
 
 const coverCaches=new WeakMap<CreatorViewFace["getCoverImage"],Map<string,Promise<string>>>();
 export function invalidateOverviewCover(folder:string,version:CoverVersion,getCoverImage:CreatorViewFace["getCoverImage"]) {coverCaches.get(getCoverImage)?.delete(`${folder}:${version.id}:${version.file}`);}
+export function loadOverviewCover(detail:ContentDetail,version:CoverVersion,getCoverImage:CreatorViewFace["getCoverImage"]):Promise<string> {
+  let cache=coverCaches.get(getCoverImage);if(!cache){cache=new Map();coverCaches.set(getCoverImage,cache);}
+  const key=`${detail.folderPath}:${version.id}:${version.file}`,target=cache;
+  let request=target.get(key);if(!request){request=getCoverImage({id:detail.id,folderPath:detail.folderPath,versionId:version.id}).then(r=>`data:${r.mime};base64,${r.base64}`,error=>{target.delete(key);throw error;});target.set(key,request);if(target.size>12)target.delete(target.keys().next().value!);}
+  return request;
+}
 export function OverviewCover({version,detail,getCoverImage}:{version:CoverVersion;detail:ContentDetail;getCoverImage:CreatorViewFace["getCoverImage"]}) {
   const node=useRef<HTMLSpanElement>(null),[visible,setVisible]=useState(typeof IntersectionObserver==="undefined"),[src,setSrc]=useState<string>(),[error,setError]=useState("");
   useEffect(()=>{if(visible||!node.current)return;const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){setVisible(true);observer.disconnect();}},{rootMargin:"160px"});observer.observe(node.current);return()=>observer.disconnect();},[visible]);
   useEffect(()=>{
     let live=true; setSrc(undefined);setError("");if(!visible)return;
-    let cache=coverCaches.get(getCoverImage);if(!cache){cache=new Map();coverCaches.set(getCoverImage,cache);}
-    const key=`${detail.folderPath}:${version.id}:${version.file}`, target=cache;
-    let request=target.get(key);if(!request){request=getCoverImage({id:detail.id,folderPath:detail.folderPath,versionId:version.id}).then(r=>`data:${r.mime};base64,${r.base64}`,e=>{target.delete(key);throw e;});target.set(key,request);if(target.size>12)target.delete(target.keys().next().value!);}
+    const request=loadOverviewCover(detail,version,getCoverImage);
     void request.then(value=>{if(live)setSrc(value);},e=>{if(live)setError(e instanceof Error?e.message:"封面读取失败");});
     return()=>{live=false;};
   },[visible,detail.folderPath,version.id,version.file,getCoverImage]);

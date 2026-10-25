@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-24T19:56:44.933Z",
+  "generatedAt": "2026-10-25T13:35:00.965027+00:00",
   "sourceRoot": ".",
   "method": "scan",
   "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
-  "authority": "Approved Windows Operate world and0.7.0 implementation, real same-local-DSH-service browser supplement, independent scoped code/visual review. Native desktop shell remains pending;0.6.0 native evidence is historical.",
+  "authority": "Approved0.7.1 design; current source, independent code/visual review, installed-byte proof, real native DSH window and same-local-service browser supplement. Historical0.7.0 deferral remains historical.",
   "hostValues": "Font family, basic theme colors and dark appearance remain owned by DSH. Six approved light-only local role colors are extracted exactly from WorkbenchContrast.css, without synthesized tonal ramps. Existing 16px/600/24px project heading is documented from InternalUi.css.",
   "sourceFiles": [
     {
@@ -21,7 +21,7 @@
     },
     {
       "path": "src/client/CoverPanel.css",
-      "sha256": "b68640434bfcbae9c49fef4dff6f6dacb43cb2265aae9610168f776643d8cecc"
+      "sha256": "52602d9e87b3d03d430bc53962dc58edeb52355a326e396c44e5d8d0b6d3dd58"
     },
     {
       "path": "src/client/VideoPanel.css",
@@ -49,15 +49,15 @@
     },
     {
       "path": "src/client/CreatorWorkbench.tsx",
-      "sha256": "9afe1f0e23b190e15825998d767ec950984ad09652a26e2438a65750660bb9e4"
+      "sha256": "148fc096ff0e8a79cae1454470d10ca5bea0ff6dc07b21058521e573df83abf2"
     },
     {
       "path": "src/client/ContentInspector.tsx",
-      "sha256": "ddbf7084d152c7404c2d3f680e49f6c81fbdd3f846380be7ff52db12e758f217"
+      "sha256": "8f5613b6b61ce27e0cf8f32960ca47a4cd12548c98cc467c265b070835174a10"
     },
     {
       "path": "src/client/CoverPanel.tsx",
-      "sha256": "fcea598b795b2dd8989cf78f3b9125103514268e83a26ce741a41e9b1b769410"
+      "sha256": "36e9ddbf83abee304300ad0351fd465f0e9b84dc39857ddeeacd149f83bc881c"
     },
     {
       "path": "src/client/VideoPanel.tsx",
@@ -65,7 +65,7 @@
     },
     {
       "path": "src/client/CreatorSettingsCard.tsx",
-      "sha256": "25b80af145f2914d5aa7b9338cf554f452b654d922e46c83ef7705702f87acff"
+      "sha256": "1b89718f1dca8eb8d2e0812072d017146303df88dcaeef50a008d68ea645b082"
     },
     {
       "path": "src/client/sidebar/ContentSidebarPanel.css",
@@ -93,11 +93,11 @@
     },
     {
       "path": "src/client/ProjectPages.css",
-      "sha256": "77ae7aa49bfac47be637f72fcc3abf8bb1a3f1ea094f3c92155cf5444b266e3d"
+      "sha256": "1f2e13f27c6d994a998559822eafa1930bb7d59844200f06c1f35e5323d5a5ba"
     },
     {
       "path": "src/client/OverviewPage.tsx",
-      "sha256": "13b238dee9342e72f1089796ecdc801855b1b3f40b8537960d135007eeb52485"
+      "sha256": "b96ef50420b28f2ece1f21d83d51e271d55f0e0089b88bf75349f5d73bfb79fc"
     },
     {
       "path": "src/client/ArticlePanel.tsx",
@@ -105,15 +105,15 @@
     },
     {
       "path": "src/client/ImageLibraryPanel.tsx",
-      "sha256": "373523530bfc64ebd27f3ecaef33878e4fe8c333a67e138c318e1c5cca0d15b4"
+      "sha256": "79a5261313fd02a3ba696aaeb8a45509b079926fbccc0d93b968e47ae6a06b79"
     },
     {
       "path": "src/client/ImageThumb.tsx",
-      "sha256": "08e71d7a07cc1741c1d2cee34ab1e4457c12a5c4a5471f64d463a6365768fdb0"
+      "sha256": "26535af4544146dae2a0cb39110ccb4cd7113c75f658d1e927009a89fa23adb6"
     },
     {
       "path": "src/client/PublicationPanel.tsx",
-      "sha256": "72eeeab988dd973e4ab2040a0dad8744593bd2abe69cbacd2385bd85b160cd83"
+      "sha256": "4896265b85115700322b8d43b69a8618a804a0cf3cd25d9815dba65246ffa4f9"
     },
     {
       "path": "src/client/SubtitlePanel.tsx",
@@ -141,7 +141,7 @@
     },
     {
       "path": "src/client/OverviewMedia.tsx",
-      "sha256": "eeb1d9e179511cf57a722f02d3b5cacf86379a387f653ccdcbd2595ed662433d"
+      "sha256": "bb02d1a4395f66ed584b603330d88685d9d708404b132654b780203758cdd9de"
     },
     {
       "path": "src/client/PlatformMark.tsx",
@@ -157,7 +157,7 @@
     },
     {
       "path": "src/client/WorkbenchContrast.css",
-      "sha256": "7fc844388ec7c362ede30ad13fee5694ac3bfc4c3136de1e238992dadd383f58"
+      "sha256": "3709dd5d1910704e507e229b792c30a007b20c614f50545d336a892cba73cab9"
     },
     {
       "path": "src/client/PublicationPanel.css",
@@ -165,7 +165,7 @@
     },
     {
       "path": "src/client/PublicationEditorPanel.tsx",
-      "sha256": "1c6a6c4cbafe18a65b9f1bc064e91124fcbe1a90976fb2d17d38e3dde70d7c0c"
+      "sha256": "56ff91be3d199a6251a6eec8fa9b12f320cc329b811fa108718624e675bcc0a4"
     },
     {
       "path": "src/client/PublicationResults.tsx",
@@ -177,19 +177,39 @@
     },
     {
       "path": "src/client/ImagePreview.tsx",
-      "sha256": "fe3b4967ae04669271c3d12cf9b814fa925087a12fa80fce6e6300107b17cb31"
+      "sha256": "b9b7c2a660bdd9f9510410b28a9acf5eb186f8656d6449d443c38dae2ecd48ee"
     },
     {
       "path": "src/client/ImagePreview.css",
-      "sha256": "e78aac5c2d405002443855b1acf09a7782e88415af379b9bfb40f304e75baff7"
+      "sha256": "374bd25cfeae3c75155f091cfcdd13d430ecd049612fd3e1513e18f03540a7c7"
     },
     {
       "path": "src/client/ArticlePreview.tsx",
-      "sha256": "87c55f6b282574e33540161e9f066e9f2c54bcb9b17d1a6de61572cc1dca50e7"
+      "sha256": "3b6cbb440c9f41e8d43f244cb0d4065d7850f484570f9d132f61e492116ffd58"
     },
     {
       "path": "src/client/publicationAutosave.ts",
       "sha256": "b9091deb2cf44b019c2b0561b1b1d6c11b7475daf9226de1f62b43981517d7f2"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "becabbd5a32ba63ea0caad9a3c0c09db24caa3614d7b7a8d61e28ee895e760d7"
+    },
+    {
+      "path": "src/client/InteractionPolish.css",
+      "sha256": "0ef0199bdad50243dc60932b0bffe0966083fdadf5a98ab7dc55dc8873367aa2"
+    },
+    {
+      "path": "src/client/imageDescriptors.ts",
+      "sha256": "2c6d912f510a0c913eb03942c0cec98f5d78a9f33bdaa050ee5b622ccbf7b2a1"
+    },
+    {
+      "path": "src/client/ui/SecretInput.tsx",
+      "sha256": "47c70732def06c5943e4ed2d20d10d598a9f4ac276049921b2d6e6656e6e8ee9"
+    },
+    {
+      "path": "src/client/ui/SelectionRail.tsx",
+      "sha256": "f6d8bad01213c2e6c72030f72930fe8167a0b87e5bc1f7893066ff3f33d49103"
     }
   ],
   "renderedEvidence": [
@@ -522,6 +542,24 @@
     {
       "path": ".artifacts/v070-browser-acceptance/structure-light.png",
       "sha256": "dc8cdfd05ca31fd98db52f3e6a677da41db499420c64973d9f2c791730bd361c"
+    }
+  ],
+  "currentNativeEvidence": [
+    {
+      "path": ".artifacts/v071-native/final-business.jpg",
+      "sha256": "799739a5350bcc252b01bd52d80f52465bd0a558f161cb6740efcb4af3cea8d4"
+    },
+    {
+      "path": ".artifacts/v071-native/final-central-lightbox.jpg",
+      "sha256": "fc2c66a41012cd6c1d0b13f868bf4be83ba0d4fdebc1b6daa2f8c56c72563e0b"
+    },
+    {
+      "path": ".artifacts/v071-native/final-installed.jpg",
+      "sha256": "de0ed97c2ff40f60c223ec722758d67b4c64f305cc8489b48c6b797cb5d40658"
+    },
+    {
+      "path": ".artifacts/v071-native/final-switch.jpg",
+      "sha256": "185bb8a0ffc9db8f5815b8c71082dedd10ce9313f257bfcc8ece87d471aff7b6"
     }
   ]
 }

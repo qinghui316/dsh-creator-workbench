@@ -1,3 +1,4 @@
+import { creationPreviewImages, coverPreviewImages } from "./imageDescriptors.ts";
 import { useImagePreview } from "./ImagePreview.tsx";
 import { ActionButton } from "./ui/ActionButton.tsx";
 import type { ContentDetail } from "../types.ts";
@@ -8,8 +9,8 @@ import { useProjectData } from "./ProjectData.tsx";
 import { isActiveTask } from "../production/types.ts";
 import { PlatformMark } from "./PlatformMark.tsx";
 import { PUBLISH_PLATFORM_DEFINITIONS } from "../platforms.ts";
-import { ImageThumb, invalidateImageThumb } from "./ImageThumb.tsx";
-import { OverviewCover, OverviewVideo, invalidateOverviewCover } from "./OverviewMedia.tsx";
+import { ImageThumb } from "./ImageThumb.tsx";
+import { OverviewCover, OverviewVideo } from "./OverviewMedia.tsx";
 import "./ProjectPages.css";
 import "./CreationPanel.css";
 
@@ -24,8 +25,9 @@ export function OverviewPage({ detail, api, navigate, ...media }: MediaFace & { 
   const articleText=article?.title&&articleExcerpt?.text.startsWith(article.title)?articleExcerpt.text.slice(article.title.length).trim():articleExcerpt?.text;
   const publications=state?.publications?.filter(p=>!p.hidden)??[];
   const task=state?.tasks.find(isActiveTask),script=data.view?data.view.script.excerpt:detail.script?.slice(0,240);
-  const preview=useImagePreview();
-  const show=(kind:"image"|"cover",id:string,element:HTMLElement)=>preview.open(kind==="image"?pictures.map(image=>({id:image.id,title:"项目图片",reload:()=>invalidateImageThumb(api,current.folderPath,image),content:<ImageThumb image={image} detail={current} api={api} large/>})):covers.map(version=>({id:version.id,title:`${version.ratio.replace("x",":")} 视频封面`,reload:()=>invalidateOverviewCover(current.folderPath,version,media.getCoverImage),content:<OverviewCover version={version} detail={current} getCoverImage={media.getCoverImage}/>})),id,element);
+  const picturePreviews=creationPreviewImages(pictures,current,api),coverPreviews=coverPreviewImages(covers,current,media.getCoverImage);
+  const preview=useImagePreview([...picturePreviews,...coverPreviews]);
+  const show=(kind:"image"|"cover",id:string,element:HTMLElement)=>preview.open(kind==="image"?picturePreviews:coverPreviews,id,element);
   const heading=(name:string,tab:ProjectTab,label:string,id?:string)=><div className="overviewHeading"><h3>{name}</h3><ActionButton tone="ghost" aria-label={`${label}${name}`} onClick={()=>navigate(tab,id)}>{label}</ActionButton></div>;
   return <div className="projectOverview">
     <section className="overviewSection" aria-label="视频摘要">{heading("视频","video",current.selectedVideo?"管理":"导入")}{current.videoSelection==="selected"?<><OverviewVideo detail={current} getVideoPlayback={media.getVideoPlayback}/><p className="overviewCaption" title={current.selectedVideo}>{current.selectedVideo}</p></>:<p className="creatorMuted">{current.videoSelection==="missing"?"选中的视频已找不到":current.videos?.length?"尚未选择当前视频":"还没有视频"}</p>}</section>

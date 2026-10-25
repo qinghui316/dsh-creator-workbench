@@ -1,3 +1,4 @@
+import { SecretInput } from "./ui/SecretInput.tsx";
 import { invalidateProjectSettings } from "./projectQuery.ts";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ASR_CREDENTIAL, type ProductionSettingsAction, type ProductionSettingsView } from "../production/types.ts";
@@ -68,14 +69,14 @@ export const ProductionSettingsPanel = forwardRef<ProductionSettingsHandle, { ap
         <h3>豆包录音文件识别极速版</h3><p className="creatorMuted">把完整视频转成文字和字幕，供文章制作使用。</p>
         <p className="creatorMuted">确认录音文件识别极速版已开通，再填入同一项目的 API Key。</p>
         <ActionBar><a href="https://console.volcengine.com/speech/service/10012" target="_blank" rel="noreferrer">查看服务状态</a><a href="https://console.volcengine.com/speech/new/setting/apikeys" target="_blank" rel="noreferrer">管理 API Key</a></ActionBar>
-        <label className="creatorField"><span className="creatorLabelLine">API Key <small>{saved.asrConfigured ? "已保存" : "尚未配置"}</small></span><input type="password" autoComplete="off" spellCheck={false} value={asrKey} disabled={busy || !credentials} placeholder={saved.asrConfigured ? "留空保留原 Key" : "填写火山语音 API Key"} onChange={(e) => setAsrKey(e.target.value)} /></label>
+        <label className="creatorField"><span className="creatorLabelLine">API Key <small>{saved.asrConfigured ? "已保存" : "尚未配置"}</small></span><SecretInput aria-label="火山语音 API Key" value={asrKey} disabled={busy || !credentials} placeholder={saved.asrConfigured ? "留空保留原 Key" : "填写火山语音 API Key"} onChange={(e) => setAsrKey(e.target.value)} /></label>
         <p className="creatorMuted">保存后，在本期“字幕”页点击“视频转文字”进行实际测试。</p>
         <details className="creatorDisclosure"><summary>服务说明</summary><p className="creatorMuted">新版列表未显示此服务时，在旧版控制台的“语音识别大模型 → 录音文件识别大模型 → 极速版”查看。已开通的服务无需重复开通。</p><p className="creatorMuted">当前接入模型资源：<code>volc.bigasr.auc_turbo</code>，无需另填。支持两小时以内、提取音频不超过 100 MB 的视频；识别会使用服务额度。</p><a href="https://docs.volcengine.com/docs/DoubaoVoice/recording-file-recognition-lite-http?lang=zh" target="_blank" rel="noreferrer">官方接口说明</a></details>
       </>}
       {group === "wechat" && <>
         <h3>微信公众号</h3>
         <label className="creatorField">AppID<input autoComplete="off" spellCheck={false} value={appid} disabled={busy} onChange={(e) => setAppid(e.target.value)} /></label>
-        <label className="creatorField"><span className="creatorLabelLine">AppSecret <small>{saved.wechatConfigured && appid === saved.wechat.appid ? "已保存" : "尚未配置"}</small></span><input type="password" autoComplete="off" spellCheck={false} value={secret} disabled={busy || !credentials} placeholder="留空保留此公众号的原凭据" onChange={(e) => setSecret(e.target.value)} /></label>
+        <label className="creatorField"><span className="creatorLabelLine">AppSecret <small>{saved.wechatConfigured && appid === saved.wechat.appid ? "已保存" : "尚未配置"}</small></span><SecretInput aria-label="AppSecret" value={secret} disabled={busy || !credentials} placeholder="留空保留此公众号的原凭据" onChange={(e) => setSecret(e.target.value)} /></label>
         <label className="creatorField">作者<input value={author} disabled={busy} onChange={(e) => setAuthor(e.target.value)} /></label>
         <label className="creatorField">文章排版<select value={theme} disabled={busy} onChange={(e) => setTheme(e.target.value)}><option value="claude-editorial">简洁编辑风格</option><option value="professional-clean">清爽专业风格</option></select></label>
         <ActionBar><ActionButton disabled={busy || dirty || !saved.wechatConfigured} onClick={() => void action({ action: "check-wechat" })}>检查账号</ActionButton><ActionButton disabled={busy || dirty} onClick={() => fileInput.current?.click()}>导入已有配置</ActionButton></ActionBar>

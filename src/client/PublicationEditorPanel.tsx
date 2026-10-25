@@ -1,3 +1,4 @@
+import { creationPreviewImages, coverPreviewImages } from "./imageDescriptors.ts";
 import { publicationText } from "./publicationText.ts";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ContentDetail } from "../types.ts";
@@ -6,8 +7,8 @@ import { PublicationEditor, type PublicationEditors } from "./publicationAutosav
 import { useProjectData } from "./ProjectData.tsx";
 import { localFilePath, type ProductionClient } from "./productionApi.ts";
 import type { CreatorViewFace } from "./face.ts";
-import { ImageThumb, invalidateImageThumb } from "./ImageThumb.tsx";
-import { OverviewCover, invalidateOverviewCover } from "./OverviewMedia.tsx";
+import { ImageThumb } from "./ImageThumb.tsx";
+import { OverviewCover } from "./OverviewMedia.tsx";
 import { useImagePreview } from "./ImagePreview.tsx";
 import { ArticlePreview } from "./ArticlePreview.tsx";
 import { PublicationResults } from "./PublicationResults.tsx";
@@ -21,7 +22,7 @@ export function PublicationEditorPanel({ editor, manager, detail, api, accountId
   const [ownedUploadNotice,setUploadNotice]=useState<UploadNotice & {ownerAccountId:string|undefined}>();
   const uploadNotice=ownedUploadNotice?.ownerAccountId===accountId?ownedUploadNotice:undefined;
   const [preview,setPreview]=useState<{html:string;revision:number}>(),[previewBusy,setPreviewBusy]=useState(false);
-  const alive=useRef(true),mutating=useRef(false),readTicket=useRef(0),previewTicket=useRef(0),file=useRef<HTMLInputElement>(null),images=data.state?.images?.filter(i=>!i.hidden)??[],lightbox=useImagePreview();
+  const alive=useRef(true),mutating=useRef(false),readTicket=useRef(0),previewTicket=useRef(0),file=useRef<HTMLInputElement>(null),images=data.state?.images?.filter(i=>!i.hidden)??[],lightbox=useImagePreview([...creationPreviewImages(images,detail,api),...(getCoverImage?coverPreviewImages(data.view?.covers.versions??[],detail,getCoverImage):[])]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;readTicket.current++;previewTicket.current++;};},[]);
   const update=(values:Partial<PublicationInput>)=>{const next={...editor.getSnapshot().input,...values};if(next.type==="images"){if(values.coverImageId)next.imageIds=[values.coverImageId,...next.imageIds.filter(id=>id!==values.coverImageId)];else if(values.imageIds&&next.coverImageId){if(next.imageIds[0])next.coverImageId=next.imageIds[0];else delete next.coverImageId;}}editor.update(next);};
   const run=async(action:ProductionAction)=>{if(mutating.current)throw new Error("当前操作尚未完成。");mutating.current=true;setBusy(true);setError("");try{const next=await api.action(action);data.query.accept(next);return next;}catch(e){if(alive.current)setError(e instanceof Error?e.message:"操作未完成");throw e;}finally{mutating.current=false;if(alive.current)setBusy(false);}};
@@ -40,7 +41,7 @@ export function PublicationEditorPanel({ editor, manager, detail, api, accountId
     finally{if(alive.current&&ticket===previewTicket.current)setPreviewBusy(false);}
   };
   useEffect(()=>{if(input.type==="article"&&snap.phase==="saved"&&input.body.trim()&&!preview&&!previewBusy)void makePreview();},[snap.publicationId,input.articleId,snap.phase]);
-  const showImage=(id:string,trigger:HTMLElement,ids?:string[])=>lightbox.open((ids?ids.map(key=>images.find(i=>i.id===key)).filter((i):i is NonNullable<typeof i>=>Boolean(i)):images).map(i=>({id:i.id,title:i.purpose==="cover"?"发布封面":"发布图片",reload:()=>invalidateImageThumb(api,detail.folderPath,i),content:<ImageThumb image={i} detail={detail} api={api} large/>})),id,trigger);
+  const showImage=(id:string,trigger:HTMLElement,ids?:string[])=>lightbox.open(creationPreviewImages(ids?ids.map(key=>images.find(i=>i.id===key)).filter((i):i is NonNullable<typeof i>=>Boolean(i)):images,detail,api,"发布图片"),id,trigger);
   const move=(index:number,delta:number)=>{const ids=[...editor.getSnapshot().input.imageIds];[ids[index],ids[index+delta]]=[ids[index+delta]!,ids[index]!];update({imageIds:ids});};
   const covers=data.view?.covers.versions.filter(v=>!v.hidden&&Object.values(input.coverFiles??{}).includes(v.file))??[];
   const uploadReady=Boolean(input.title.trim()&&accountId&&(input.type==="video"?input.video:input.type==="images"?input.imageIds.length:input.body.trim())&&(input.platform!=="official-account"||input.coverImageId));
@@ -62,7 +63,7 @@ export function PublicationEditorPanel({ editor, manager, detail, api, accountId
         <label className="publicationCoverField">{input.platform==="official-account"?"文章封面":"首图／封面"}<select value={input.coverImageId??""} onChange={e=>update({coverImageId:e.target.value})}><option value="">{input.platform==="official-account"?"请选择文章封面":"使用图集首图"}</option>{images.map((i,n)=><option value={i.id} key={i.id}>图片{n+1} · {i.width}×{i.height}</option>)}</select></label>
         {input.coverImageId&&images.some(i=>i.id===input.coverImageId)&&<button className="publicationImage publicationCover" aria-label="放大发布封面" onClick={e=>showImage(input.coverImageId!,e.currentTarget,[input.coverImageId!])}><ImageThumb image={images.find(i=>i.id===input.coverImageId)!} detail={detail} api={api}/></button>}
       </>}
-      {input.type==="video"&&<><div className="productionHeading"><h4>本次视频封面</h4><ActionButton onClick={()=>update({coverFiles:{...detail.covers}})}>使用项目当前封面</ActionButton></div><div className="publicationImageOrder">{covers.map(v=><button key={v.id} className="publicationImage" onClick={e=>{if(getCoverImage)lightbox.open(covers.map(c=>({id:c.id,title:`${c.ratio.replace("x",":")} 视频封面`,reload:()=>invalidateOverviewCover(detail.folderPath,c,getCoverImage),content:<OverviewCover version={c} detail={detail} getCoverImage={getCoverImage}/>})),v.id,e.currentTarget);}}>{getCoverImage?<OverviewCover version={v} detail={detail} getCoverImage={getCoverImage}/>:<span>{v.ratio.replace("x",":")}</span>}</button>)}</div>{!covers.length&&<p className="creatorMuted">尚未选择本次视频封面</p>}</>}
+      {input.type==="video"&&<><div className="productionHeading"><h4>本次视频封面</h4><ActionButton onClick={()=>update({coverFiles:{...detail.covers}})}>使用项目当前封面</ActionButton></div><div className="publicationImageOrder">{covers.map(v=><button key={v.id} className="publicationImage" onClick={e=>{if(getCoverImage)lightbox.open(coverPreviewImages(covers,detail,getCoverImage),v.id,e.currentTarget);}}>{getCoverImage?<OverviewCover version={v} detail={detail} getCoverImage={getCoverImage}/>:<span>{v.ratio.replace("x",":")}</span>}</button>)}</div>{!covers.length&&<p className="creatorMuted">尚未选择本次视频封面</p>}</>}
       {input.type==="article"&&<div className="publicationArticlePreview"><ActionBar><ActionButton disabled={previewBusy||!input.body.trim()} onClick={()=>void makePreview()}>{previewBusy?"正在排版…":"查看排版预览"}</ActionButton>{preview&&(preview.revision!==snap.revision||editor.dirty)&&<span className="creatorMuted">正文有更新，可重新预览</span>}</ActionBar>{preview&&<ArticlePreview html={preview.html} title="发布文章排版预览"/>}</div>}
     </section>
     <input ref={file} hidden type="file" accept="image/png,image/jpeg,image/webp" aria-label="导入发布图片" onChange={e=>{const picked=e.currentTarget.files?.[0];e.currentTarget.value="";if(!picked)return;try{const before=new Set(images.map(i=>i.id));void run({...scope,action:"import-image",sourcePath:localFilePath(picked),purpose:"card"}).then(next=>{const ids=next.images?.filter(i=>!i.hidden&&!before.has(i.id)).map(i=>i.id)??[];if(ids.length)update({imageIds:[...editor.getSnapshot().input.imageIds,...ids]});}).catch(()=>undefined);}catch(e){setError(e instanceof Error?e.message:"图片选择失败");}}}/>

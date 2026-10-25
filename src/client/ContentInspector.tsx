@@ -1,3 +1,4 @@
+import { SelectionRail } from "./ui/SelectionRail.tsx";
 import { ImagePreviewProvider } from "./ImagePreview.tsx";
 import { PublicationPanel } from "./PublicationPanel.tsx";
 import { ImageLibraryPanel } from "./ImageLibraryPanel.tsx";
@@ -359,6 +360,8 @@ export function ContentInspector({
   const hasVideo = detail?.videoRaw !== undefined || detail?.videoSubtitled !== undefined;
   const hasSubtitleDraft = detail?.subtitles.srt !== undefined || detail?.subtitles.transcript !== undefined;
   const canPreviewSubtitle = hasSubtitleDraft || detail?.subtitleJob.status === "done";
+  // The production panel owns ASR feedback; legacy burn feedback remains visible.
+  const subtitleFeedback = production ? { status: "idle" as const, error: undefined } : detail?.subtitleJob;
   const hasAnyCover = detail !== undefined
     && (detail.covers["3x4"] !== undefined || detail.covers["4x3"] !== undefined || detail.covers["16x9"] !== undefined);
   const onGenerateSubtitle = (): void => {
@@ -519,7 +522,7 @@ export function ContentInspector({
             </button>
           </div>
         </div>
-        <div className="tabs" role="tablist">
+        <SelectionRail as="div" selected={tab} className="tabs" role="tablist">
           {TABS.map((id, index) => (
             <button
               key={id}
@@ -537,7 +540,7 @@ export function ContentInspector({
               {t(TAB_KEY[id])}
             </button>
           ))}
-        </div>
+        </SelectionRail>
       </header>
       <ProjectBoundary api={production} detail={detail}><div
         id={`${tabGroupId}-panel-${tab}`}
@@ -639,20 +642,20 @@ export function ContentInspector({
             )}
             {actionError !== undefined
               ? <JobNote tone="error">{actionError}</JobNote>
-              : detail.subtitleJob.status === "running" || detail.burn.status === "running"
+              : subtitleFeedback?.status === "running" || detail.burn.status === "running"
                 ? (
                   <JobNote tone="running">
-                    {t((detail.subtitleJob.status === "running"
+                    {t((subtitleFeedback?.status === "running"
                       ? "inspector.subtitle.generating"
                       : "inspector.subtitle.burning") as CreatorKey)}
                   </JobNote>
                 )
-                : detail.subtitleJob.status === "error" || detail.burn.status === "error"
+                : subtitleFeedback?.status === "error" || detail.burn.status === "error"
                   ? (
                     <JobNote tone="error">
-                      {(detail.subtitleJob.error ?? detail.burn.error ?? "").includes("process exited")
+                      {(subtitleFeedback?.error ?? detail.burn.error ?? "").includes("process exited")
                         ? t("inspector.subtitle.burnFailed" as CreatorKey)
-                        : detail.subtitleJob.error
+                        : subtitleFeedback?.error
                           ?? detail.burn.error
                           ?? t("inspector.subtitle.burnFailed" as CreatorKey)}
                     </JobNote>

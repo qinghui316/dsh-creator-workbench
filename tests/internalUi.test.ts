@@ -380,7 +380,7 @@ describe("cover previews", () => {
     expect(
       await screen.findByRole("dialog", { name: "3:4 视频封面" }),
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "当前选用" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "当前选用" })).toBeNull();
     expect(action).not.toHaveBeenCalled();
     fireEvent.keyDown(screen.getByRole("dialog", { name: "3:4 视频封面" }), {
       key: "Escape",
@@ -389,6 +389,8 @@ describe("cover previews", () => {
     await waitFor(() => expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "预览 3:4 封面" }),
     ));
+    fireEvent.click(screen.getByRole("button",{name:"历史版本 · 1"}));
+    expect((screen.getByRole("button",{name:"已选用"})as HTMLButtonElement).disabled).toBe(true);
   });
   it("shows asset readiness without treating an old unsent record or a service test as current work", async () => {
     const versions = COVER_RATIOS.map((ratio, i) => ({ id: `ready-${i}`, ratio, file: `ready-${i}.png`, mime: "image/png", createdAt: 1, source: "import" as const, review: "pass" as const, width: 240, height: 320 }));
@@ -406,8 +408,7 @@ describe("cover previews", () => {
     const action = vi.fn().mockResolvedValueOnce({ ...state, versions: [{ ...version, review: "pass" }] }).mockRejectedValueOnce(new Error("选择保存失败"));
     render(h(ImagePreviewProvider, null, h(CoverPanel, { detail, getCoverState: vi.fn().mockResolvedValue(state), getCoverImage: vi.fn().mockResolvedValue({ mime: "image/png", base64: "AA==" }), coverAction: action, prepareCoverDraft: vi.fn() })));
     fireEvent.click(await screen.findByRole("button", { name: "选择封面" }));
-    fireEvent.click(await screen.findByRole("button", { name: "预览 3:4 封面" }));
-    const select = await screen.findByRole("button", { name: "我已检查，选用此版" });
+    const select = await screen.findByRole("button", { name: "检查并选用" });
     await waitFor(() => expect((select as HTMLButtonElement).disabled).toBe(false)); fireEvent.click(select);
     await waitFor(() => expect(screen.getAllByText("选择保存失败").length).toBeGreaterThan(0)); expect(screen.queryByText("已选用此版本")).toBeNull();
     expect(action.mock.calls.map(([request]) => request.action)).toEqual(["review", "select"]);

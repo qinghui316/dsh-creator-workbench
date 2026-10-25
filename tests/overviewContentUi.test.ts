@@ -50,5 +50,5 @@ it("keeps playing media and the open image preview mounted across metadata refre
  expect(f.api.image).toHaveBeenCalledTimes(1);expect(f.navigate).not.toHaveBeenCalled();
  f.update({...f.view,production:{...f.view.production,publications:(f.view.production.publications??[]).map(p=>({...p,title:"后台更新的材料"}))}});
  await act(async()=>{bumpLibrary();});await screen.findByText("后台更新的材料");expect(screen.getByLabelText("概览视频预览")).toBe(video);expect(within(screen.getByRole("dialog",{name:"项目图片"})).getByRole("img")).toBe(image);expect(f.media.getVideoPlayback).toHaveBeenCalledTimes(1);expect(f.api.image).toHaveBeenCalledTimes(1);expect(f.api.settings).not.toHaveBeenCalled();
- fireEvent.keyDown(preview,{key:"Escape"});expect(screen.queryByRole("dialog",{name:"项目图片"})).toBeNull();await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("button",{name:"查看图片 1"})));
+ fireEvent.keyDown(preview,{key:"Escape"});await waitFor(()=>expect(screen.queryByRole("dialog",{name:"项目图片"})).toBeNull());await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("button",{name:"查看图片 1"})));
 });

@@ -12,6 +12,7 @@ import { contentBindingForSession, relocateSessionContent, restoreSessionContent
 import "./CreatorWorkbench.css";
 import "./InternalUi.css";
 import "./WorkbenchContrast.css";
+import "./InteractionPolish.css";
 
 export function CreatorWorkbench({ face, service, credentials, t }: {
   face: CreatorViewFace;

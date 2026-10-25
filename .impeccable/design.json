@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-24T19:56:44.933Z",
+  "generatedAt": "2026-10-25T13:35:00.965027+00:00",
   "title": "Design System: 创作工作台",
   "extensions": {
     "colorMeta": {
@@ -140,6 +140,26 @@
         "name": "history-search-opacity",
         "value": "120ms var(--ds-ease-in-out)",
         "purpose": "历史搜索输入与附属动作的透明度变化；减少动态效果时移除。"
+      },
+      {
+        "name": "control-feedback",
+        "value": "120ms ease-out",
+        "purpose": "悬停、背景、边框与图片切换；业务状态即时更新。"
+      },
+      {
+        "name": "selection-indicator",
+        "value": "180ms ease-out",
+        "purpose": "接受切换后的页签、平台与设置指示线；随容器换行定位。"
+      },
+      {
+        "name": "image-lightbox-enter",
+        "value": "180ms ease-out",
+        "purpose": "窗口中央图片层淡入；不改变媒体比例。"
+      },
+      {
+        "name": "image-lightbox-exit",
+        "value": "120ms ease-in",
+        "purpose": "关闭图片层；减少动态或页面隐藏时立即关闭。"
       }
     ],
     "breakpoints": [
@@ -170,6 +190,12 @@
       "tonalRamps": "基础表面与文字继承宿主；浅色增强使用六个已批准的离散角色色。没有合成品牌色阶，深色继续使用宿主值。",
       "previewScope": "下列片段是当前源码的静态视觉样例；动态行为以 React 源码为准。文档刷新不构成远端上传、安装或业务验收。",
       "lightScheme": "仅当 html inline color-scheme 为 light 时，WorkbenchContrast.css 在本插件根节点内映射分组、边界、悬停、按下与选中；对话和宿主公共界面不在作用范围。"
+    },
+    "previewLayer": {
+      "owner": "工作台实例统一入口，复用宿主无头 Modal",
+      "scope": "DSH 内容视口中央，原生标题栏安全区域之外",
+      "selection": "查看与选用分离，关闭恢复触发焦点和原阅读位置",
+      "reducedMotion": "取消动画与空间过渡"
     }
   },
   "components": [

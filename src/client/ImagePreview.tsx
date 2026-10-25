@@ -1,50 +1,158 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActionButton } from "./ui/ActionButton.tsx";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Modal } from "@deepseek-ai/dsh-client-ui-primitives";
 import "./ImagePreview.css";
 
-export interface PreviewImage { id: string; title: string; content: ReactNode; actions?: ReactNode; reload?: () => void }
-interface PreviewRequest { images: PreviewImage[]; index: number; trigger?: HTMLElement | undefined }
-type PreviewApi = { open: (images: PreviewImage[], id: string, trigger?: HTMLElement) => void };
-const Context = createContext<PreviewApi | undefined>(undefined);
-export function useImagePreview(): PreviewApi {
-  return useContext(Context) ?? { open: () => { throw new Error("图片预览未接入当前业务区域。"); } };
+/** A viewer consumes immutable media, never an editor or a business action. */
+export interface PreviewImage {
+  id: string;
+  title: string;
+  revision?: string;
+  src?: string;
+  load?: (signal: AbortSignal) => string | Promise<string>;
+  reload?: () => void;
 }
+type ImageIdentity = Pick<PreviewImage, "id" | "revision">;
+interface PreviewRequest { images: PreviewImage[]; index: number; owner: string; trigger?: HTMLElement | undefined }
+interface PreviewApi {
+  open: (images: PreviewImage[], id: string, owner: string, trigger?: HTMLElement) => void;
+  reconcile: (owner: string, images: readonly ImageIdentity[]) => void;
+  dismiss: (owner: string, restore?: boolean) => void;
+}
+const Context = createContext<PreviewApi | undefined>(undefined);
+
+/** Each entrance owns its lifetime; removing a source or unmounting closes its viewer. */
+export function useImagePreview(available?: readonly ImageIdentity[]) {
+  const api = useContext(Context), owner = useId();
+  useLayoutEffect(() => { if (available) api?.reconcile(owner, available); }, [api, owner, available]);
+  useEffect(() => () => api?.dismiss(owner, false), [api, owner]);
+  return {
+    open: (images: PreviewImage[], id: string, trigger?: HTMLElement) => {
+      if (!api) throw new Error("图片预览未接入当前业务区域。");
+      api.open(images, id, owner, trigger);
+    },
+    dismiss: () => api?.dismiss(owner, false),
+  };
+}
+
 export function ImagePreviewProvider({ children }: { children: ReactNode }) {
-  const [request, setRequest] = useState<PreviewRequest>(), [retry, setRetry] = useState(0);
-  const [imageFailed,setImageFailed] = useState(false);
-  useEffect(()=>setImageFailed(false),[request?.index,retry,request?.images]);
-  const dialog = useRef<HTMLDivElement>(null), closeButton = useRef<HTMLButtonElement>(null), backdropDown = useRef(false);
-  const close = (restore=true) => { const trigger = request?.trigger,root=dialog.current?.closest('[data-surface="inspector"]'); setRequest(undefined); if(restore)queueMicrotask(() => { if (trigger?.isConnected) trigger.focus({ preventScroll: true }); else root?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus({preventScroll:true}); }); };
+  const parent = useContext(Context);
+  return parent ? <>{children}</> : <ImagePreviewScope>{children}</ImagePreviewScope>;
+}
+function topLayer(dialog: HTMLElement | null) {
+  const top = [...document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"], [role="menu"]')].at(-1);
+  return Boolean(dialog && top === dialog);
+}
+function ImagePreviewScope({ children }: { children: ReactNode }) {
+  const [request, setRequest] = useState<PreviewRequest>(), [closing, setClosing] = useState(false);
+  const current = useRef(request); current.current = request;
+  const availableOwners=useRef(new Map<string,readonly ImageIdentity[]>());
+  const anchor = useRef<HTMLSpanElement>(null), frame = useRef<HTMLDivElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(), restoreTimer = useRef<ReturnType<typeof setTimeout>>();
+  const alive = useRef(true), pointerInside = useRef(false);
+  const clear = useCallback((restore: boolean) => {
+    const previous = current.current;
+    clearTimeout(timer.current); timer.current = undefined; current.current = undefined; setRequest(undefined); setClosing(false);
+    clearTimeout(restoreTimer.current);
+    if (restore && previous) restoreTimer.current = setTimeout(() => {
+      if (!alive.current || current.current) return;
+      const trigger = previous.trigger;
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+      else anchor.current?.closest('[data-surface="inspector"]')?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
+    }, 0);
+  }, []);
+  const close = useCallback((restore = true) => {
+    if (!current.current) return;
+    if (!restore || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { clear(restore); return; }
+    setClosing(true); clearTimeout(timer.current); timer.current = setTimeout(() => clear(true), 120);
+  }, [clear]);
+  const availableRequest=useCallback(()=>{
+    const value=current.current;if(!value)return;
+    const allowed=availableOwners.current.get(value.owner);if(!allowed)return value;
+    const item=value.images[value.index],images=value.images.filter(image=>allowed.some(valid=>valid.id===image.id&&valid.revision===image.revision));
+    const index=images.findIndex(image=>image===item);
+    if(index<0){close(false);return;}
+    if(images.length!==value.images.length){const next={...value,images,index};current.current=next;setRequest(next);return next;}
+    return value;
+  },[close]);
+  const api = useRef<PreviewApi>();
+  if (!api.current) api.current = {
+    open: (images, id, owner, trigger) => {
+      const allowed=availableOwners.current.get(owner);
+      const valid=allowed?images.filter(image=>allowed.some(value=>value.id===image.id&&value.revision===image.revision)):images;
+      const index = valid.findIndex(image => image.id === id); if (index < 0) return;
+      clearTimeout(timer.current); clearTimeout(restoreTimer.current); setClosing(false);
+      const next = { images: [...valid], index, owner, trigger: trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : undefined) };
+      current.current = next; setRequest(next);
+    },
+    reconcile: (owner, images) => {
+      availableOwners.current.set(owner,images);
+      if(current.current?.owner===owner)availableRequest();
+    },
+    dismiss: (owner, restore = false) => { availableOwners.current.delete(owner);if (current.current?.owner === owner) close(restore); },
+  };
+  useEffect(() => { alive.current = true; return () => { alive.current = false; clearTimeout(timer.current); clearTimeout(restoreTimer.current); }; }, []);
+  const move = useCallback((delta: number) => {
+    const value = availableRequest(); if (!value) return;
+    const index = value.index + delta;
+    if (index >= 0 && index < value.images.length) { const next = { ...value, index }; current.current = next; setRequest(next); }
+  }, [availableRequest]);
+  const open = Boolean(request);
+  let hostModal=false;try{hostModal=typeof Modal === "function";}catch{/* Older hosts use the plugin Portal adapter. */}
   useEffect(() => {
-    if (!request) return;
-    closeButton.current?.focus({ preventScroll: true });
-    const body = dialog.current?.closest('[data-surface="inspector"]')?.querySelector<HTMLElement>(".body");
-    const old = body?.style.overflow;
+    if (!open) return;
+    const dialog = frame.current?.closest<HTMLElement>('[role="dialog"]') ?? frame.current;
+    if (!hostModal) dialog?.querySelector<HTMLElement>('[data-modal-autofocus]')?.focus({ preventScroll: true });
+    const body = anchor.current?.closest('[data-surface="inspector"]')?.querySelector<HTMLElement>(".body");
+    const overflow = body?.style.overflow;
     if (body) body.style.overflow = "hidden";
-    const outside=(event:MouseEvent)=>{const target=event.target;if(target instanceof Node&&!dialog.current?.parentElement?.contains(target))close(false);};
-    const keyboard=(event:KeyboardEvent)=>{
-      if(event.key==="Escape"){event.preventDefault();event.stopPropagation();close();return;}
-      if(event.key!=="Tab")return;
-      const items=[...(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),[tabindex="0"]')??[])];
-      const first=items[0],last=items.at(-1),active=document.activeElement;
-      if(!dialog.current?.contains(active)||event.shiftKey&&active===first||!event.shiftKey&&active===last){event.preventDefault();(event.shiftKey?last:first)?.focus();}
+    const pointer = (event: PointerEvent) => { pointerInside.current = Boolean(dialog?.contains(event.target as Node)); };
+    const keyboard = (event: KeyboardEvent) => {
+      if (!topLayer(dialog ?? null) || event.isComposing || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === "Escape") pointerInside.current = false;
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); event.stopPropagation(); move(event.key === "ArrowLeft" ? -1 : 1); }
+      if (hostModal) return;
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); }
+      if (event.key === "Tab") {
+        const items = [...(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled),[tabindex="0"]') ?? [])], first = items[0], last = items.at(-1), active = document.activeElement;
+        if (!dialog?.contains(active) || event.shiftKey && active === first || !event.shiftKey && active === last) { event.preventDefault(); (event.shiftKey ? last : first)?.focus(); }
+      }
     };
-    document.addEventListener("click",outside,true);
-    // A pointer click on the image can move Chromium's focus to body. Keep
-    // modal keys active there without changing shortcuts after the modal closes.
-    document.addEventListener("keydown",keyboard,true);
-    return () => { document.removeEventListener("click",outside,true);document.removeEventListener("keydown",keyboard,true);if (body && body.style.overflow === "hidden") body.style.overflow = old ?? ""; };
-  }, [Boolean(request)]);
+    const visibility = () => { if (document.hidden && timer.current) clear(true); };
+    document.addEventListener("pointerdown", pointer, true); document.addEventListener("keydown", keyboard, true); document.addEventListener("visibilitychange", visibility);
+    return () => {
+      document.removeEventListener("pointerdown", pointer, true); document.removeEventListener("keydown", keyboard, true); document.removeEventListener("visibilitychange", visibility);
+      if (body?.style.overflow === "hidden") body.style.overflow = overflow ?? "";
+    };
+  }, [open, hostModal, close, move, clear]);
   const item = request?.images[request.index];
-  return <Context.Provider value={{ open: (images, id, trigger) => { const index = images.findIndex(i => i.id === id); if (index >= 0) { setRetry(0); setRequest({ images, index, trigger: trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : undefined) }); } } }}>
-    {children}
-    {request && item && <div className="creatorImageOverlay" onPointerDown={e => { backdropDown.current = e.target === e.currentTarget; }} onClick={e => { if (backdropDown.current && e.target === e.currentTarget) close(); }}>
-      <div ref={dialog} role="dialog" aria-modal="true" aria-label={item.title} className="creatorImageDialog">
-        <div className="creatorImageDialogHeader"><span>{item.title}</span><button ref={closeButton} type="button" className="creatorImageClose" onClick={()=>close()}>关闭</button></div>
-        <div className="creatorImageCanvas" key={`${item.id}:${retry}`} onErrorCapture={e=>{if(e.target instanceof HTMLImageElement)setImageFailed(true);}}>{item.content}</div>
-        {imageFailed&&<p role="alert" className="creatorError">图片无法显示，请重新读取图片或关闭预览。</p>}
-        <div className="creatorImageDialogActions">{request.images.length > 1 && <><ActionButton disabled={request.index === 0} onClick={() => setRequest({ ...request, index: request.index - 1 })}>上一张</ActionButton><span>{request.index + 1} / {request.images.length}</span><ActionButton disabled={request.index === request.images.length - 1} onClick={() => setRequest({ ...request, index: request.index + 1 })}>下一张</ActionButton></>}{item.actions}<ActionButton tone="ghost" onClick={() => {item.reload?.();setRetry(n => n + 1);}}>重新读取图片</ActionButton></div>
-      </div>
-    </div>}
-  </Context.Provider>;
+  const dismissMask = () => { if(topLayer(frame.current?.closest<HTMLElement>('[role="dialog"]')??null)&&!pointerInside.current)close();pointerInside.current=false; };
+  const content = request && item && <div ref={frame} data-plugin="dsh-creator-workbench" data-lightbox-phase={closing ? "closing" : "open"} className="creatorLightboxContent">
+    <button data-modal-autofocus type="button" className="creatorLightboxClose creatorLightboxControl" aria-label="关闭图片" onClick={() => close()}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    {request.images.length > 1 && <>
+      <button type="button" className="creatorLightboxPrevious creatorLightboxControl" aria-label="上一张" disabled={request.index === 0} onClick={() => move(-1)}><Arrow direction="left" /></button>
+      <button type="button" className="creatorLightboxNext creatorLightboxControl" aria-label="下一张" disabled={request.index === request.images.length - 1} onClick={() => move(1)}><Arrow direction="right" /></button>
+      <span className="creatorLightboxCount" aria-live="polite">{request.index + 1} / {request.images.length}</span>
+    </>}
+    <PreviewMedia key={`${item.id}:${item.revision ?? ""}`} image={item} active={!closing} />
+  </div>;
+  return <Context.Provider value={api.current}>{children}<span ref={anchor} hidden />{request && item && (hostModal ?
+    <Modal open headless backdropBlur={false} title={item.title} className={`creatorLightbox ${closing ? "creatorLightboxClosing" : ""}`} onClose={dismissMask}>{content}</Modal> :
+    createPortal(<div className={`creatorLightboxFallback ${closing ? "creatorLightboxClosing" : ""}`} onClick={event => { if (event.target === event.currentTarget) dismissMask(); }}><div role="dialog" aria-modal="true" aria-label={item.title} className="creatorLightbox">{content}</div></div>, document.body))}</Context.Provider>;
+}
+function PreviewMedia({ image, active }: { image: PreviewImage; active: boolean }) {
+  const [src, setSrc] = useState(image.src), [error, setError] = useState(""), [retry, setRetry] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController(); if (!active) return () => controller.abort();
+    setError(""); setSrc(image.src);
+    if (!image.src) void Promise.resolve().then(() => image.load?.(controller.signal)).then(value => {
+      if (!controller.signal.aborted) { if (value) setSrc(value); else setError("图片无法读取"); }
+    }, cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "图片无法读取"); });
+    return () => controller.abort();
+  }, [image, retry, active]);
+  return src && !error ? <img className="creatorLightboxImage" src={src} alt={image.title} draggable={false} onError={() => setError("图片无法显示")} /> :
+    <div className="creatorLightboxMessage" role={error ? "alert" : "status"}>{error || "正在读取图片…"}{error && <button type="button" onClick={() => { image.reload?.(); setRetry(value => value + 1); }}>重试</button>}</div>;
+}
+function Arrow({ direction }: { direction: "left" | "right" }) {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d={direction === "left" ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7"} /></svg>;
 }

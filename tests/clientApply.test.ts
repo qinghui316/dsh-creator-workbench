@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { createElement } from "react";
 import * as React from "react";
+import * as ReactDOM from "react-dom";
 import * as jsx from "react/jsx-runtime";
 import { describe, expect, it, vi } from "vitest";
 
@@ -40,6 +41,7 @@ function mountClient(pickDirectory = vi.fn(async (): Promise<string | null> => n
       client = factory((name) => {
         if (name === "react") return React;
         if (name === "react/jsx-runtime") return jsx;
+        if (name === "react-dom") return ReactDOM;
         if (name === "@deepseek-ai/dsh-client-ui-primitives") return primitives;
         throw new Error(`Unexpected runtime module: ${name}`);
       });

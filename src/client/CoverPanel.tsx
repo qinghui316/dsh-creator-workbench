@@ -1,8 +1,10 @@
+import { coverPreviewImages } from "./imageDescriptors.ts";
+import { loadOverviewCover } from "./OverviewMedia.tsx";
 import { useImagePreview } from "./ImagePreview.tsx";
 import type { CoverView, CoverRunView } from "../projectView.ts";
 import type { ProductionClient } from "./productionApi.ts";
 import { useProjectData } from "./ProjectData.tsx";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ProjectQuery } from "./projectQuery.ts";
 import type { ContentDetail } from "../types.ts";
 import {
@@ -45,41 +47,8 @@ const sourceLabel = (v: CoverVersion) =>
       : v.review === "pending"
         ? "待检查"
         : labels[v.review];
-const previews = new Map<string, Promise<string>>();
-const noSubscription = () => () => undefined;
-const noSnapshot = () => undefined;
-function CoverModalImage({ version, detail, face, selected: initial, query, onSelect }: { version: CoverVersion; detail: ContentDetail; face: CoverFace; selected: boolean; query?: ProjectQuery | undefined; onSelect: () => Promise<boolean> }) {
-  const [url, setUrl] = useState<string>(), [error, setError] = useState(""), [selected, setSelected] = useState(initial), [busy, setBusy] = useState(false);
-  const snapshot = useSyncExternalStore(query?.subscribe ?? noSubscription, query?.getSnapshot ?? noSnapshot);
-  const current = snapshot?.view?.covers ? snapshot.view.covers.selected[version.ratio] === version.id : selected;
-  useEffect(() => { let live=true; void imageUrl(detail,version,face).then(value=>{if(live)setUrl(value);},()=>{if(live)setError("图片读取失败，可重新读取或关闭。");});return()=>{live=false;}; },[version.id,version.file,detail.folderPath]);
-  return <div className="creatorCoverModalContent">{url?<img src={url} alt="封面放大预览"/>:<p role="status">{error||"正在读取图片…"}</p>}<ActionBar><span className="creatorMuted">{sourceLabel(version)} · {version.width}×{version.height}</span><ActionButton disabled={!url||busy||current} onClick={async()=>{setBusy(true);setError("");try{const done=await onSelect();if(done)setSelected(true);else setError("选用未完成，请核对后重试。");}catch(cause){setError(cause instanceof Error?cause.message:String(cause));}finally{setBusy(false);}}}>{current?"当前选用":version.review==="pass"?"选用此版本":"我已检查，选用此版"}</ActionButton></ActionBar>{error&&<p className="creatorError" role="alert">{error}</p>}</div>;
-}
-function imageUrl(
-  detail: ContentDetail,
-  version: CoverVersion,
-  face: CoverFace,
-): Promise<string> {
-  const key = detail.folderPath + "/" + version.id + "/" + version.file;
-  let value = previews.get(key);
-  if (!value) {
-    value = face
-      .getCoverImage({
-        id: detail.id,
-        folderPath: detail.folderPath,
-        versionId: version.id,
-      })
-      .then(
-        (v) => `data:${v.mime};base64,${v.base64}`,
-        (e) => {
-          previews.delete(key);
-          throw e;
-        },
-      );
-    if (previews.size >= 40) previews.delete(previews.keys().next().value!);
-    previews.set(key, value);
-  }
-  return value;
+function imageUrl(detail:ContentDetail,version:CoverVersion,face:CoverFace):Promise<string> {
+  return loadOverviewCover(detail,version,face.getCoverImage);
 }
 function Thumbnail({
   version,
@@ -152,7 +121,7 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
   const [panel, setPanel] = useState<"versions" | "run">(),
     [ratio, setRatio] = useState<CoverRatio>("3x4");
   const [ack, setAck] = useState(false);
-  const imagePreview = useImagePreview();
+  const imagePreview = useImagePreview(coverPreviewImages(state.versions,detail,face.getCoverImage));
   const coverRoot = useRef<HTMLElement>(null);
   const fileInput = useRef<HTMLInputElement>(null),
     importRatio = useRef<CoverRatio>("3x4");
@@ -294,9 +263,14 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
           ? "需要修改"
           : "待检查"
       : labels[run.status];
-  const view = async (version: CoverVersion) => {
-    const versions=state.versions.filter(v=>!v.hidden);
-    imagePreview.open(versions.map(v=>({id:v.id,title:`${v.ratio.replace("x",":")} 视频封面`,reload:()=>{previews.delete(detail.folderPath+"/"+v.id+"/"+v.file);},content:<CoverModalImage version={v} detail={detail} face={face} selected={state.selected[v.ratio]===v.id} query={shared?.query} onSelect={async()=>{const checked=await apply(v.review==="pass"?{...scope,action:"select",versionId:v.id}:{...scope,action:"review",versionId:v.id,verdict:"pass",note:"用户预览图片后明确检查并选用此版本。",select:false},true);const next=checked&&(v.review==="pass"?checked:await apply({...scope,action:"select",versionId:v.id},true));return next?.selected[v.ratio]===v.id;}}/>})),version.id);
+  const view = (version: CoverVersion) => {
+    imagePreview.open(coverPreviewImages(state.versions.filter(v=>v.ratio===version.ratio).reverse(),detail,face.getCoverImage),version.id);
+  };
+  const selectVersion = async (version:CoverVersion) => {
+    const checked=await apply(version.review==="pass"?{...scope,action:"select",versionId:version.id}:{...scope,action:"review",versionId:version.id,verdict:"pass",note:"用户明确检查并选用此版本。",select:false});
+    const next=checked&&(version.review==="pass"?checked:await apply({...scope,action:"select",versionId:version.id}));
+    if(next?.selected[version.ratio]===version.id)setNotice("已选用此版本");
+    else if(next)setError("选用未完成，请核对后重试。");
   };
   const focusReturn = () =>
     coverRoot.current?.querySelector<HTMLElement>(
@@ -463,6 +437,7 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
                     {v.width} × {v.height}
                   </small>
                 </div>
+                <ActionButton disabled={busy||state.selected[v.ratio]===v.id} onClick={()=>void selectVersion(v)}>{state.selected[v.ratio]===v.id?"已选用":v.review==="pass"?"选用":"检查并选用"}</ActionButton>
                 <ActionButton disabled={busy} tone="ghost" onClick={() => { void apply({ ...scope, action: "remove", versionId: v.id }); }}>移除</ActionButton>
                 <ActionButton
                   onClick={() => {

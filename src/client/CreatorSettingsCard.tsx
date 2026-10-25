@@ -1,3 +1,5 @@
+import { SecretInput } from "./ui/SecretInput.tsx";
+import { SelectionRail } from "./ui/SelectionRail.tsx";
 import { invalidateProjectSettings } from "./projectQuery.ts";
 import type { SettingsGroup } from "./SettingsNavigation.tsx";
 import {
@@ -375,7 +377,7 @@ export const CreatorSettingsCard = forwardRef<
           </ActionBar>
         </div>
       )}
-      <nav className="creatorSettingsTabs" aria-label="设置分组">
+      <SelectionRail selected={group} className="creatorSettingsTabs" aria-label="设置分组">
         <button
           type="button"
           aria-current={group === "image" ? "page" : undefined}
@@ -391,7 +393,7 @@ export const CreatorSettingsCard = forwardRef<
         >
           常规
         </button>
-      </nav>
+      </SelectionRail>
       {loading ? (
         <p role="status" className="creatorMuted">
           正在读取设置…
@@ -447,8 +449,8 @@ export const CreatorSettingsCard = forwardRef<
                   API Key{" "}
                   <small>{imageConfigured ? "已保存" : "尚未配置"}</small>
                 </span>
-                <input
-                  type="password"
+                <SecretInput
+                  aria-label="API Key"
                   autoComplete="off"
                   value={key}
                   placeholder={
