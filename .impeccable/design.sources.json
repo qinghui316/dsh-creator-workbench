@@ -280,12 +280,24 @@
     {
       "path": ".impeccable/review/v060/host-theme-restored.jpg",
       "sha256": "26f525f94bf6d2efcd08297829cf14d16df0843245aa5c4c8d8348f418132144"
+    },
+    {
+      "path": ".impeccable/review/v060/light-keyboard-focus.jpg",
+      "sha256": "bd30e3dd630d04a180164925597207525f328e224656eeab90d7927aa4ed7f3b"
+    },
+    {
+      "path": ".impeccable/review/v060/light-320-final.jpg",
+      "sha256": "bd30e3dd630d04a180164925597207525f328e224656eeab90d7927aa4ed7f3b"
+    },
+    {
+      "path": ".impeccable/review/v060/light-layout-restored-final.jpg",
+      "sha256": "bd30e3dd630d04a180164925597207525f328e224656eeab90d7927aa4ed7f3b"
     }
   ],
   "artifacts": [
     {
       "path": "DESIGN.md",
-      "sha256": "a65eda448ba41b0ef767467825829030cf99afd77e885f34a309137e5d500972"
+      "sha256": "a1cd20d559bf1b5a1dfc5d67e4f89bc3202e85e6af7243c34c10538d9082a525"
     },
     {
       "path": ".impeccable/design.json",
@@ -383,6 +395,10 @@
     {
       "path": ".impeccable/review/v060/geometry.json",
       "sha256": "c541615ccbfb5b3fd4ad8b6b96d27b38503e75187c1123a04418287d9333416e"
+    },
+    {
+      "path": ".impeccable/review/v060/light-final-geometry.json",
+      "sha256": "382fabf21deec78873d47dbe61645b6bc83e6caa3f547e3265380ca11dac1caa"
     }
   ],
   "localInstallation": {
@@ -397,7 +413,6 @@
       ".impeccable/review/v060/final-switch-menu.jpg"
     ]
   },
-  "nativeUnverified": [
-    "键盘焦点单独实测未取得：补证时桌面访问失败，随后只读确认窗口已最小化。设计文档中的焦点规则来自源码，不作为该项原生实测通过证据。"
-  ]
+  "nativeUnverified": [],
+  "nativeFinalConfirmation": "Tab moved focus from service address to empty saved-Key input with clear visible ring. Light business width320/client320/scroll320, body310/310; original width486.125 restored. Plugin font14px, body default16px, zoom1 unchanged."
 }
