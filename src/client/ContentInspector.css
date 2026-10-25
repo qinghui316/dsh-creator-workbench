@@ -14,7 +14,7 @@
 }
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .header {
   flex: none;
-  padding: 12px 16px 0 16px;
+  padding: 8px 12px 0;
 }
 
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .titleRow {
@@ -28,9 +28,9 @@
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .title {
   min-width: 0;
   overflow: hidden;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
   color: var(--dsw-alias-label-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -70,16 +70,19 @@
   display: flex;
   flex: none;
   overflow-x: auto;
-  gap: 20px;
+  gap: 12px;
   margin-top: 4px;
-  padding-left: 2px;
+  padding: 0 0 2px;
+  scrollbar-width: thin;
 }
 
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab {
   flex: none;
   white-space: nowrap;
   position: relative;
-  padding: 0 0 11px;
+  min-height: 36px;
+  padding: 0 6px 8px;
+  border-radius: 6px 6px 0 0;
   border: none;
   background: transparent;
   font-size: 13px;
@@ -92,9 +95,9 @@
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab::after {
   content: "";
   position: absolute;
-  right: 0;
+  right: 6px;
   bottom: 1px;
-  left: 0;
+  left: 6px;
   height: 2px;
   border-radius: 0;
   background: transparent;
@@ -103,26 +106,29 @@
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab.active {
   color: var(--dsw-alias-state-business-primary);
 }
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab:hover { background:var(--dsw-alias-interactive-bg-hover); }
 
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab.active::after {
   background: var(--dsw-alias-state-business-primary);
 }
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab:first-child { padding-left:0; }
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab:first-child::after { left:0; }
 
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .body {
   flex: 1;
   min-height: 0;
-  padding: 20px 20px 32px;
+  padding: 16px 12px 24px;
   overflow-y: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .body::-webkit-scrollbar {
-  width: 0;
+  width: 6px;
   height: 0;
 }
 
@@ -348,7 +354,7 @@
   width: 100%;
   max-height: min(70vh, 520px);
   border-radius: 10px;
-  background: #111;
+  background: var(--dsw-alias-bg-overlay);
 }
 
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .publishRow {

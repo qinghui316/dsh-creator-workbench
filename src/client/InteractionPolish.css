@@ -1,17 +1,12 @@
 /* Shared presentation stays below the workbench root. Portaled media has its own stylesheet. */
 [data-plugin="dsh-creator-workbench"] {
   --creator-feedback-duration:120ms;
-  --creator-selection-duration:180ms;
 }
 [data-plugin="dsh-creator-workbench"] :is(button,summary,input,select,textarea) {
   transition:background-color var(--creator-feedback-duration) ease-out,border-color var(--creator-feedback-duration) ease-out,color var(--creator-feedback-duration) ease-out;
 }
 [data-plugin="dsh-creator-workbench"] :is([data-creator-tone="secondary"],[data-creator-tone="ghost"],.tab,.creatorSettingsTabs button,.publicationPlatforms button,summary):not(:disabled):active { background-color:var(--dsw-alias-interactive-bg-active); }
 [data-plugin="dsh-creator-workbench"] [data-selection-rail] { position:relative; }
-[data-plugin="dsh-creator-workbench"] .creatorSelectionIndicator { position:absolute;left:0;top:0;width:1px;height:2px;background:var(--dsw-alias-state-business-primary);transform-origin:left center;pointer-events:none;transition:transform var(--creator-selection-duration) cubic-bezier(.2,.8,.2,1); }
-[data-plugin="dsh-creator-workbench"] [data-selection-rail] .tab::after { display:none; }
-[data-plugin="dsh-creator-workbench"] .creatorSettingsTabs { overflow-x:auto;min-width:0;flex-wrap:nowrap;gap:4px; }
-[data-plugin="dsh-creator-workbench"] .creatorSettingsTabs button { flex:none; }
 [data-plugin="dsh-creator-workbench"] .creatorSecretInput { display:flex;position:relative;width:100%;min-width:0; }
 [data-plugin="dsh-creator-workbench"] .creatorSecretInput input { width:100%;padding-right:42px; }
 [data-plugin="dsh-creator-workbench"] .creatorSecretToggle { position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:32px;height:30px;padding:0;border:0;border-radius:6px;color:var(--dsw-alias-label-secondary);background:transparent;cursor:pointer; }
@@ -19,10 +14,6 @@
 [data-plugin="dsh-creator-workbench"] .creatorSecretToggle:disabled { opacity:.4;cursor:default; }
 [data-plugin="dsh-creator-workbench"] :is(.creatorInlineStatus,.scriptStatus,.articleSaveStatus,.publicationSaveStatus) { min-height:24px;line-height:24px; }
 [data-plugin="dsh-creator-workbench"] :is(.creatorMuted,.creatorError,.overviewCaption,.publicationSaveStatus) { overflow-wrap:anywhere; }
-[data-plugin="dsh-creator-workbench"] .overviewSection { padding-block:24px; }
-[data-plugin="dsh-creator-workbench"] .overviewSection:first-child { padding-top:0; }
-[data-plugin="dsh-creator-workbench"] .overviewHeading { margin-bottom:12px; }
-[data-plugin="dsh-creator-workbench"] .overviewCaption { margin-top:8px; }
 [data-plugin="dsh-creator-workbench"] :is(.overviewImage,.creationImageButton,.coverPreview,.publicationImage) { cursor:pointer; }
 [data-plugin="dsh-creator-workbench"] .creationImageItem { min-width:0; }
 [data-plugin="dsh-creator-workbench"] .creationImageItem>div { align-items:center; }
@@ -32,15 +23,8 @@
 [data-plugin="dsh-creator-workbench"] .productionSettings>.creatorMuted+.creatorMuted { margin-top:6px; }
 [data-plugin="dsh-creator-workbench"] .creatorSettingsForm { gap:18px; }
 [data-plugin="dsh-creator-workbench"] .creatorSettingsSave { min-height:36px;margin-top:4px;border-top:1px solid var(--dsw-alias-border-l1); }
-[data-plugin="dsh-creator-workbench"] .publicationMaterialBar { padding-top:4px; }
-[data-plugin="dsh-creator-workbench"] .publicationNew>span { color:var(--dsw-alias-label-secondary);font-size:12px; }
-[data-plugin="dsh-creator-workbench"] .publicationAccount { padding-block:16px; }
-[data-plugin="dsh-creator-workbench"] .publicationAccount strong { font-size:14px;line-height:22px; }
-[data-plugin="dsh-creator-workbench"] .publicationAccount>div { gap:3px; }
-[data-plugin="dsh-creator-workbench"] .articleToolbar { padding-bottom:12px;border-bottom:1px solid var(--dsw-alias-border-l1); }
 [data-plugin="dsh-creator-workbench"] .creatorVideoPanel { padding-top:0; }
-html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.overviewHeading,.productionHeading,.creatorSectionHeading) { padding:0;background:transparent;border-radius:0; }
 html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .creatorSettingsTabs [aria-current] { background:var(--creator-light-selected); }
 @media (prefers-reduced-motion:reduce) {
-  [data-plugin="dsh-creator-workbench"] { --creator-feedback-duration:0ms;--creator-selection-duration:0ms; }
+  [data-plugin="dsh-creator-workbench"] { --creator-feedback-duration:0ms; }
 }

@@ -33,7 +33,6 @@ import { formatRelativeTime } from "./relativeTime.ts";
 import { WORKFLOW_TONE } from "./workflowTone.ts";
 import { ActionBar, ActionButton } from "./ui/ActionButton.tsx";
 import { StatusPill, type StatusTone } from "./ui/StatusPill.tsx";
-import { Surface } from "./ui/Surface.tsx";
 import "./ContentInspector.css";
 
 const TABS = PROJECT_TABS;
@@ -473,7 +472,7 @@ export function ContentInspector({
     const next = TABS[target];
     if (next === undefined) return;
     setTab(next);
-    tabRefs.current[target]?.focus();
+    tabRefs.current[target]?.focus({ preventScroll: true });
   };
 
   const prepareScript = async (append = false) => {
@@ -662,7 +661,7 @@ export function ContentInspector({
                   )
                   : null}
             {cues.length === 0
-              ? <div className="empty">{t("inspector.subtitle.empty" as CreatorKey)}</div>
+              ? !production && <div className="empty">{t("inspector.subtitle.empty" as CreatorKey)}</div>
               : (
                 <ol className="cues">
                   {cues.map((cue, index) => (

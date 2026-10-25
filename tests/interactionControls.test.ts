@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import { createElement as h, useState } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SecretInput } from "../src/client/ui/SecretInput.tsx";
 import { SelectionRail } from "../src/client/ui/SelectionRail.tsx";
+import { ActionMenu } from "../src/client/ui/ActionMenu.tsx";
+import { ActionButton } from "../src/client/ui/ActionButton.tsx";
+vi.mock("@deepseek-ai/dsh-client-ui-primitives",()=>({Button:({children,variant,size,...props}:Record<string,unknown>)=>h("button",props,children as never)}));
 afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();});
 function SecretDemo({disabled=false}:{disabled?:boolean}) { const [value,setValue]=useState("fixture-input-only");return h(SecretInput,{"aria-label":"密钥",value,disabled,onChange:(event)=>setValue(event.target.value)}); }
 describe("current-input secret visibility",()=>{
@@ -21,20 +25,32 @@ describe("current-input secret visibility",()=>{
     const get=vi.spyOn(Storage.prototype,"getItem"),set=vi.spyOn(Storage.prototype,"setItem");render(h(SecretDemo,{disabled:true}));expect((screen.getByLabelText("密钥")as HTMLInputElement).disabled).toBe(true);expect((screen.getByRole("button",{name:"显示密钥"})as HTMLButtonElement).disabled).toBe(true);expect(get).not.toHaveBeenCalled();expect(set).not.toHaveBeenCalled();
   });
 });
-describe("accepted selection indicator",()=>{
-  it("paints only the accepted selection, leaving unsaved guards in control",()=>{
-    vi.spyOn(HTMLElement.prototype,"getBoundingClientRect").mockImplementation(function(this:HTMLElement){const x=this.dataset.value==="B"?140:this.dataset.value==="A"?40:20;return {x,left:x,y:0,top:0,right:x+80,bottom:36,width:80,height:36,toJSON:()=>({})};});
+describe("local navigation visibility",()=>{
+  function geometry(root:HTMLElement){Object.defineProperties(root,{clientWidth:{configurable:true,value:60},scrollWidth:{configurable:true,value:200}});for(const [i,button]of [...root.querySelectorAll("button")].entries())Object.defineProperties(button,{offsetLeft:{configurable:true,value:i*80},offsetWidth:{configurable:true,value:40}});}
+  it("reveals only accepted selection without moving ancestor scroll positions",()=>{
     let accept=false;function Demo(){const [selected,setSelected]=useState("A");return h(SelectionRail,{selected,"aria-label":"选择"},["A","B"].map(value=>h("button",{key:value,"data-value":value,"aria-current":selected===value?"page":undefined,onClick:()=>{if(accept)setSelected(value);}},value)));}
-    const view=render(h(Demo));const indicator=view.container.querySelector<HTMLElement>(".creatorSelectionIndicator")!;expect(indicator.style.transform).toBe("translate(20px, 34px) scaleX(80)");
-    fireEvent.click(screen.getByText("B"));expect(indicator.style.transform).toBe("translate(20px, 34px) scaleX(80)");accept=true;fireEvent.click(screen.getByText("B"));expect(indicator.style.transform).toBe("translate(120px, 34px) scaleX(80)");expect(screen.getByText("B").getAttribute("aria-current")).toBe("page");
+    const view=render(h(Demo)),root=screen.getByRole("navigation");geometry(root);view.container.scrollTop=123;
+    fireEvent.click(screen.getByText("B"));expect(root.scrollLeft).toBe(0);expect(screen.getByText("A").getAttribute("aria-current")).toBe("page");
+    accept=true;fireEvent.click(screen.getByText("B"));expect(root.scrollLeft).toBe(60);expect(view.container.scrollTop).toBe(123);expect(screen.getByText("B").getAttribute("aria-current")).toBe("page");expect(root.querySelector(".creatorSelectionIndicator")).toBeNull();
   });
-  it("releases its resize and visibility subscriptions",()=>{
-    const disconnect=vi.fn();vi.stubGlobal("ResizeObserver",class{observe(){}disconnect=disconnect;});const remove=vi.spyOn(document,"removeEventListener");
-    const view=render(h(SelectionRail,{selected:"A"},h("button",{"aria-current":"page"},"A")));view.unmount();expect(disconnect).toHaveBeenCalledOnce();expect(remove).toHaveBeenCalledWith("visibilitychange",expect.any(Function));
+  it("releases resize/focus subscriptions and observer",()=>{
+    const disconnect=vi.fn();vi.stubGlobal("ResizeObserver",class{observe(){}disconnect=disconnect;});const remove=vi.spyOn(window,"removeEventListener");
+    const view=render(h(SelectionRail,{selected:"A"},h("button",{"aria-current":"page"},"A")));view.unmount();expect(disconnect).toHaveBeenCalledOnce();expect(remove).toHaveBeenCalledWith("resize",expect.any(Function));
   });
-  it("positions the indicator under the selected row when platform buttons wrap",()=>{
-    vi.spyOn(HTMLElement.prototype,"getBoundingClientRect").mockImplementation(function(this:HTMLElement){const row=this.dataset.row==="second"?50:0;return {x:0,left:0,y:row,top:row,right:90,bottom:row+36,width:90,height:36,toJSON:()=>({})};});
-    const content=(selected:string)=>h(SelectionRail,{selected},h("button",{"aria-current":selected==="A"?"page":undefined},"A"),h("button",{"data-row":"second","aria-current":selected==="B"?"page":undefined},"B"));
-    const view=render(content("A")),line=view.container.querySelector<HTMLElement>(".creatorSelectionIndicator")!;expect(line.style.transform).toContain(", 34px)");view.rerender(content("B"));expect(line.style.transform).toContain(", 84px)");
+  it("reveals focused items and the accepted item after resizing",()=>{
+    render(h(SelectionRail,{selected:"B"},h("button",{},"A"),h("button",{"aria-current":"page"},"B")));const root=screen.getByRole("navigation");geometry(root);fireEvent.resize(window);expect(root.scrollLeft).toBe(60);fireEvent.focusIn(screen.getByText("A"));expect(root.scrollLeft).toBe(0);
+  });
+});
+
+describe("one-level action menus",()=>{
+  it("opens from Enter and lets Tab leave through the normal document order",async()=>{
+    render(h("div",{},h(ActionMenu,{label:"更多",children:h(ActionButton,{children:"导入"})}),h("button",{},"下一项")));
+    const trigger=screen.getByRole("button",{name:"更多"});trigger.focus();const user=userEvent.setup();await user.keyboard("{Enter}");await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("menuitem")));await user.tab();expect(screen.queryByRole("menu")).toBeNull();expect(document.activeElement).toBe(screen.getByRole("button",{name:"下一项"}));
+  });
+  it("closes on Escape and restores trigger focus without invoking an action",()=>{
+    const action=vi.fn();render(h(ActionMenu,{label:"更多",children:h(ActionButton,{onClick:action,children:"导入"})}));const trigger=screen.getByRole("button",{name:"更多"});fireEvent.click(trigger);fireEvent.keyDown(trigger,{key:"ArrowDown"});expect(document.activeElement).toBe(screen.getByRole("menuitem"));fireEvent.keyDown(document.activeElement!,{key:"Escape"});expect(screen.queryByRole("menu")).toBeNull();expect(document.activeElement).toBe(trigger);expect(action).not.toHaveBeenCalled();
+  });
+  it("runs the selected action once and dismisses on outside interaction",()=>{
+    const action=vi.fn();render(h(ActionMenu,{label:"新建文章",children:h(ActionButton,{onClick:action,children:"独立文章"})}));const trigger=screen.getByRole("button",{name:"新建文章"});fireEvent.click(trigger);fireEvent.click(screen.getByRole("menuitem"));expect(action).toHaveBeenCalledOnce();expect(screen.queryByRole("menu")).toBeNull();fireEvent.click(trigger);fireEvent.pointerDown(document.body);expect(screen.queryByRole("menu")).toBeNull();expect(action).toHaveBeenCalledOnce();
   });
 });

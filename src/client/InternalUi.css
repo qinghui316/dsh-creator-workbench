@@ -156,28 +156,9 @@
   gap: 8px;
   font-size: 13px;
 }
-[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .title {
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
-}
-[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tabs {
-  gap: 20px;
-  overflow-x: auto;
-}
-[data-plugin="dsh-creator-workbench"][data-surface="inspector"] .tab {
-  flex: none;
-  min-height: 36px;
-}
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .body {
   font-size: 14px;
   line-height: 22px;
-  padding: 18px 20px 28px;
-  scrollbar-width: thin;
-}
-[data-plugin="dsh-creator-workbench"][data-surface="inspector"]
-  .body::-webkit-scrollbar {
-  width: 6px;
 }
 [data-plugin="dsh-creator-workbench"][data-surface="inspector"] .lede {
   margin-bottom: 12px;

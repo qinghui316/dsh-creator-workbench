@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { SettingsNavigation, type SettingsGroup } from "./SettingsNavigation.tsx";
-import { Button } from "@deepseek-ai/dsh-client-ui-primitives";
+import { ActionButton } from "./ui/ActionButton.tsx";
 import { ContentInspector } from "./ContentInspector.tsx";
 import { ContentSidebarPanel } from "./sidebar/ContentSidebarPanel.tsx";
 import { CreatorSettingsCard, type CreatorSettingsHandle } from "./CreatorSettingsCard.tsx";
@@ -109,12 +109,12 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
       <header className="workbenchHeader">
         <span>{t("workbench.title")}</span>
         <div className="workbenchActions">
-          {selectedId !== null && <Button disabled={starting || restoring || restoreFailed} onClick={() => { void begin(); }}>{starting ? t("workbench.starting") : t("workbench.session")}</Button>}
-          <Button onClick={() => { if (settingsOpen) settingsRef.current?.requestClose(); else setSettingsOpen(true); }}>{settingsOpen ? t("workbench.library") : t("workbench.settings")}</Button>
+          {selectedId !== null && <ActionButton tone="ghost" disabled={starting || restoring || restoreFailed} onClick={() => { void begin(); }}>{starting ? t("workbench.starting") : t("workbench.session")}</ActionButton>}
+          <ActionButton tone="ghost" onClick={() => { if (settingsOpen) settingsRef.current?.requestClose(); else setSettingsOpen(true); }}>{settingsOpen ? t("workbench.library") : t("workbench.settings")}</ActionButton>
         </div>
       </header>
       {error !== null && <div className="workbenchError" role="alert">{error}</div>}
-      {restoreFailed && <Button disabled={restoring} onClick={() => { void reselect(); }}>{t("workbench.relocate")}</Button>}
+      {restoreFailed && <ActionButton disabled={restoring} onClick={() => { void reselect(); }}>{t("workbench.relocate")}</ActionButton>}
       {restoring && <div className="workbenchEmpty" role="status">{t("workbench.restoring")}</div>}
       <div className="workbenchSettings" hidden={!settingsOpen}><CreatorSettingsCard initialGroup={settingsGroup} ref={settingsRef} {...face} credentials={credentials} t={t} onClose={() => setSettingsOpen(false)} /></div>
       <div className="workbenchBody" hidden={settingsOpen || restoring || restoreFailed}>

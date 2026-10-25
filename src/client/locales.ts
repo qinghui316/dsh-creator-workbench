@@ -76,7 +76,7 @@ export const zh = {
   "inspector.track.subtitle": "字幕（可选）",
   "inspector.track.cover": "封面",
   "inspector.track.notGenerated": "未生成",
-  "inspector.subtitle.empty": "还没有字幕稿。回到概览可以生成字幕稿。",
+  "inspector.subtitle.empty": "还没有字幕，可在此生成或导入。",
   "inspector.subtitle.proofPending": "待校对",
   "inspector.subtitle.burning": "烧录中",
   "inspector.subtitle.burned": "烧录完成",

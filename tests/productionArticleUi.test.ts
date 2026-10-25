@@ -23,7 +23,8 @@ describe("article finished output", () => {
     const { openPath, preview } = fixture();
     const frame = await screen.findByTitle("文章排版预览");
     expect(frame.getAttribute("srcdoc")).toContain("two.md 排版成品");
-    fireEvent.click(screen.getByText("打开 HTML 成品"));
+    fireEvent.click(screen.getByRole("button",{name:"更多"}));
+    fireEvent.click(screen.getByRole("menuitem",{name:"打开 HTML 成品"}));
     expect(openPath).toHaveBeenCalledWith("C:/资料 库/two.md.html");
     expect(preview).toHaveBeenCalledOnce(); expect(screen.queryByText("打开文章文件")).toBeNull();
   });

@@ -15,11 +15,6 @@ html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] {
 html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.workbenchHeader,.workbenchLibrary) {
   background:var(--creator-light-group);
 }
-html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.overviewHeading,.productionHeading,.creatorSectionHeading) {
-  padding:8px 10px;
-  background:var(--creator-light-group);
-  border-radius:6px;
-}
 html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] [data-creator-tone="secondary"] {
   border:1px solid var(--creator-light-field-line);
   background:var(--dsw-alias-bg-base);
@@ -43,18 +38,12 @@ html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .conten
 html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .contentRow.selected:hover {
   background:var(--creator-light-active);
 }
-html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .tab {
-  padding-inline:6px;
-  margin-inline:-6px;
-  border-radius:6px;
-}
 html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .tab:hover {
   color:var(--dsw-alias-label-primary);
   background:var(--creator-light-hover);
 }
 html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .tab.active {
   color:var(--dsw-alias-state-business-primary);
-  background:var(--creator-light-selected);
 }
 html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.overviewImage,.creationImageButton,.coverPreview) {
   box-sizing:border-box;
