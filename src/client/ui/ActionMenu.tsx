@@ -13,7 +13,10 @@ export function ActionMenu({label,children,tone="ghost",align="start"}:{label:st
     return()=>document.removeEventListener("pointerdown",outside);
   },[open]);
   const close=(focus=true)=>{setOpen(false);if(focus&&trigger.current?.isConnected)trigger.current.focus({preventScroll:true});};
-  return <div className="creatorMenu" data-menu-align={align} ref={root} onBlurCapture={event=>{if(event.relatedTarget instanceof Node&&!event.currentTarget.contains(event.relatedTarget))setOpen(false);}} onKeyDown={event=>{
+  return <div className="creatorMenu" data-menu-align={align} ref={root} onBlurCapture={event=>{
+    if(event.relatedTarget instanceof Node){if(!event.currentTarget.contains(event.relatedTarget))setOpen(false);}
+    else queueMicrotask(()=>{const host=root.current;if(host?.isConnected&&!host.contains(document.activeElement))setOpen(false);});
+  }} onKeyDown={event=>{
     if(event.key==="Escape"&&open){event.preventDefault();event.stopPropagation();close();}
     if(["ArrowDown","ArrowUp","Home","End"].includes(event.key)&&open){const buttons=items();if(!buttons.length)return;event.preventDefault();const i=buttons.indexOf(document.activeElement as HTMLButtonElement);buttons[event.key==="Home"?0:event.key==="End"?buttons.length-1:i<0?event.key==="ArrowUp"?buttons.length-1:0:(i+(event.key==="ArrowUp"?-1:1)+buttons.length)%buttons.length]?.focus();}
   }}>

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-25T18:24:37.066955+00:00",
+  "generatedAt": "2026-10-25T18:36:42.457608+00:00",
   "sourceRoot": ".",
   "method": "scan",
   "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
@@ -193,7 +193,7 @@
     },
     {
       "path": "DESIGN.md",
-      "sha256": "c611acd962960890ed4ff1913449d08e4c0a64c99b733a48cccd4d35d72fc6f4"
+      "sha256": "de9a664939d98d609f000b14563fcfb0e670138ce123d767ac2262f1a05d2752"
     },
     {
       "path": "src/client/InteractionPolish.css",
@@ -213,7 +213,7 @@
     },
     {
       "path": "src/client/ui/ActionMenu.tsx",
-      "sha256": "d76a16c19cededcc922defb401a92043052e9acb9e72568bab1bdf43044441b0"
+      "sha256": "b1cdbbb3f85cd7605f9bd9b88a320301888c251671b384d517909da7c3d584bf"
     },
     {
       "path": "src/client/ui/ActionMenu.css",
@@ -233,7 +233,7 @@
     },
     {
       "path": "tests/interactionControls.test.ts",
-      "sha256": "b1bcc3823f291c296506a6a55e24b97336e453c9742fbd285767f26b45250b5d"
+      "sha256": "7a2c004e75360c8403acde86ad74b203cbb7846cda5ff26523d6e12e18805455"
     },
     {
       "path": "docs/ui-consistency.md",
@@ -243,11 +243,11 @@
   "artifacts": [
     {
       "path": "DESIGN.md",
-      "sha256": "c611acd962960890ed4ff1913449d08e4c0a64c99b733a48cccd4d35d72fc6f4"
+      "sha256": "de9a664939d98d609f000b14563fcfb0e670138ce123d767ac2262f1a05d2752"
     },
     {
       "path": ".impeccable/design.json",
-      "sha256": "05b6026961187972549fea18ce1e271bc5142cbbbe5876e168d4e480e56eaa1e"
+      "sha256": "d2ae66727b216b32a990b8b5aa9642c2c86153cac7ea2e74496bb1e0eca57bbf"
     }
   ],
   "evidenceMap": {
@@ -590,24 +590,7 @@
   ],
   "historicalV060RenderedEvidenceScope": "v060 原生证据覆盖成果概览、视频与图片预览、逐份平台状态、文章预览及新版本、图片页、原生Agent读取来源与保存版本两工具、深色界面及最终浅色增强。light-contrast-loaded记录分区/项目选中/页签，light-contrast-hover记录真实管理按钮悬停，final-agent-revision-visible记录Agent新版本在文章页可见。320/520/800 CSS px概览以geometry.json实测为准，布局已恢复、zoom为1；当前跟随系统浅色，宿主字体与缩放保持。执行方已核对Agent版本继承手工版本，18个原文件哈希一致，最终包49文件逐字节安装并完整退出重开；已安装版本、运行条目及切换入口使用各自截图。",
   "browserSupplementScope": "Measured actual CSS widths, themes, menu bounds and reduced motion on same-local DSH service; screenshot capture timed out.",
-  "historicalV071CurrentNativeEvidence": [
-    {
-      "path": ".artifacts/v071-native/final-business.jpg",
-      "sha256": "799739a5350bcc252b01bd52d80f52465bd0a558f161cb6740efcb4af3cea8d4"
-    },
-    {
-      "path": ".artifacts/v071-native/final-central-lightbox.jpg",
-      "sha256": "fc2c66a41012cd6c1d0b13f868bf4be83ba0d4fdebc1b6daa2f8c56c72563e0b"
-    },
-    {
-      "path": ".artifacts/v071-native/final-installed.jpg",
-      "sha256": "de0ed97c2ff40f60c223ec722758d67b4c64f305cc8489b48c6b797cb5d40658"
-    },
-    {
-      "path": ".artifacts/v071-native/final-switch.jpg",
-      "sha256": "185bb8a0ffc9db8f5815b8c71082dedd10ce9313f257bfcc8ece87d471aff7b6"
-    }
-  ],
+  "historicalV071CurrentNativeEvidence": [],
   "historicalV071LocalInstallation": {
     "version": "0.7.1",
     "packageFile": ".artifacts/dsh-creator-workbench-0.7.1-a7f329dad04c.tgz",
@@ -622,75 +605,29 @@
     ]
   },
   "historicalV071NativeUnverified": [
-    "Exhaustive native OS/DPI/theme/window-size matrix; browser CSS-size/theme supplement is separately identified.",
-    "Older Desktop fallback is unit-covered; current Desktop uses its public headless Modal."
+    "Final0.7.2 installed entry, switch menu and native business window; desktop tools currently expose no DSH window."
   ],
-  "historicalV071RenderedEvidence": [
-    {
-      "path": ".artifacts/v071-native/final-business.jpg",
-      "sha256": "799739a5350bcc252b01bd52d80f52465bd0a558f161cb6740efcb4af3cea8d4"
-    },
-    {
-      "path": ".artifacts/v071-native/final-central-lightbox.jpg",
-      "sha256": "fc2c66a41012cd6c1d0b13f868bf4be83ba0d4fdebc1b6daa2f8c56c72563e0b"
-    },
-    {
-      "path": ".artifacts/v071-native/final-installed.jpg",
-      "sha256": "de0ed97c2ff40f60c223ec722758d67b4c64f305cc8489b48c6b797cb5d40658"
-    },
-    {
-      "path": ".artifacts/v071-native/final-switch.jpg",
-      "sha256": "185bb8a0ffc9db8f5815b8c71082dedd10ce9313f257bfcc8ece87d471aff7b6"
-    }
-  ],
+  "historicalV071RenderedEvidence": [],
   "historicalV071ReviewEvidence": [
     {
-      "path": ".artifacts/v071-independent-visual-review.md",
-      "sha256": "1c266e2f26d1c967d666da7cf264d2ca4857c23691948db0f20d250b7fd6c57e"
-    },
-    {
-      "path": ".artifacts/v071-independent-visual-review.json",
-      "sha256": "4e7518d581963d4a6ea51b79b5d092df52cd69d4daec58e40d4cc03ebbb4317c"
+      "path": ".artifacts/v072-independent-code-review.md",
+      "sha256": "3b4c547b7b5e742cbbb19ddf53b35cc1f252ab301897862cbd442b82cf635ca5"
     }
   ],
   "historicalV071GeometryEvidence": [
     {
-      "path": ".artifacts/v071-browser/layout-results.json",
-      "sha256": "27965eb929bea0b050e1df8891585a0c80af198b4736adcb912c271507764c1f"
+      "path": ".artifacts/v072-browser-layout.json",
+      "sha256": "849c60cf37fffaa95a4ef3f4550ddde11ce37401cac97917d0a9424e8b06850e"
     }
   ],
   "historicalV071BrowserSupplement": [
     {
-      "path": ".artifacts/v071-browser/layout-results.json",
-      "sha256": "27965eb929bea0b050e1df8891585a0c80af198b4736adcb912c271507764c1f"
+      "path": ".artifacts/v072-browser-layout.json",
+      "sha256": "849c60cf37fffaa95a4ef3f4550ddde11ce37401cac97917d0a9424e8b06850e"
     },
     {
-      "path": ".artifacts/v071-browser/interaction-results.json",
-      "sha256": "3ff256f00de153642a6c2c9ac3946c913272708a4d4f1bb90df1eb0371e4904b"
-    },
-    {
-      "path": ".artifacts/v071-browser/article-focus.json",
-      "sha256": "6e4140cb7093c743b334e59ad041573c52ebd61473c9794508869db9105e9586"
-    },
-    {
-      "path": ".artifacts/v071-browser/article-scrolled-focus.json",
-      "sha256": "0ab59fa608e855c589c546799b52d5cedc04ba024f42bed68b27e26392246645"
-    },
-    {
-      "path": ".artifacts/v071-browser/secret-input.json",
-      "sha256": "0fd12b395584094a9b045cf4f463e7dce16bc5162f7786134adfb14706c7b509"
-    },
-    {
-      "path": ".artifacts/v071-browser/publication-motion.json",
-      "sha256": "cce3085a23f95a8ddca322d87c796f82ff02f5ca58465b8b681f787b50090be0"
-    },
-    {
-      "path": ".artifacts/v071-browser/version-small-image.json",
-      "sha256": "69fa68f3d2f03d415dedee59d921643c14c8d50d08c38d53e8795188786efa5f"
-    },
-    {
-      "path": ".artifacts/v071-browser/originals-after.json",
-      "sha256": "605f5326c187e6b8642317d5b9bcb7eb1206d19eb39c5ffa2b340547ed3a2fa2"
+      "path": ".artifacts/v072-browser-interactions.json",
+      "sha256": "b081cc41c48759085a8a38ba71c68b21df896ba1889c681813ddfb48d8761bd3"
     }
   ],
   "renderedEvidence": [],
@@ -698,6 +635,14 @@
   "nativeUnverified": [
     "Final0.7.2 installed entry, switch menu and native business window; desktop tools currently expose no DSH window."
   ],
+  "localInstallation": {
+    "version": "0.7.2",
+    "packageFile": "E:\\个人项目\\自媒体工作台\\.artifacts\\dsh-creator-workbench-0.7.2-150b4739f6fa.tgz",
+    "sha256": "150b4739f6fa3896e22360eb6e735913b4d9847a54856b0f8e692a8d2b0b7203",
+    "installedFileCount": 51,
+    "byteVerification": true,
+    "nativeEvidence": []
+  },
   "geometryEvidence": [
     {
       "path": ".artifacts/v072-browser-layout.json",
@@ -707,13 +652,17 @@
   "reviewEvidence": [
     {
       "path": ".artifacts/v072-independent-code-review.md",
-      "sha256": "3b4c547b7b5e742cbbb19ddf53b35cc1f252ab301897862cbd442b82cf635ca5"
+      "sha256": "dcdb7193608873869bd68d1baf89d6574c4a877221d656e06ed2482d22b61e33"
     }
   ],
   "browserSupplement": [
     {
       "path": ".artifacts/v072-browser-layout.json",
       "sha256": "849c60cf37fffaa95a4ef3f4550ddde11ce37401cac97917d0a9424e8b06850e"
+    },
+    {
+      "path": ".artifacts/v072-browser-interactions.json",
+      "sha256": "747f46302e72d2b07d2d1247bd31fabf457564199d1e21802ad545b658bb47cc"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-25T18:24:37.066955+00:00",
+  "generatedAt": "2026-10-25T18:36:42.457608+00:00",
   "title": "Design System: 创作工作台",
   "extensions": {
     "colorMeta": {
@@ -132,6 +132,11 @@
         "name": "action-menu",
         "value": "0 6px 18px #0002",
         "purpose": "所属业务区内的动作下拉菜单。"
+      },
+      {
+        "name": "shared-action-menu",
+        "value": "0 4px 12px var(--dsw-alias-bg-mask-1)",
+        "purpose": "一层通用操作菜单，边界和投影限定在业务区内。"
       }
     ],
     "motion": [
@@ -227,7 +232,7 @@
       "kind": "nav",
       "description": "生图服务、发布平台、语音转文字、公众号与常规设置使用统一分组导航，当前组为轻背景选中态。",
       "html": "<nav class=\"ds-settings-tabs\" aria-label=\"设置分组\"><button type=\"button\" aria-current=\"page\">生图服务</button><button type=\"button\">发布平台</button><button type=\"button\">语音转文字</button><button type=\"button\">公众号</button><button type=\"button\">常规</button></nav>",
-      "css": ".ds-settings-tabs{display:flex;overflow-x:auto;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--dsw-alias-border-l1);padding-bottom:10px}.ds-settings-tabs button{border:0;background:none;color:var(--dsw-alias-label-secondary);padding:8px 12px;border-radius:6px;cursor:pointer;font:inherit;white-space:nowrap}.ds-settings-tabs [aria-current]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);font-weight:600}.ds-settings-tabs button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+      "css": ".ds-settings-tabs{display:flex;overflow-x:auto;overflow-x:auto;overflow-x:auto;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--dsw-alias-border-l1);padding-bottom:10px}.ds-settings-tabs button{border:0;background:none;color:var(--dsw-alias-label-secondary);padding:8px 12px;border-radius:6px;cursor:pointer;font:inherit;white-space:nowrap}.ds-settings-tabs [aria-current]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);font-weight:600}.ds-settings-tabs button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
     },
     {
       "name": "资产行",
@@ -237,11 +242,11 @@
       "css": ".ds-asset-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-width:0;padding:10px 0;border-bottom:1px solid var(--dsw-alias-border-l1);font-size:13px;color:var(--dsw-alias-label-primary)}.ds-row-copy{display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px}.ds-file-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ds-muted{color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}.ds-row-action{padding:5px 8px;cursor:pointer;border:0;border-radius:5px;color:var(--dsw-alias-label-secondary);background:transparent;font-size:13px}.ds-row-action:hover{background:var(--dsw-alias-interactive-bg-hover)}.ds-row-action:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
     },
     {
-      "name": "平台材料列表",
+      "name": "平台材料选择与编辑",
       "kind": "custom",
-      "description": "发布页默认提供连续双行材料列表与平台、类型筛选；进入材料后由编辑器和紧凑切换器承接，返回保留列表位置。",
-      "html": "<section class=\"ds-publication-page\" aria-label=\"平台发布内容\"><div class=\"ds-filter-row\"><label>平台<select><option>全部平台</option><option>小红书</option><option>抖音</option></select></label><label>类型<select><option>全部类型</option><option>视频</option><option>图文多图</option></select></label></div><div class=\"ds-publications\"><button type=\"button\"><strong>图文发布材料</strong><span>小红书 · 图文多图 · 材料已保存</span></button><button type=\"button\"><strong>视频发布材料</strong><span>抖音 · 视频 · 已上传待人工发表</span></button></div></section>",
-      "css": ".ds-publications{display:grid;margin:12px 0}.ds-publications button{display:flex;flex-direction:column;text-align:left;gap:5px;color:var(--dsw-alias-label-primary);font:inherit;padding:12px;border:0;border-bottom:1px solid var(--dsw-alias-border-l1);background:transparent;cursor:pointer;min-width:0;overflow-wrap:anywhere}.ds-publications button:is(:hover,[aria-pressed=true]){background:var(--dsw-alias-bg-layer-2)}.ds-publications span{color:var(--dsw-alias-label-secondary);font-size:12px}.ds-publications button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.ds-filter-row{display:flex;flex-wrap:wrap;gap:8px;color:var(--dsw-alias-label-primary);font-size:13px}.ds-filter-row label{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 140px}.ds-filter-row select{min-width:0;flex:1;min-height:36px;padding:7px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:var(--dsw-alias-bg-base);color:inherit;font:inherit}.ds-filter-row select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}"
+      "description": "持续平台导航、紧凑账号、当前材料选择与一层材料操作菜单；正文编辑优先，新建与复制按需进入。",
+      "html": "<section class=\"ds-publishing\"><nav aria-label=\"发布平台\"><button aria-current=\"page\">小红书</button><button>抖音</button><button>B站</button></nav><p>发布账号 · 已连接</p><div class=\"ds-material\"><label>发布内容<select><option>当前图文材料</option></select></label><button aria-haspopup=\"menu\">材料操作</button></div><p>已保存</p><label>正文<textarea rows=\"4\">当前平台文案</textarea></label></section>",
+      "css": ".ds-publishing{color:var(--dsw-alias-label-primary);font-size:13px}.ds-publishing nav,.ds-material{display:flex;flex-wrap:wrap;gap:8px;align-items:end}.ds-publishing nav{padding-bottom:12px;border-bottom:1px solid var(--dsw-alias-border-l1)}.ds-publishing button{padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:transparent;color:inherit;font:inherit}.ds-publishing [aria-current]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-business-primary)}.ds-publishing label{display:grid;gap:6px;flex:1;min-width:0}.ds-publishing :is(select,textarea){box-sizing:border-box;width:100%;min-height:36px;padding:7px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-base);color:inherit;font:inherit}.ds-publishing p{color:var(--dsw-alias-label-secondary);margin:12px 0}"
     },
     {
       "name": "脚本请求与保存反馈",
@@ -274,7 +279,7 @@
   ],
   "narrative": {
     "northStar": "原生创作工具",
-    "overview": "这是一套在 Windows DSH Desktop 中完成内容整理与编辑的操作界面。视觉延续宿主的文字、主题和按钮语言，以简洁的 Beaver 式表单分组、连续历史列表和真实媒体预览组织任务。密度紧凑，标题克制，主要动作通过原生按钮与清晰文案建立层级。\n\n本文件记录 0.7.1 工作区源码中可复用的视觉与交互规则，面向 Windows 原生操作场景。宿主提供字体与主题变量，插件不另建固定品牌色或字体栈。原生对话与业务区的分栏、业务区左侧项目历史与右侧详情，是承载这套视觉系统的现有布局。概览直接呈现已有成果，视频、脚本、字幕、文章、图片与发布各有所属编辑页面，同一项目中的共用成果和平台材料保持清楚的边界。新增页面与交互的本机验收另行记录。",
+    "overview": "**Creative North Star: \"原生创作工具\"**\n\n这是一套在 Windows DSH Desktop 中完成内容整理与编辑的操作界面。视觉延续宿主的文字、主题和按钮语言，以简洁的 Beaver 式表单分组、连续历史列表和真实媒体预览组织任务。密度紧凑，标题克制，主要动作通过原生按钮与清晰文案建立层级。\n\n本文件记录 0.7.2 工作区源码中可复用的视觉与交互规则，面向 Windows 原生操作场景。宿主提供字体与主题变量，插件不另建字体栈。原生对话与业务区的分栏、业务区左侧项目历史与右侧详情继续承载现有流程。概览呈现已有成果，各页负责对应内容；共用成果和平台材料保持独立。实际检查及安装结果记录在 workbench-ui-consistency-repair Change。",
     "keyCharacteristics": [
       "继承宿主语义主题，浅色局部增强分区、边界、悬停与选中关系。",
       "正文、说明与详情标题形成紧凑的三级文字关系。",

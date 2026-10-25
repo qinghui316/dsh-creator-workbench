@@ -53,4 +53,8 @@ describe("one-level action menus",()=>{
   it("runs the selected action once and dismisses on outside interaction",()=>{
     const action=vi.fn();render(h(ActionMenu,{label:"新建文章",children:h(ActionButton,{onClick:action,children:"独立文章"})}));const trigger=screen.getByRole("button",{name:"新建文章"});fireEvent.click(trigger);fireEvent.click(screen.getByRole("menuitem"));expect(action).toHaveBeenCalledOnce();expect(screen.queryByRole("menu")).toBeNull();fireEvent.click(trigger);fireEvent.pointerDown(document.body);expect(screen.queryByRole("menu")).toBeNull();expect(action).toHaveBeenCalledOnce();
   });
+  it("closes after focus crosses an iframe boundary with no relatedTarget",async()=>{
+    render(h("div",{},h(ActionMenu,{label:"更多",children:h(ActionButton,{children:"导入"})}),h("iframe",{title:"文章成品"})));
+    const trigger=screen.getByRole("button",{name:"更多"});fireEvent.click(trigger);const item=screen.getByRole("menuitem");item.focus();const focus=vi.spyOn(trigger,"focus");vi.spyOn(document,"activeElement","get").mockReturnValue(screen.getByTitle("文章成品"));fireEvent.blur(item,{relatedTarget:null});await waitFor(()=>expect(screen.queryByRole("menu")).toBeNull());expect(focus).not.toHaveBeenCalled();
+  });
 });
