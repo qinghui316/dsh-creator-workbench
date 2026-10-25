@@ -4,11 +4,13 @@ import { dirname, extname, join, relative } from "node:path";
 import { hashText, inside } from "./storage.ts";
 import type { PublicationDraft } from "./types.ts";
 
+const isHtmlBody = (body: string) => /^\s*(?:<!doctype\s+html|<(?:html|head|style|script|body|article|section|div|p|h[1-6])\b)/i.test(body.replace(/<!--([\s\S]*?)-->/g,""));
+
 /** Store platform copy with its own resource base and explicit article image order. */
 export async function platformArticleBody(folder: string, dir: string, body: string, sourceFile: string | undefined, selected: string[] | undefined): Promise<string> {
   const pattern = /!\[([^\]]*)\]\(([^)]+)\)|<img\b[^>]*>/gi;
   const refs = [...body.matchAll(pattern)];
-  const html = /^\s*(?:<!doctype\s+html|<(?:html|body|article|section|div|p|h[1-6])\b)/i.test(body);
+  const html = isHtmlBody(body);
   const resolve = async (value: string): Promise<string> => {
     try { return await inside(folder, join(dir, decodeURIComponent(value))); }
     catch (error) {
@@ -50,13 +52,13 @@ export async function snapshotPublicationArticle(folder: string, dir: string, pu
       const actual = await inside(folder, file);
       if ((await readFile(actual)).equals(bytes)) return;
       if (!repairIncomplete) throw new Error("本次文章快照与原提交不一致，请核对原任务。");
-      // Only a manifest-bound, unregistered editor-save directory opts into repair.
+      // Only manifest-bound, unregistered editor-save/preview directories opt into repair.
       // Preserve the incomplete bytes for recovery; existing versions never enter this path.
       await rename(actual, `${actual}.incomplete-${randomUUID()}`);
       await writeFile(file, bytes, { flag: "wx" });
     }
   };
-  const html = format ? format === "html" : /^\s*(?:<!doctype\s+html|<(?:html|body|article|section|div|p|h[1-6])\b)/i.test(body) || /\.html?$/i.test(publication.articleFile ?? source) && /<\w+[\s>]/.test(body), refs = [...body.matchAll(html ? /<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi : /!\[[^\]]*\]\(([^)]+)\)/g)];
+  const html = format ? format === "html" : isHtmlBody(body) || /\.html?$/i.test(publication.articleFile ?? source) && /<\w+[\s>]/.test(body), refs = [...body.matchAll(html ? /<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi : /!\[[^\]]*\]\(([^)]+)\)/g)];
   let rendered = body;
   const freeze = async (path: string) => {
     const bytes = await readFile(await inside(folder, path));

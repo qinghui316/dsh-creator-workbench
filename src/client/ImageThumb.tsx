@@ -3,6 +3,7 @@ import type { ContentDetail } from "../types.ts";
 import type { CreationImage } from "../production/types.ts";
 import type { ProductionClient } from "./productionApi.ts";
 const imageCaches = new WeakMap<ProductionClient,Map<string,Promise<string>>>();
+export function invalidateImageThumb(api:ProductionClient,folder:string,image:CreationImage) { imageCaches.get(api)?.delete(`${folder}:${image.id}:${image.sha256}`); }
 export function ImageThumb({ image, detail, api, large = false }: { image: CreationImage; detail: ContentDetail; api: ProductionClient; large?: boolean }) {
   const node=useRef<HTMLSpanElement>(null), [visible,setVisible]=useState(typeof IntersectionObserver === "undefined");
   useEffect(()=>{ if(visible || !node.current) return; const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){setVisible(true);observer.disconnect();}},{rootMargin:"160px"});observer.observe(node.current);return()=>observer.disconnect(); },[visible]);

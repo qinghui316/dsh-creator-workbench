@@ -1,0 +1,14 @@
+[data-plugin="dsh-creator-workbench"][data-surface="inspector"] { position:relative; }
+[data-plugin="dsh-creator-workbench"] .creatorImageOverlay { position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;background:color-mix(in srgb,var(--dsw-alias-bg-overlay) 60%,transparent); }
+[data-plugin="dsh-creator-workbench"] .creatorImageDialog { display:flex;flex-direction:column;gap:12px;width:100%;height:100%;max-width:1100px;max-height:100%;min-width:0;min-height:0;padding:16px;box-sizing:border-box;border-radius:8px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);box-shadow:0 6px 18px #0002; }
+[data-plugin="dsh-creator-workbench"] .creatorImageDialogHeader { display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0; }
+[data-plugin="dsh-creator-workbench"] .creatorImageDialogHeader>span { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600; }
+[data-plugin="dsh-creator-workbench"] .creatorImageClose { border:1px solid var(--dsw-alias-border-l2);border-radius:6px;min-height:32px;padding:4px 12px;white-space:nowrap;background:var(--dsw-alias-bg-base);color:inherit;cursor:pointer;font:inherit; }
+[data-plugin="dsh-creator-workbench"] .creatorImageClose:hover { background:var(--dsw-alias-interactive-bg-hover); }
+[data-plugin="dsh-creator-workbench"] .creatorImageClose:focus-visible { outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px; }
+[data-plugin="dsh-creator-workbench"] .creatorImageCanvas { display:flex;align-items:center;justify-content:center;flex:1;min-height:0;min-width:0;overflow:auto; }
+[data-plugin="dsh-creator-workbench"] .creatorImageCanvas :is(.creationThumb,.overviewCover) { display:flex;width:100%;height:100%;min-height:0;align-items:center;justify-content:center; }
+[data-plugin="dsh-creator-workbench"] .creatorImageCanvas img { display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain; }
+[data-plugin="dsh-creator-workbench"] .creatorImageDialogActions { display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:none; }
+[data-plugin="dsh-creator-workbench"] .creatorCoverModalContent { display:flex;flex-direction:column;align-items:center;gap:12px;height:100%;min-height:0;max-width:100%; }
+[data-plugin="dsh-creator-workbench"] .creatorCoverModalContent>img { flex:1;min-height:0; }

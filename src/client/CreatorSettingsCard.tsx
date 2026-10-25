@@ -1,4 +1,5 @@
 import { invalidateProjectSettings } from "./projectQuery.ts";
+import type { SettingsGroup } from "./SettingsNavigation.tsx";
 import {
   forwardRef,
   useEffect,
@@ -41,14 +42,16 @@ export type CreatorSettingsCardProps = Pick<
   credentials: CredentialsClient | undefined;
   t: (key: CreatorKey) => string;
   onClose?: () => void;
+  initialGroup?: SettingsGroup;
 };
 type FieldErrors = Partial<Record<"url" | "key" | "model", string>>;
 export const CreatorSettingsCard = forwardRef<
   CreatorSettingsHandle,
   CreatorSettingsCardProps
->(function CreatorSettingsCard({ credentials, onClose, ...face }, ref) {
+>(function CreatorSettingsCard({ credentials, onClose, initialGroup, ...face }, ref) {
   const uid = useId();
   const [group, setGroup] = useState<"image" | "general" | "platforms" | "asr" | "wechat">("image");
+  useEffect(() => { if (initialGroup) setGroup(initialGroup); }, [initialGroup]);
   const productionRef = useRef<ProductionSettingsHandle>(null);
   const [productionDirty, setProductionDirty] = useState(false), [productionBusy, setProductionBusy] = useState(false);
   const [saved, setSaved] = useState<LibrarySettings>(),

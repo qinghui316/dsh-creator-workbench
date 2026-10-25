@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { lstat, readFile, writeFile } from "node:fs/promises";
+import { lstat, readFile, rename, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { imageKind, inspectImage, MAX_IMAGE_BYTES } from "../covers/files.ts";
-import { hashFile, hashText, inside, owned, readState, updateState } from "./storage.ts";
+import { atomic, hashFile, hashText, inside, owned, readState, updateState } from "./storage.ts";
 import { platformArticleBody } from "./publicationArticle.ts";
 import type { CreationImage, CreationSource, ProductionState, PublicationDraft, PublicationInput } from "./types.ts";
 
@@ -41,36 +41,63 @@ export async function readCreationSource(folder: string, source: CreationSource,
   }
   return pieces.filter(Boolean).join("\n\n");
 }
-export async function savePublication(folder: string, input: PublicationInput, id?: string, expectedRevision?: number, assertAvailable?: () => Promise<unknown>): Promise<PublicationDraft> {
+export async function savePublication(folder: string, input: PublicationInput, id?: string, expectedRevision?: number, assertAvailable?: () => Promise<unknown>, saveId?: string): Promise<PublicationDraft> {
+  if (saveId !== undefined && !/^[a-zA-Z0-9_-]{1,128}$/.test(saveId)) throw new Error("保存请求标识无效。");
+  input = structuredClone(input);
   if (input.type === "images" && input.coverImageId) input = { ...input, imageIds: [input.coverImageId, ...input.imageIds.filter(imageId => imageId !== input.coverImageId)] };
   if (new Set(input.imageIds).size !== input.imageIds.length) throw new Error("图集内同一张图片请只选择一次。");
   if (input.platform === "wechat" && input.type !== "video") throw new Error("本轮视频号只支持视频。");
   if (input.platform === "official-account" && input.type !== "article") throw new Error("公众号请选择文章。");
   if (input.type === "article" && !["bilibili", "official-account"].includes(input.platform)) throw new Error("此平台请准备图片和独立文案。");
-  const snapshot = await readState(folder);
-  for (const imageId of [...input.imageIds, ...(input.coverImageId ? [input.coverImageId] : [])]) await creationImage(folder, imageId, snapshot);
-  if (input.video) await inside(folder, input.video);
-  if (input.articleFile) await inside(folder, input.articleFile);
-  if (input.articleId && !snapshot.articles.some((a) => a.id === input.articleId)) throw new Error("文章版本不存在。");
-  for (const file of Object.values(input.coverFiles ?? {})) if (file) await inside(folder, file);
+  const inputHash = hashText(JSON.stringify({ id: id ?? null, expectedRevision: expectedRevision ?? null, input }));
   return updateState(folder, async (state) => {
     await assertAvailable?.();
+    const receipt = saveId ? state.publicationSaves?.find(row => row.saveId === saveId) : undefined;
+    if (receipt) {
+      if (receipt.inputHash !== inputHash) throw new Error("此保存请求已用于另一份内容，请保留输入并重新核对。");
+      return { ...receipt.result, body: await readFile(await inside(folder, receipt.result.bodyFile), "utf8") };
+    }
     const old = id ? state.publications?.find((p) => p.id === id && !p.hidden) : undefined;
     if (id && (!old || old.revision !== expectedRevision)) throw new Error("发布内容已被修改或移除，输入已保留，请重新读取后合并。");
-    const publicationId = old?.id ?? randomUUID(), revision = (old?.revision ?? 0) + 1;
-    const dir = await owned(folder, "publications", publicationId), file = join(dir, `body-${revision}-${randomUUID()}.md`);
+    if (old && (old.platform !== input.platform || old.type !== input.type)) throw new Error("请为其他平台或形式另建发布内容，原材料归属保持不变。");
+    for (const imageId of [...input.imageIds, ...(input.coverImageId ? [input.coverImageId] : [])]) await creationImage(folder, imageId, state);
+    if (input.video) await inside(folder, input.video);
+    if (input.articleFile) await inside(folder, input.articleFile);
+    if (input.articleId && !state.articles.some((a) => a.id === input.articleId)) throw new Error("文章版本不存在。");
+    for (const file of Object.values(input.coverFiles ?? {})) if (file) await inside(folder, file);
+    const operation = saveId ? hashText(saveId) : randomUUID();
+    const publicationId = old?.id ?? (saveId ? `pub-${operation.slice(0, 32)}` : randomUUID()), revision = (old?.revision ?? 0) + 1;
+    const dir = await owned(folder, "publications", publicationId), file = join(dir, `body-${revision}-${operation}.md`);
+    if (saveId) {
+      const manifest = join(dir, `save-${operation}.json`), value = { inputHash, publicationId, revision };
+      const exists = await lstat(manifest).catch((e:NodeJS.ErrnoException)=>{if(e.code==="ENOENT")return undefined;throw e;});
+      if (exists) { if (JSON.stringify(JSON.parse(await readFile(await inside(folder, manifest), "utf8"))) !== JSON.stringify(value)) throw new Error("保存记录与本次输入不符，请保留草稿核对。"); }
+      else await atomic(manifest,value);
+    }
     const body = input.type === "article" ? await platformArticleBody(folder, dir, input.body, input.articleFile, input.imageIds.length || old?.imageIds.length ? input.imageIds.map(id => state.images!.find(image => image.id === id)!.file) : undefined) : input.body;
-    await writeFile(file, body, { encoding: "utf8", flag: "wx" });
+    try { await writeFile(file, body, { encoding: "utf8", flag: "wx" }); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST" || !saveId) throw error;
+      const actual = await inside(folder, file);
+      if (await readFile(actual, "utf8") !== body) {
+        if (state.publications?.some(p => p.bodyFile === relative(folder, file)) || state.publicationSaves?.some(r => r.result.bodyFile === relative(folder, file))) throw new Error("已有发布正文发生变化，请核对原材料。");
+        // A matching request manifest owns this unregistered partial file only.
+        await rename(actual, `${actual}.incomplete-${randomUUID()}`);
+        await writeFile(file, body, { encoding: "utf8", flag: "wx" });
+      }
+    }
     const { body: _body, ...fields } = structuredClone(input);
     const sourceHash = input.source ? old?.sourceHash && JSON.stringify(old.source) === JSON.stringify(input.source) ? old.sourceHash : hashText(await readCreationSource(folder, input.source, state)) : undefined;
     const draft: PublicationDraft = { ...fields, id: publicationId, revision, bodyFile: relative(folder, file), ...(sourceHash ? { sourceHash } : {}), createdAt: old?.createdAt ?? Date.now(), updatedAt: Date.now() };
     const rows = state.publications ??= [], index = rows.findIndex((p) => p.id === publicationId);
     if (index < 0) rows.push(draft); else rows[index] = draft;
+    if (saveId) (state.publicationSaves ??= []).push({ saveId, inputHash, ...(id ? { requestedId: id } : {}), ...(expectedRevision ? { expectedRevision } : {}), result: structuredClone(draft) });
     return { ...draft, body };
   });
 }
 export async function hydrateCreations(folder: string, state: ProductionState): Promise<ProductionState> {
-  if (!state.publications?.length) return state;
+  const { publicationSaves: _receipts, ...publicState } = state;
+  if (!state.publications?.length) return publicState;
   const body = async (p: PublicationDraft) => { if (p.hidden) return {}; try { return { body: await readFile(await inside(folder, p.bodyFile), "utf8") }; } catch { return { bodyError: "正文文件无法读取，请保留当前材料并检查文件。" }; } };
-  return { ...state, publications: await Promise.all(state.publications.map(async (p) => ({ ...p, ...await body(p), ...(p.source && p.sourceHash ? { sourceChanged: await readCreationSource(folder, p.source, state).then(text => hashText(text) !== p.sourceHash, () => true) } : {}) }))) };
+  return { ...publicState, publications: await Promise.all(state.publications.map(async (p) => ({ ...p, ...await body(p), ...(p.source && p.sourceHash ? { sourceChanged: await readCreationSource(folder, p.source, state).then(text => hashText(text) !== p.sourceHash, () => true) } : {}) }))) };
 }

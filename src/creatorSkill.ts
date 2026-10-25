@@ -60,6 +60,10 @@ export const CREATOR_WORKBENCH_SKILL = {
 - 修改既有文章先调用 creator_read_article_source 取得准确版本、格式和 sourceHash；再用 creator_save_article_revision 保存新版本，expectedSourceHash使用读取结果，saveId使用稳定唯一身份，通信重试沿用同一身份。保留原文格式与资源；预览失败不否定正文已保存，不因排版失败重复建版本。右侧文章页同样支持文稿编辑和未保存预览。
 - 正常文件工具写出的本项目 Markdown/HTML 使用 register-article 登记，已有图片使用 import-image 登记。文章内配图须是本项目真实截图或已登记图片，并使用相对路径；save-article 传对应 imageIds。
 - 各平台发布材料独立：save-publication 的 input 包含 platform、type（video/images/article）、title、body、tags、imageIds，以及需要的 video/articleId/articleFile/coverImageId/coverFiles/category/source。更新需要原 publicationId 与 expectedRevision，冲突保留用户编辑。
+- 保存发布内容时为本次精确输入生成稳定saveId，通信重试沿用相同saveId和原参数；修改后的输入使用新saveId。创建后的平台与形式保持不变，复用到其他平台另建材料。本地草稿允许缺少标题或素材，上传前再检查必需材料。
+- 关联作品前读取当前账号，将expectedAccountId随associate-publication提交；选择候选还传candidateAccountId。候选按平台、账号、作品标识区分，账号变化时重新选择。refresh-metrics可指定publicationId、recordId和expectedAccountId；不按标题或首条记录推定作品归属。
+- 工作台自动保存只写本地材料。上传前等待本地保存成功并固定版本与expectedAccountId，上传、更新公众号远端草稿和最终发表分别需要明确操作；自动保存不触发这些远端行为。
+
 - 图文支持小红书、抖音、B站；公众号用 article，视频号只用 video。小红书、抖音用有序图片组和独立正文，B站通过图文编辑器处理正文与图片；HTML 是文章阅读和公众号排版成品。
 - upload-publication 需要已保存材料版本及用户明确发布授权。上传任务固定账号、类型和材料；中断先 inspect-upload/resume-upload，不能为绕开阻塞而新建。最终点击发表始终由用户操作。
 - 自然语言操作直接执行；右侧按钮才需要把请求放入项目原生会话。项目目录与会话只用于定位，不限制其他会话处理明确项目；不要反复创建工作区。

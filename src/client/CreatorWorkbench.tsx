@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { SettingsNavigation, type SettingsGroup } from "./SettingsNavigation.tsx";
 import { Button } from "@deepseek-ai/dsh-client-ui-primitives";
 import { ContentInspector } from "./ContentInspector.tsx";
 import { ContentSidebarPanel } from "./sidebar/ContentSidebarPanel.tsx";
@@ -23,6 +24,7 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
   const [selectedId, setSelectedId] = useSelectedContentId();
   const settingsRef = useRef<CreatorSettingsHandle>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsGroup, setSettingsGroup] = useState<SettingsGroup>("image");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -102,7 +104,7 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
   };
 
   return (
-    <section data-plugin="dsh-creator-workbench" data-surface="workbench" data-selected={selectedId !== null || undefined}>
+    <SettingsNavigation.Provider value={group=>{setSettingsGroup(group);setSettingsOpen(true);}}><section data-plugin="dsh-creator-workbench" data-surface="workbench" data-selected={selectedId !== null || undefined}>
       <header className="workbenchHeader">
         <span>{t("workbench.title")}</span>
         <div className="workbenchActions">
@@ -113,13 +115,13 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
       {error !== null && <div className="workbenchError" role="alert">{error}</div>}
       {restoreFailed && <Button disabled={restoring} onClick={() => { void reselect(); }}>{t("workbench.relocate")}</Button>}
       {restoring && <div className="workbenchEmpty" role="status">{t("workbench.restoring")}</div>}
-      <div className="workbenchSettings" hidden={!settingsOpen}><CreatorSettingsCard ref={settingsRef} {...face} credentials={credentials} t={t} onClose={() => setSettingsOpen(false)} /></div>
+      <div className="workbenchSettings" hidden={!settingsOpen}><CreatorSettingsCard initialGroup={settingsGroup} ref={settingsRef} {...face} credentials={credentials} t={t} onClose={() => setSettingsOpen(false)} /></div>
       <div className="workbenchBody" hidden={settingsOpen || restoring || restoreFailed}>
         <div className="workbenchLibrary"><ContentSidebarPanel {...face} t={t} suspended={restoring || restoreFailed} /></div>
         <div className="workbenchDetail">
           {selectedId === null ? <div className="workbenchEmpty">{t("workbench.select")}</div> : <ContentInspector {...face} t={t} suspended={restoring || restoreFailed} />}
         </div>
       </div>
-    </section>
+    </section></SettingsNavigation.Provider>
   );
 }

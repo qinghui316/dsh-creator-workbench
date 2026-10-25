@@ -1,6 +1,7 @@
+import {ImagePreviewProvider} from "../src/client/ImagePreview.tsx";
 // @vitest-environment jsdom
 import {createElement as h} from "react";
-import {act,cleanup,fireEvent,render,screen,within} from "@testing-library/react";
+import {act,cleanup,fireEvent,render,screen,within,waitFor} from "@testing-library/react";
 import {afterEach,beforeEach,expect,it,vi} from "vitest";
 import {OverviewPage} from "../src/client/OverviewPage.tsx";
 import {ProjectDataProvider} from "../src/client/ProjectData.tsx";
@@ -20,7 +21,7 @@ function fixture(){
  const api={projectView:vi.fn(async()=>view),state:vi.fn(),settings:vi.fn(),image:vi.fn(async()=>({mime:"image/png",base64:"YWJj"}))} as unknown as ProductionClient;
  const media={getVideoPlayback:vi.fn(async()=>({found:true,url:"http://localhost/video",kind:"raw" as const})),getCoverImage:vi.fn(async()=>({mime:"image/png",base64:"YWJj"}))},navigate=vi.fn();
  const child=h(OverviewPage,{detail,api,navigate,...media});
- const rendered=render(h(ProjectDataProvider,{api,scope:detail,children:child}));
+ const rendered=render(h(ProjectDataProvider,{api,scope:detail,children:h(ImagePreviewProvider,{children:child})}));
  return {api,detail,media,navigate,unmount:rendered.unmount,get view(){return view;},update(next:ProjectView){view=next;}};
 }
 it("shows real text, images and each platform material; editing is a separate secondary action",async()=>{
@@ -45,9 +46,9 @@ it("clears a removed script instead of falling back to stale detail text",async(
 });
 it("keeps playing media and the open image preview mounted across metadata refreshes",async()=>{
  const f=fixture(),video=await screen.findByLabelText("概览视频预览");
- fireEvent.click(screen.getByRole("button",{name:"查看图片 1"}));const preview=screen.getByRole("region",{name:"概览图片预览"});const image=await within(preview).findByRole("img");
+ fireEvent.click(screen.getByRole("button",{name:"查看图片 1"}));const preview=screen.getByRole("dialog",{name:"项目图片"});const image=await within(preview).findByRole("img");
  expect(f.api.image).toHaveBeenCalledTimes(1);expect(f.navigate).not.toHaveBeenCalled();
  f.update({...f.view,production:{...f.view.production,publications:(f.view.production.publications??[]).map(p=>({...p,title:"后台更新的材料"}))}});
- await act(async()=>{bumpLibrary();});await screen.findByText("后台更新的材料");expect(screen.getByLabelText("概览视频预览")).toBe(video);expect(within(screen.getByRole("region",{name:"概览图片预览"})).getByRole("img")).toBe(image);expect(f.media.getVideoPlayback).toHaveBeenCalledTimes(1);expect(f.api.image).toHaveBeenCalledTimes(1);expect(f.api.settings).not.toHaveBeenCalled();
- fireEvent.keyDown(preview,{key:"Escape"});expect(screen.queryByRole("region",{name:"概览图片预览"})).toBeNull();expect(document.activeElement).toBe(screen.getByRole("button",{name:"查看图片 1"}));
+ await act(async()=>{bumpLibrary();});await screen.findByText("后台更新的材料");expect(screen.getByLabelText("概览视频预览")).toBe(video);expect(within(screen.getByRole("dialog",{name:"项目图片"})).getByRole("img")).toBe(image);expect(f.media.getVideoPlayback).toHaveBeenCalledTimes(1);expect(f.api.image).toHaveBeenCalledTimes(1);expect(f.api.settings).not.toHaveBeenCalled();
+ fireEvent.keyDown(preview,{key:"Escape"});expect(screen.queryByRole("dialog",{name:"项目图片"})).toBeNull();await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("button",{name:"查看图片 1"})));
 });

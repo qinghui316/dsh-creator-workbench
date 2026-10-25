@@ -1,3 +1,4 @@
+import { ImagePreviewProvider } from "./ImagePreview.tsx";
 import { PublicationPanel } from "./PublicationPanel.tsx";
 import { ImageLibraryPanel } from "./ImageLibraryPanel.tsx";
 import { ArticlePanel } from "./ArticlePanel.tsx";
@@ -488,6 +489,7 @@ export function ContentInspector({
       data-surface="inspector"
       className={wide ? "wide" : undefined}
     >
+      <ImagePreviewProvider key={detail?.folderPath ?? "empty"}>
       <header className="header">
         <div className="titleRow">
           <div className="title" title={detail?.title}>
@@ -557,7 +559,7 @@ export function ContentInspector({
           {production && <ImageLibraryPanel detail={detail} api={production} />}
           {(hasVideo || Object.keys(detail.covers).length > 0) && <CoverPanel detail={detail} {...(production ? {api: production} : {})} getCoverState={getCoverState} coverAction={coverAction} getCoverImage={getCoverImage} prepareCoverDraft={prepareCoverDraft} {...(prepareCoverRequest ? { prepareCoverRequest } : {})} />}
         </>}
-        {detail !== undefined && tab === "publishing" && production && <PublicationPanel key={`publishing:${detail.folderPath}`} detail={detail} api={production} enabledPlatforms={enabledPlatforms ?? []} onPublish={applyPublish} publishPending={publishPending} openPath={openPath} {...(publicationArticle ? { initialArticleId: publicationArticle } : {})} {...(overviewTarget?.folder===detail.folderPath&&overviewTarget.tab==="publishing"?{initialPublicationId:overviewTarget.id}:{})} />}
+        {detail !== undefined && tab === "publishing" && production && <PublicationPanel key={`publishing:${detail.folderPath}`} detail={detail} api={production} getCoverImage={getCoverImage} enabledPlatforms={enabledPlatforms ?? []} onPublish={applyPublish} publishPending={publishPending} openPath={openPath} {...(publicationArticle ? { initialArticleId: publicationArticle } : {})} {...(overviewTarget?.folder===detail.folderPath&&overviewTarget.tab==="publishing"?{initialPublicationId:overviewTarget.id}:{})} />}
         {detail !== undefined && tab === "script" && (
           <>
           {production?.prepareRequest && <ActionBar><ActionButton disabled={scriptRequest === "preparing"} onClick={() => void prepareScript()}>{scriptRequest === "preparing" ? "正在准备请求…" : detail.script ? "让 Agent 修改脚本" : "让 Agent 写脚本"}</ActionButton></ActionBar>}
@@ -671,6 +673,7 @@ export function ContentInspector({
           </>
         )}
       </div></ProjectBoundary>
+      </ImagePreviewProvider>
     </div>
   );
 }

@@ -17,6 +17,7 @@ export function OverviewVideo({detail,getVideoPlayback}:{detail:ContentDetail;ge
 }
 
 const coverCaches=new WeakMap<CreatorViewFace["getCoverImage"],Map<string,Promise<string>>>();
+export function invalidateOverviewCover(folder:string,version:CoverVersion,getCoverImage:CreatorViewFace["getCoverImage"]) {coverCaches.get(getCoverImage)?.delete(`${folder}:${version.id}:${version.file}`);}
 export function OverviewCover({version,detail,getCoverImage}:{version:CoverVersion;detail:ContentDetail;getCoverImage:CreatorViewFace["getCoverImage"]}) {
   const node=useRef<HTMLSpanElement>(null),[visible,setVisible]=useState(typeof IntersectionObserver==="undefined"),[src,setSrc]=useState<string>(),[error,setError]=useState("");
   useEffect(()=>{if(visible||!node.current)return;const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){setVisible(true);observer.disconnect();}},{rootMargin:"160px"});observer.observe(node.current);return()=>observer.disconnect();},[visible]);

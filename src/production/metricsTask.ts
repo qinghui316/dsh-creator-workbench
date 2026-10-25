@@ -8,16 +8,20 @@ import { safeError } from "./process.ts";
 import { browserControlStopped } from "./browser.ts";
 
 export const METRICS_PLATFORM_TIMEOUT_MS = 180_000;
-export async function metricsSnapshot(dataDir: string, folder: string, enabled: readonly PublishPlatform[], platform?: MetricsTarget["platform"], publicationId?: string): Promise<{ metricsTargets: MetricsTarget[]; metricsKey: string }> {
+export async function metricsSnapshot(dataDir: string, folder: string, enabled: readonly PublishPlatform[], platform?: MetricsTarget["platform"], publicationId?: string, selection: { recordId?: string; remoteId?: string; expectedAccountId?: string } = {}): Promise<{ metricsTargets: MetricsTarget[]; metricsKey: string }> {
   const settings = await readSettings(dataDir), state = await readState(folder);
   if (platform && platform !== "official-account" && !enabled.includes(platform)) throw new Error("此平台尚未启用。");
   const publication = publicationId ? state.publications?.find((p) => p.id === publicationId && !p.hidden) : undefined;
   if (publicationId && !publication) throw new Error("发布内容不存在。");
+  if (publication && platform && publication.platform !== platform) throw new Error("作品与本次平台不符。");
+  if (selection.recordId && !state.records?.some(r => r.id === selection.recordId && (!publicationId || r.publicationId === publicationId) && (!platform || r.platform === platform))) throw new Error("作品记录不属于本次材料或平台。");
   const platforms = platform ? [platform] : publication ? [publication.platform] : enabled.filter((p) => Boolean(settings.accounts[p]));
   const targets: MetricsTarget[] = platforms.flatMap((p) => {
     const accountId = p === "official-account" ? settings.wechat.appid : settings.accounts[p]?.id;
     if (!accountId) throw new Error("请先连接对应的平台账号。");
-    const rows = state.metrics.filter((m) => m.platform === p && m.accountId === accountId && (!publicationId || m.publicationId === publicationId));
+    if (selection.expectedAccountId && selection.expectedAccountId !== accountId) throw new Error("平台账号已变化，请重新选择当前作品。");
+    const rows = state.metrics.filter((m) => m.platform === p && m.accountId === accountId && (!publicationId || m.publicationId === publicationId) && (!selection.recordId || m.recordId === selection.recordId) && (!selection.remoteId || m.remoteId === selection.remoteId));
+    if ((selection.recordId || selection.remoteId) && !rows.length) throw new Error("此作品属于其他账号或尚未关联数据。");
     return rows.length ? rows.map((row) => ({ platform: p, accountId, remoteId: row.remoteId, ...(row.url ? { url: row.url } : {}), ...(row.publicationId ? { publicationId: row.publicationId } : {}), ...(row.recordId ? { recordId: row.recordId } : {}) })) : [{ platform: p, accountId, ...(publicationId ? { publicationId } : {}) }];
   });
   if (!targets.length) throw new Error("请先连接发布平台账号。");
@@ -64,7 +68,7 @@ export async function runMetricsTask(input: {
             const next = refreshMetric(state.metrics[index]!, posts); state.metrics[index] = next;
             if (next.state !== "ok") matchError = next.error; else {
               published = next;
-              for (const record of state.records ?? []) if (record.platform === next.platform && record.accountId === next.accountId && (next.recordId ? record.id === next.recordId : next.publicationId && record.publicationId === next.publicationId)) { record.state = "published"; record.remoteId = next.remoteId; if (next.url) record.url = next.url; record.updatedAt = Date.now(); }
+              for (const record of state.records ?? []) if (record.platform === next.platform && record.accountId === next.accountId && (next.recordId ? record.id === next.recordId : next.publicationId && record.publicationId === next.publicationId && record.remoteId === next.remoteId)) { record.state = "published"; record.remoteId = next.remoteId; if (next.url) record.url = next.url; record.updatedAt = Date.now(); }
             }
           } else {
             const candidates = posts.filter((post) => post.remoteId).sort((a, b) => titleScore(input.detail.title, b.title) - titleScore(input.detail.title, a.title)).slice(0, 10).map((post) => ({ platform: target.platform, accountId: target.accountId, remoteId: post.remoteId!, title: post.title, ...(post.url ? { url: post.url } : {}) }));

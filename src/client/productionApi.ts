@@ -13,7 +13,7 @@ export interface ProductionClient {
   settingsAction: (request: ProductionSettingsAction) => Promise<ProductionSettingsView>;
   state: (scope: ContentScope) => Promise<ProductionState>;
   action: (request: ProductionAction) => Promise<ProductionState>;
-  preview: (request: ContentScope & { taskId?: string; articleFile?: string }) => Promise<{ html: string; path: string }>;
+  preview: (request: ContentScope & import("../production/types.ts").ProductionPreviewRequest) => Promise<{ html: string; path: string }>;
   prepareArticleDraft: (detail: ContentDetail, append?: boolean) => Promise<void>;
   prepareRequest?: (detail: ContentDetail, text: string, append?: boolean) => Promise<void>;
   image?: (request: ContentScope & { imageId: string }) => Promise<{ mime: string; base64: string }>;

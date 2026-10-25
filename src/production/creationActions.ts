@@ -33,7 +33,7 @@ export async function creationAction(detail: ContentDetail, request: ProductionA
     await updateState(folder, async (state) => { await host.assertAvailable(); state.articles.push({ id, file: relative(folder, file), title: title?.trim() || detail.title, createdAt: Date.now(), frameFiles: [], format: extension === ".md" ? "markdown" : "html", ...(request.action === "register-article" && request.source ? { source: request.source } : {}), ...(request.action === "register-article" && request.imageIds ? { imageIds: request.imageIds } : {}) }); });
   }
   else if (request.action === "remove-image") await updateState(folder, async (state) => { await host.assertAvailable(); const image = state.images?.find((row) => row.id === request.imageId); if (!image) throw new Error("图片不存在。"); image.hidden = true; });
-  else if (request.action === "save-publication") { const saved = await savePublication(folder, request.input, request.publicationId, request.expectedRevision, host.assertAvailable); host.changed(); return { savedPublication: { id: saved.id, revision: saved.revision } }; }
+  else if (request.action === "save-publication") { const saved = await savePublication(folder, request.input, request.publicationId, request.expectedRevision, host.assertAvailable, request.saveId); host.changed(); return { savedPublication: { id: saved.id, revision: saved.revision } }; }
   else if (request.action === "remove-publication") await updateState(folder, async (state) => {
     await host.assertAvailable(); const publication = state.publications?.find((p) => p.id === request.publicationId && !p.hidden);
     if (!publication || publication.revision !== request.expectedRevision) throw new Error("发布内容已变化，请重新读取。");

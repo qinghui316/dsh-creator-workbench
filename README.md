@@ -7,7 +7,8 @@
 选择资料库 → 创建或选择项目 → 制作需要的内容 → 准备各平台材料 → 上传、核对并手动发表。创建时只需标题；文章与图文可以独立完成。见[统一创作与平台发布](docs/unified-publishing.md)。
 
 - 顶部依次为概览、视频、脚本、字幕、文章、图片、发布。概览汇总成果，点击进入对应页面。
-- 文章页支持文稿编辑、未保存预览和保存新版本；图片页统一管理配图与视频封面，发布页管理各平台独立材料和作品数据。
+- 文章页支持文稿编辑、未保存预览和保存新版本；图片页统一管理配图与视频封面，各处图片通过同一弹窗预览。
+- 发布页以固定平台入口和独立材料组织文案、图序、上传结果及作品数据，公众号可直接进入设置；编辑自动保存，上传前固定成功版本。
 - 支持 MP4、MOV，包括大写扩展名；来源不限，独立字幕可选。
 - 导入时复制文件，保留原文件；同名不覆盖，可修改导入名称重试。
 - 多个视频时明确选择，选择按资料库保存；选中文件消失时提示重新选择。
@@ -30,7 +31,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm check
 node scripts/check-workbench-package.mjs
 npm pack --ignore-scripts --pack-destination .artifacts
-node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.6.0.tgz
+node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.7.0.tgz
 ```
 
 `pnpm check` 包含类型检查、构建、依赖边界检查与测试。构建仅写当前仓库的 lib，不直接修改 Desktop。
@@ -46,7 +47,7 @@ node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.6.0.
 0.4.1 保留原生对话、历史侧栏、右侧详情和五个页签顺序，支持视频与封面管理、火山转写、WeWrite HTML 文章、小红书／抖音／B站视频草稿准备及手动运营数据同步。项目移除后可从原目录重新加入并恢复原会话，见 [状态与交互说明](docs/state-ux.md)。
 封面复用 oil-cover，视频上传复用 video-publisher；公众号写作、文字检查、排版和草稿能力复用 WeWrite。文章默认查看排版 HTML，可编辑源稿和历史版本保留；最终发表由人确认。
 
-当前版本已完成 Windows 本机安装与核心流程验收。视频号、公众号远端草稿与数据回收继续待验收；已发表作品的自动状态回写已有回归测试，尚待匹配真实作品验证。设置、使用方式和各能力验证边界见 [Windows 发布与 WeWrite 说明](docs/windows-publishing.md)。
+0.6.0已完成 Windows 本机安装与核心流程验收；0.7.0发布面板、自动保存和图片预览的当前检查与本机验收状态见 `publishing-autosave-image-preview` Change。视频号、公众号远端草稿与数据回收继续待验收；已发表作品的自动状态回写已有回归测试，尚待匹配真实作品验证。设置、使用方式和各能力验证边界见 [Windows 发布与 WeWrite 说明](docs/windows-publishing.md)。
 
 ## 来源与许可
 

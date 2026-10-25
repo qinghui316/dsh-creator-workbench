@@ -27,6 +27,7 @@ export function LegacyPublishingPanel({ detail, api, openPath, enabledPlatforms 
   const [uploadNotice, setUploadNotice] = useState<UploadNotice>();
   const [acknowledge, setAcknowledge] = useState(false);
   const [metricPlatform, setMetricPlatform] = useState<PublishPlatform | "official-account">(enabledPlatforms[0] ?? "xiaohongshu"), [remoteId, setRemoteId] = useState(""), [url, setUrl] = useState("");
+  const associationIdentity=useRef<{platform:PublishPlatform|"official-account";accountId:string}>();
   const alive = useRef(true), current = useRef(detail.folderPath); current.current = detail.folderPath;
   const scope = { id: detail.id, folderPath: detail.folderPath };
   const associationPlatforms: readonly (PublishPlatform | "official-account")[] = settings?.wechat.appid ? [...enabledPlatforms, "official-account" as const] : enabledPlatforms;
@@ -34,12 +35,14 @@ export function LegacyPublishingPanel({ detail, api, openPath, enabledPlatforms 
     if (associationPlatforms.length && !associationPlatforms.includes(metricPlatform)) { setMetricPlatform(associationPlatforms[0]!); setRemoteId(""); setUrl(""); }
     if (enabledPlatforms.length && !enabledPlatforms.includes(platform)) setPlatform(enabledPlatforms[0]!);
   }, [enabledPlatforms.join(","), metricPlatform, platform, settings?.wechat.appid]);
+  useEffect(()=>{const id=metricPlatform==="official-account"?settings?.wechat.appid:settings?.accounts[metricPlatform]?.id;associationIdentity.current=id?{platform:metricPlatform,accountId:id}:undefined;setRemoteId("");setUrl("");},[metricPlatform,settings?.revision]);
   useEffect(() => { publishDrafts.set(detail.folderPath, { title, description, tags, category }); }, [detail.folderPath, title, description, tags, category]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => { if (data.state) setState(data.state); setQueryFailed(Boolean(data.error)); setQueryError(data.error); }, [data.state, data.error]);
   useEffect(() => { void data.query.settings().then(setSettings, e => setError(e.message)); }, [api]);
   const run = async (request: ProductionAction) => {
     if (request.action === "associate-publication" && !associationPlatforms.includes(request.platform)) { setError("此平台尚未启用，请选择当前可用的平台。"); return; }
+    if(request.action==="associate-publication"){const owner=associationIdentity.current;if(!owner||owner.platform!==request.platform){setError("请重新选择当前账号的作品。");return;}request={...request,expectedAccountId:owner.accountId};}
     if (busy) return; const folder = detail.folderPath; setBusy(true); setError(undefined);
     try { const next = await bounded(api.action(request)); if (!alive.current || current.current !== folder) return; setState(next); data.query.accept(next);
       if (request.action === "upload") setUploadNotice(next.uploadNotice);
@@ -74,18 +77,18 @@ export function LegacyPublishingPanel({ detail, api, openPath, enabledPlatforms 
     {syncing && <div className="creatorInlineStatus" role="status"><span>{queryFailed ? "状态暂不可用" : `正在同步${syncTask?.metricsProgress?.find((p) => p.state === "running")?.platform ? " · " + PUBLISH_PLATFORM_DEFINITIONS[syncTask.metricsProgress.find((p) => p.state === "running")!.platform as PublishPlatform]?.name : ""} · ${Math.max(0, Math.floor((now - syncTask!.createdAt) / 1000))} 秒`}</span><ActionButton disabled={busy} onClick={() => void run({ ...scope, action: "cancel", taskId: syncTask!.id })}>取消同步</ActionButton></div>}
     {queryFailed && <ActionButton onClick={() => void data.query.retry().catch(() => undefined)}>重新查询原任务</ActionButton>}
     {syncTask?.error && !syncing && syncTask.status !== "cancelled" && <p className="creatorError" role="alert">{syncTask.error}</p>}
-    <div className="productionMetrics">{associationPlatforms.map((p) => {
-      const row = visibleMetrics.find((m) => m.platform === p), connected = p === "official-account" ? settings?.wechat.appid : settings?.accounts[p]?.id;
+    <div className="productionMetrics">{associationPlatforms.flatMap((p) => {
+      const rows=visibleMetrics.filter(m=>m.platform===p);return (rows.length?rows:[undefined]).map(row=>{const connected = p === "official-account" ? settings?.wechat.appid : settings?.accounts[p]?.id;
       const mark = p === "official-account" ? undefined : detail.publish[p]?.status;
-      return <div className="productionPlatformRow" key={p}><div className="productionHeading"><strong>{p === "official-account" ? "公众号" : PUBLISH_PLATFORM_DEFINITIONS[p].name}</strong>{p !== "official-account" && onPublish && <select aria-label={PUBLISH_PLATFORM_DEFINITIONS[p].name + "发布状态"} disabled={publishPending !== null} value={mark ?? "unpublished"} onChange={(e) => onPublish(p, e.target.value as PublishMark)}><option value="unpublished">未发表</option><option value="draft">草稿就绪</option><option value="published">已发表</option></select>}</div>
+      return <div className="productionPlatformRow" key={`${p}:${row?.accountId??""}:${row?.recordId??row?.publicationId??""}:${row?.remoteId??""}`}><div className="productionHeading"><strong>{p === "official-account" ? "公众号" : PUBLISH_PLATFORM_DEFINITIONS[p].name}</strong>{p !== "official-account" && onPublish && <select aria-label={PUBLISH_PLATFORM_DEFINITIONS[p].name + "发布状态"} disabled={publishPending !== null} value={mark ?? "unpublished"} onChange={(e) => onPublish(p, e.target.value as PublishMark)}><option value="unpublished">未发表</option><option value="draft">草稿就绪</option><option value="published">已发表</option></select>}</div>
         <p>{!connected ? "未连接账号" : !row ? "待关联作品" : row.syncedAt ? [row.views !== undefined ? `播放／阅读 ${row.views}` : "", row.likes !== undefined ? `点赞 ${row.likes}` : "", row.comments !== undefined ? `评论 ${row.comments}` : "", row.shares !== undefined ? `分享 ${row.shares}` : ""].filter(Boolean).join(" · ") || "暂无可用指标" : "尚未取得数据"}</p>
         {row?.error && <p className="creatorError">{row.error}</p>}{row?.syncedAt && <small className="creatorMuted">{new Date(row.syncedAt).toLocaleString()}{row.state !== "ok" ? " · 上次成功数据" : ""}</small>}
       </div>;
-    })}</div>
+    });})}</div>
     {associationOpen && <div className="productionAssociation"><div className="productionHeading"><h4>关联已发表作品</h4><ActionButton tone="ghost" onClick={() => setAssociationOpen(false)}>关闭</ActionButton></div>
       <div className="productionFields"><label>平台<select value={metricPlatform} onChange={(e) => setMetricPlatform(e.target.value as typeof metricPlatform)}>{associationPlatforms.map((p) => <option key={p} value={p}>{p === "official-account" ? "公众号" : PUBLISH_PLATFORM_DEFINITIONS[p].name}</option>)}</select></label></div>
-      {candidates.map((row) => <div className="creatorAssetRow" key={row.remoteId}><span>{row.title}</span><ActionButton disabled={busy || syncing} onClick={() => void run({ ...scope, action: "associate-publication", platform: row.platform, remoteId: row.remoteId, ...(row.url ? { url: row.url } : {}) })}>关联并读取</ActionButton></div>)}
-      <div className="productionFields"><label>作品链接<input type="url" value={url} onChange={(e) => setUrl(e.target.value)} /></label><label>平台作品标识<input value={remoteId} onChange={(e) => setRemoteId(e.target.value)} /></label></div><ActionButton disabled={busy || syncing || !remoteId.trim()} onClick={() => void run({ ...scope, action: "associate-publication", platform: metricPlatform, remoteId: remoteId.trim(), ...(url.trim() ? { url: url.trim() } : {}) })}>关联并读取数据</ActionButton>
+      {candidates.map((row) => <div className="creatorAssetRow" key={`${row.platform}:${row.accountId}:${row.remoteId}`}><span>{row.title}</span><ActionButton disabled={busy || syncing} onClick={() => void run({ ...scope, action: "associate-publication", platform: row.platform, remoteId: row.remoteId, candidateAccountId:row.accountId, ...(row.url ? { url: row.url } : {}) })}>关联并读取</ActionButton></div>)}
+      <div className="productionFields"><label>作品链接<input type="url" value={url} onChange={(e) => setUrl(e.target.value)} /></label><label>平台作品标识<input value={remoteId} onChange={(e) => setRemoteId(e.target.value)} /></label></div><ActionButton disabled={busy || syncing || !remoteId.trim() || !(metricPlatform === "official-account" ? settings?.wechat.appid : settings?.accounts[metricPlatform]?.id)} onClick={() => void run({ ...scope, action: "associate-publication", platform: metricPlatform, remoteId: remoteId.trim(), ...(url.trim() ? { url: url.trim() } : {}) })}>关联并读取数据</ActionButton>
     </div>}
   </section>;
   return <section className="productionPanel" aria-label="已有发布记录">

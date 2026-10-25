@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {createElement as h} from 'react';
 import {afterEach,describe,expect,it,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import {ProductionPanel} from '../src/client/ProductionPanel.tsx';
 import type {ProductionClient} from '../src/client/productionApi.ts';
 import type {ContentDetail} from '../src/types.ts';
@@ -57,9 +57,12 @@ describe('Bilibili upload category input',()=>{
   const view=render(h(ProductionPanel,{detail,api,mode:'publishing',openPath:vi.fn(),enabledPlatforms:[]}));
   view.rerender(h(ProductionPanel,{detail,api,mode:'publishing',openPath:vi.fn(),enabledPlatforms:['bilibili']}));
   fireEvent.click(screen.getByRole('button',{name:'关联作品'}));
+  await act(async()=>{});
+  await waitFor(()=>expect((screen.getAllByRole('combobox',{name:'平台'}).at(-1) as HTMLSelectElement).value).toBe('bilibili'));
   fireEvent.change(screen.getByLabelText('平台作品标识'),{target:{value:'BV12345'}});
+  await waitFor(()=>expect((screen.getByRole('button',{name:'关联并读取数据'}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole('button',{name:'关联并读取数据'}));
-  await waitFor(()=>expect(action).toHaveBeenCalledWith(expect.objectContaining({action:'associate-publication',platform:'bilibili'})));
+  await waitFor(()=>expect(action).toHaveBeenCalledWith(expect.objectContaining({action:'associate-publication',platform:'bilibili',expectedAccountId:'account'})));
  });
 
 });

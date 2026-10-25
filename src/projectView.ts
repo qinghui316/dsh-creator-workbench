@@ -3,12 +3,13 @@ import type { CoverState, CoverRun, CoverSlot, CoverRatio } from "./covers/types
 import type { ArticleVersion, ContentScope, ProductionState, ProductionTask, ImageItem } from "./production/types.ts";
 
 export type ProductionTaskView = Omit<ProductionTask, "imageItems"> & { imageItems?: Array<Omit<ImageItem, "prompt">> };
-export type ProductionView = Omit<ProductionState, "tasks"> & { tasks: ProductionTaskView[] };
+export type ProductionView = Omit<ProductionState, "tasks" | "publicationSaves"> & { tasks: ProductionTaskView[] };
 export type CoverRunView = Omit<CoverRun, "slots"> & {slots: Partial<Record<CoverRatio, Omit<CoverSlot, "prompt"> & {prompt?: string}>>};
 export type CoverView = Omit<CoverState, "runs"> & {runs: CoverRunView[]};
 export function productionView(state: ProductionState): ProductionView {
+  const { publicationSaves: _receipts, ...metadata } = state;
   const source = (value: import("./production/types.ts").CreationSource | undefined) => { if (!value) return {}; const {text:_text,...s}=value; return {source:s}; };
-  return {...state, articles:state.articles.map(({source:s,...a})=>({...a,...source(s)})),
+  return {...metadata, articles:state.articles.map(({source:s,...a})=>({...a,...source(s)})),
     publications:state.publications?.map(({body:_body,bodyError:_error,source:s,...p})=>({...p,...source(s)})) ?? [],
     tasks:state.tasks.map(({source:s,imageItems,...t})=>({...t,...source(s),...(imageItems ? {imageItems:imageItems.map(({prompt:_prompt,...i})=>i)} : {})}))};
 }

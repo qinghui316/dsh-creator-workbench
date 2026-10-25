@@ -1,7 +1,9 @@
+import { useImagePreview } from "./ImagePreview.tsx";
 import type { CoverView, CoverRunView } from "../projectView.ts";
 import type { ProductionClient } from "./productionApi.ts";
 import { useProjectData } from "./ProjectData.tsx";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import type { ProjectQuery } from "./projectQuery.ts";
 import type { ContentDetail } from "../types.ts";
 import {
   COVER_RATIOS,
@@ -44,6 +46,15 @@ const sourceLabel = (v: CoverVersion) =>
         ? "待检查"
         : labels[v.review];
 const previews = new Map<string, Promise<string>>();
+const noSubscription = () => () => undefined;
+const noSnapshot = () => undefined;
+function CoverModalImage({ version, detail, face, selected: initial, query, onSelect }: { version: CoverVersion; detail: ContentDetail; face: CoverFace; selected: boolean; query?: ProjectQuery | undefined; onSelect: () => Promise<boolean> }) {
+  const [url, setUrl] = useState<string>(), [error, setError] = useState(""), [selected, setSelected] = useState(initial), [busy, setBusy] = useState(false);
+  const snapshot = useSyncExternalStore(query?.subscribe ?? noSubscription, query?.getSnapshot ?? noSnapshot);
+  const current = snapshot?.view?.covers ? snapshot.view.covers.selected[version.ratio] === version.id : selected;
+  useEffect(() => { let live=true; void imageUrl(detail,version,face).then(value=>{if(live)setUrl(value);},()=>{if(live)setError("图片读取失败，可重新读取或关闭。");});return()=>{live=false;}; },[version.id,version.file,detail.folderPath]);
+  return <div className="creatorCoverModalContent">{url?<img src={url} alt="封面放大预览"/>:<p role="status">{error||"正在读取图片…"}</p>}<ActionBar><span className="creatorMuted">{sourceLabel(version)} · {version.width}×{version.height}</span><ActionButton disabled={!url||busy||current} onClick={async()=>{setBusy(true);setError("");try{const done=await onSelect();if(done)setSelected(true);else setError("选用未完成，请核对后重试。");}catch(cause){setError(cause instanceof Error?cause.message:String(cause));}finally{setBusy(false);}}}>{current?"当前选用":version.review==="pass"?"选用此版本":"我已检查，选用此版"}</ActionButton></ActionBar>{error&&<p className="creatorError" role="alert">{error}</p>}</div>;
+}
 function imageUrl(
   detail: ContentDetail,
   version: CoverVersion,
@@ -122,9 +133,9 @@ export function CoverPanel({
 }
 function SharedCoverPanel({detail, api, ...face}: CoverFace & {detail: ContentDetail; api: ProductionClient}) {
   const data = useProjectData(api, detail);
-  return <CoverPanelBody detail={detail} {...face} shared={{ state: data.view?.covers, refresh: () => data.query.invalidate() }} />;
+  return <CoverPanelBody detail={detail} {...face} shared={{ state: data.view?.covers, query: data.query, refresh: () => data.query.invalidate() }} />;
 }
-function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentDetail; shared?: {state: CoverView | undefined; refresh: () => Promise<unknown>}}) {
+function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentDetail; shared?: {state: CoverView | undefined; query: ProjectQuery; refresh: () => Promise<unknown>}}) {
   const [state, setState] = useState<CoverView>({
     versions: [],
     selected: {},
@@ -138,22 +149,19 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
     [notice, setNotice] = useState<string>(),
     [draftRun, setDraftRun] = useState<string>(),
     [selectedRunId, setSelectedRunId] = useState<string>();
-  const [panel, setPanel] = useState<"versions" | "preview" | "run">(),
+  const [panel, setPanel] = useState<"versions" | "run">(),
     [ratio, setRatio] = useState<CoverRatio>("3x4");
-  const [preview, setPreview] = useState<CoverVersion>(),
-    [zoom, setZoom] = useState<string>(),
-    [ack, setAck] = useState(false);
+  const [ack, setAck] = useState(false);
+  const imagePreview = useImagePreview();
   const coverRoot = useRef<HTMLElement>(null);
   const fileInput = useRef<HTMLInputElement>(null),
-    importRatio = useRef<CoverRatio>("3x4"),
-    previewTicket = useRef(0);
+    importRatio = useRef<CoverRatio>("3x4");
   const alive = useRef(true),
     epoch = useLibraryEpoch();
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
-      previewTicket.current++;
     };
   }, []);
   useEffect(() => {
@@ -190,7 +198,7 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
       clearTimeout(timer);
     };
   }, [detail.folderPath, epoch, retry, shared?.state]);
-  const apply = async (action: CoverAction) => {
+  const apply = async (action: CoverAction, rethrow = false) => {
     setBusy(true);
     setError(undefined);
     setNotice(undefined);
@@ -202,6 +210,7 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
     } catch (cause) {
       if (alive.current)
         setError(cause instanceof Error ? cause.message : String(cause));
+      if (rethrow) throw cause;
       return undefined;
     } finally {
       if (alive.current) setBusy(false);
@@ -268,9 +277,9 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
   } : metadataRun;
   useEffect(()=>{
     if(!shared || !panel) return; let current=true;
-    void face.getCoverState(scope).then(full=>{if(current) {setRunDetails(full.runs.find(r=>r.id===metadataRun?.id)); if(panel === "preview" && preview) {const version=full.versions.find(v=>v.id===preview.id);if(version)setPreview(version);} setState(previous=>({...previous,versions:full.versions}));}}, e=>{if(current)setError(e instanceof Error?e.message:"详情读取失败");});
+    void face.getCoverState(scope).then(full=>{if(current) {setRunDetails(full.runs.find(r=>r.id===metadataRun?.id)); setState(previous=>({...previous,versions:full.versions}));}}, e=>{if(current)setError(e instanceof Error?e.message:"详情读取失败");});
     return()=>{current=false;};
-  },[panel,metadataRun?.id,metadataRun?.updatedAt,preview?.id]);
+  },[panel,metadataRun?.id,metadataRun?.updatedAt]);
   const active = [...state.runs]
     .reverse()
     .find((r) => (r.purpose ?? "cover") === "cover" && r.video.name === detail.selectedVideo && r.video.size === detail.videos?.find((v) => v.name === detail.selectedVideo)?.size && r.video.modifiedAt === detail.videos?.find((v) => v.name === detail.selectedVideo)?.modifiedAt && (r.status !== "waiting_agent" || r.deliveredAt || r.frames.length) && ["waiting_agent", "preparing", "running"].includes(r.status));
@@ -286,27 +295,16 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
           : "待检查"
       : labels[run.status];
   const view = async (version: CoverVersion) => {
-    const ticket = ++previewTicket.current;
-    setPreview(version);
-    setPanel("preview");
-    setZoom(undefined);
-    setError(undefined);
-    try {
-      const url = await imageUrl(detail, version, face);
-      if (alive.current && ticket === previewTicket.current) setZoom(url);
-    } catch {
-      if (alive.current && ticket === previewTicket.current)
-        setError("图片无法读取，请检查文件后重试。");
-    }
+    const versions=state.versions.filter(v=>!v.hidden);
+    imagePreview.open(versions.map(v=>({id:v.id,title:`${v.ratio.replace("x",":")} 视频封面`,reload:()=>{previews.delete(detail.folderPath+"/"+v.id+"/"+v.file);},content:<CoverModalImage version={v} detail={detail} face={face} selected={state.selected[v.ratio]===v.id} query={shared?.query} onSelect={async()=>{const checked=await apply(v.review==="pass"?{...scope,action:"select",versionId:v.id}:{...scope,action:"review",versionId:v.id,verdict:"pass",note:"用户预览图片后明确检查并选用此版本。",select:false},true);const next=checked&&(v.review==="pass"?checked:await apply({...scope,action:"select",versionId:v.id},true));return next?.selected[v.ratio]===v.id;}}/>})),version.id);
   };
   const focusReturn = () =>
     coverRoot.current?.querySelector<HTMLElement>(
-      `[data-cover-trigger="${preview?.ratio ?? ratio}"]`,
+      `[data-cover-trigger="${ratio}"]`,
     ) ??
     coverRoot.current?.querySelector<HTMLElement>("[data-cover-start]") ??
     null;
   const close = () => {
-    previewTicket.current++;
     setPanel(undefined);
   };
   const importFile = (r: CoverRatio) => {
@@ -475,76 +473,6 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
                 </ActionButton>
               </div>
             ))}
-        </SectionPanel>
-      )}
-      {panel === "preview" && preview && (
-        <SectionPanel
-          title={preview.ratio.replace("x", ":") + " 封面预览"}
-          onClose={close}
-          returnFocus={focusReturn}
-        >
-          <div className="coverPreviewActions">
-            <span className="creatorMuted">
-              {sourceLabel(preview)} · {preview.width} × {preview.height}
-            </span>
-            <ActionBar>
-              <ActionButton
-                tone="ghost"
-                onClick={() => {
-                  previewTicket.current++;
-                  setRatio(preview.ratio);
-                  setPanel("versions");
-                }}
-              >
-                历史版本
-              </ActionButton>
-              <ActionButton
-                tone={
-                  state.selected[preview.ratio] === preview.id
-                    ? "ghost"
-                    : "primary"
-                }
-                disabled={
-                  busy || !zoom || state.selected[preview.ratio] === preview.id
-                }
-                onClick={async () => {
-                  const next = await apply(
-                    preview.review === "pass"
-                      ? { ...scope, action: "select", versionId: preview.id }
-                      : {
-                          ...scope,
-                          action: "review",
-                          versionId: preview.id,
-                          verdict: "pass",
-                          note: "用户预览图片后明确检查并选用此版本。",
-                          select: false,
-                        },
-                  );
-                  const selected = next && (preview.review === "pass" ? next : await apply({ ...scope, action: "select", versionId: preview.id }));
-                  if (selected?.selected[preview.ratio] === preview.id) setNotice("已选用此版本");
-                }}
-              >
-                {state.selected[preview.ratio] === preview.id
-                  ? "当前选用"
-                  : preview.review === "pass"
-                    ? "选用此版本"
-                    : "我已检查，选用此版"}
-              </ActionButton>
-            </ActionBar>
-          </div>
-          {zoom ? (
-            <img className="coverZoomImage" src={zoom} alt="封面放大预览" />
-          ) : (
-            <p className="creatorMuted">
-              {error ? "图片读取失败" : "正在读取图片…"}
-            </p>
-          )}
-          {preview.reviewNote && (
-            <details className="creatorDisclosure">
-              <summary>检查记录</summary>
-              <p className="creatorPrewrap">{preview.reviewNote}</p>
-            </details>
-          )}
         </SectionPanel>
       )}
       {active && !panel && (

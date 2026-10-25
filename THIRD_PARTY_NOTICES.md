@@ -13,3 +13,5 @@ Local source snapshot SHA256 before adaptation:
 | theme.py | 58f211c85c330cef35fad92c8a0550c611d8e8413d2fbf2003116c3dda58024e |
 
 No personal configuration, credentials, browser profiles or publication receipts are distributed.
+
+- `DOMPurify`3.4.17: cure53/DOMPurify, https://github.com/cure53/DOMPurify. Client-side HTML sanitization before the script-disabled article preview. Distributed under its Apache-2.0 licensing option; original license included in `vendor/dompurify/LICENSE`.

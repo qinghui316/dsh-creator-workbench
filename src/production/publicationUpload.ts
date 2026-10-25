@@ -20,16 +20,18 @@ export interface PublicationSnapshot {
   cover?: string; sourceKey: string; articleFile?: string;
 }
 interface UploadHost { dataDir: string; platforms: () => Promise<readonly PublishPlatform[]>; key: (ref: string) => Promise<string | undefined>; resolve: (scope: ContentScope) => Promise<unknown>; changed: () => void; reserve: (id: string) => void }
-export async function preparePublicationUpload(scope: ContentScope, id: string, revision: number, rights: boolean, host: UploadHost, signal: AbortSignal, after?: string): Promise<{ task: ProductionTask; fresh: boolean; notice?: UploadNotice }> {
+export async function preparePublicationUpload(scope: ContentScope, id: string, revision: number, rights: boolean, host: UploadHost, signal: AbortSignal, after?: string, expectedAccountId?: string): Promise<{ task: ProductionTask; fresh: boolean; notice?: UploadNotice }> {
   if (!rights) throw new Error("请先确认本次内容拥有发布授权。");
   const state = await readState(scope.folderPath), publication = state.publications?.find((p) => p.id === id && !p.hidden);
   if (!publication || publication.revision !== revision) throw new Error("发布内容已变化，请重新查看本次材料。");
+  if (!publication.title.trim()) throw new Error("请填写本次发布标题后再上传。");
   if (publication.type === "images" && publication.coverImageId && publication.imageIds[0] !== publication.coverImageId) throw new Error("图文封面与第一张图片不一致，请重新保存材料后上传。");
   if (publication.platform === "wechat" && publication.type !== "video") throw new Error("视频号暂不支持图文。");
   if (publication.platform !== "official-account" && !(await host.platforms()).includes(publication.platform)) throw new Error("请先启用此发布平台。");
   const settings = await readSettings(host.dataDir), account = publication.platform === "official-account" ? undefined : settings.accounts[publication.platform];
   const accountId = publication.platform === "official-account" ? settings.wechat.appid : account?.id;
   if (!accountId) throw new Error("请先连接对应的发布账号。");
+  if (expectedAccountId && accountId !== expectedAccountId) throw new Error("发布账号已变化，请核对当前账号后再上传。");
   const images = await Promise.all(publication.imageIds.map(async (imageId) => { const { image } = await creationImage(scope.folderPath, imageId, state); return { file: image.file, sha256: image.sha256, width: image.width, height: image.height }; }));
   if (publication.type === "images" && !images.length) throw new Error("请至少选择一张发布图片。");
   const body = await readFile(await inside(scope.folderPath, publication.bodyFile), "utf8");
@@ -39,6 +41,8 @@ export async function preparePublicationUpload(scope: ContentScope, id: string, 
   if (publication.platform === "official-account" && !cover) throw new Error("请明确选择本次公众号文章封面。");
   const sourceKey = hashText(JSON.stringify({ type: publication.type, video: video?.sha256, images: images.map((i) => i.sha256), articleId: publication.articleId ?? publication.articleFile }));
   const snapshot: PublicationSnapshot = { publication: structuredClone(publication), body, accountId, images, sourceKey, ...(cover ? { cover } : {}), ...(video ? { video } : {}) };
+  if(snapshot.publication.category?.trim()) snapshot.publication.category=snapshot.publication.category.trim();
+  else delete snapshot.publication.category;
   const key = hashText(JSON.stringify(snapshot));
   return updateState(scope.folderPath, async (latest) => {
     await host.resolve(scope);

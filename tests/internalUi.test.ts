@@ -1,3 +1,4 @@
+import { ImagePreviewProvider } from "../src/client/ImagePreview.tsx";
 // @vitest-environment jsdom
 import { createElement as h, createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -363,7 +364,7 @@ describe("cover previews", () => {
     } as CoverState;
     const action = vi.fn().mockResolvedValue(state);
     render(
-      h(CoverPanel, {
+      h(ImagePreviewProvider, null, h(CoverPanel, {
         detail,
         getCoverState: vi.fn().mockResolvedValue(state),
         coverAction: action,
@@ -371,28 +372,28 @@ describe("cover previews", () => {
           .fn()
           .mockResolvedValue({ mime: "image/png", base64: "AA==" }),
         prepareCoverDraft: vi.fn(),
-      }),
+      })),
     );
     const thumb = await screen.findByRole("button", { name: "预览 3:4 封面" });
     thumb.focus();
     fireEvent.click(thumb);
     expect(
-      await screen.findByRole("region", { name: "3:4 封面预览" }),
+      await screen.findByRole("dialog", { name: "3:4 视频封面" }),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "当前选用" })).toBeTruthy();
     expect(action).not.toHaveBeenCalled();
-    fireEvent.keyDown(screen.getByRole("region", { name: "3:4 封面预览" }), {
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "3:4 视频封面" }), {
       key: "Escape",
     });
     expect(await screen.findByText("16:9")).toBeTruthy();
-    expect(document.activeElement).toBe(
+    await waitFor(() => expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "预览 3:4 封面" }),
-    );
+    ));
   });
   it("shows asset readiness without treating an old unsent record or a service test as current work", async () => {
     const versions = COVER_RATIOS.map((ratio, i) => ({ id: `ready-${i}`, ratio, file: `ready-${i}.png`, mime: "image/png", createdAt: 1, source: "import" as const, review: "pass" as const, width: 240, height: 320 }));
     const state = { versions, selected: Object.fromEntries(versions.map((v) => [v.ratio, v.id])), runs: [{ id: "old", contentId: detail.id, folderPath: detail.folderPath, createdAt: 1, updatedAt: 1, video: { name: detail.selectedVideo, size: 1234, modifiedAt: 1 }, status: "waiting_agent", frames: [], ratios: ["3x4"], slots: {} }, { id: "test", purpose: "service_test", contentId: detail.id, folderPath: detail.folderPath, createdAt: 1, updatedAt: 1, video: { name: detail.selectedVideo, size: 1234, modifiedAt: 1 }, deliveredAt: 1, status: "waiting_agent", frames: [], ratios: ["3x4"], slots: {} }] } as CoverState;
-    render(h(CoverPanel, { detail, getCoverState: vi.fn().mockResolvedValue(state), getCoverImage: vi.fn().mockResolvedValue({ mime: "image/png", base64: "AA==" }), coverAction: vi.fn(), prepareCoverDraft: vi.fn() }));
+    render(h(ImagePreviewProvider, null, h(CoverPanel, { detail, getCoverState: vi.fn().mockResolvedValue(state), getCoverImage: vi.fn().mockResolvedValue({ mime: "image/png", base64: "AA==" }), coverAction: vi.fn(), prepareCoverDraft: vi.fn() })));
     await screen.findByRole("button", { name: "重新制作封面" });
     expect(screen.getAllByText("已选用")).toHaveLength(3);
     expect(screen.queryByText("等待 Agent 制作")).toBeNull(); expect(screen.queryByText("查看进度")).toBeNull();
@@ -403,12 +404,12 @@ describe("cover previews", () => {
     const version = { id: "pending-choice", ratio: "3x4", file: "pending.png", mime: "image/png", source: "generated", review: "pending", width: 240, height: 320, createdAt: 1 } as const;
     const state: CoverState = { versions: [version], selected: {}, runs: [] };
     const action = vi.fn().mockResolvedValueOnce({ ...state, versions: [{ ...version, review: "pass" }] }).mockRejectedValueOnce(new Error("选择保存失败"));
-    render(h(CoverPanel, { detail, getCoverState: vi.fn().mockResolvedValue(state), getCoverImage: vi.fn().mockResolvedValue({ mime: "image/png", base64: "AA==" }), coverAction: action, prepareCoverDraft: vi.fn() }));
+    render(h(ImagePreviewProvider, null, h(CoverPanel, { detail, getCoverState: vi.fn().mockResolvedValue(state), getCoverImage: vi.fn().mockResolvedValue({ mime: "image/png", base64: "AA==" }), coverAction: action, prepareCoverDraft: vi.fn() })));
     fireEvent.click(await screen.findByRole("button", { name: "选择封面" }));
     fireEvent.click(await screen.findByRole("button", { name: "预览 3:4 封面" }));
     const select = await screen.findByRole("button", { name: "我已检查，选用此版" });
     await waitFor(() => expect((select as HTMLButtonElement).disabled).toBe(false)); fireEvent.click(select);
-    await screen.findByText("选择保存失败"); expect(screen.queryByText("已选用此版本")).toBeNull();
+    await waitFor(() => expect(screen.getAllByText("选择保存失败").length).toBeGreaterThan(0)); expect(screen.queryByText("已选用此版本")).toBeNull();
     expect(action.mock.calls.map(([request]) => request.action)).toEqual(["review", "select"]);
   });
 

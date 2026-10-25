@@ -4,7 +4,7 @@
 
 文章以HTML阅读，文稿按原Markdown/HTML格式编辑；预览可以使用未保存内容，保存建立新版本。冲突时保留草稿，可核对最新来源并明确选择采用。跨页保留未确认保存身份，重试沿用原请求。保存回执与列表刷新分别处理。
 
-图片页拥有通用图片和视频封面的呈现，各自存储继续兼容。平台材料拥有独立文案、图片顺序、封面和提交快照，源文章更新仅提示。发布区区分当前平台/类型/账号与历史作品，最终发表由用户手动完成。
+图片页拥有通用图片和视频封面的呈现，各自存储继续兼容。平台材料拥有独立文案、图片顺序、封面和提交快照，源文章更新仅提示。发布页以固定平台入口、材料选择器及连续编辑呈现，区分当前平台/类型/账号与历史作品，最终发表由用户手动完成。
 
 ## 模块
 
@@ -12,7 +12,15 @@
 - ProjectData / projectQuery：React共享查询、请求合并、目录失效、活动任务轮询；设置按配置变化读取。
 - 轻量projectQuery服务：元数据投影；不核对或修改任务，不加载全部平台正文。
 - articleEditing：版本读取、草稿预览、基准hash检查、幂等保存与任务拥有的中断产物恢复。人工和Agent共用。
-- 页面：OverviewPage、VideoPanel、SubtitlePanel、ArticlePanel、ImageLibraryPanel、CoverPanel、PublicationPanel；旧发布仅在LegacyPublishingPanel按需查看。
+- 页面：OverviewPage、VideoPanel、SubtitlePanel、ArticlePanel、ImageLibraryPanel、CoverPanel、PublicationPanel；发布页面通过PublicationHistory显示旧任务与回执，LegacyPublishingPanel仅供兼容入口。
 - 业务执行继续使用原视频、图片、上传、转写、WeWrite、凭据和Jobs模块。
 
 正文和媒体继续保存为文件；查询不建立另一套正文数据库。正式保存的图片资源随新版本冻结，原稿与上传快照保持完整。具体运行检查、安装字节及本机截图见对应Change验收记录；公众号远端和视频号既有延期独立保留。
+
+## 发布与图片交互
+
+PublicationEditor/PublicationEditors分别管理每份材料的持久本地队列和项目索引，服务端使用稳定saveId、CAS和原子收据保证同一请求重试不重复创建。未完整材料可保存，上传在业务层另行校验并固定已成功保存的版本。普通保存不会创建远端草稿。
+
+作品关联携带发起账号与候选账号，服务端在设置及项目锁内核对；后续同步限定具体记录、平台、账号和作品。原生Agent使用相同业务操作。
+
+ImagePreviewProvider仅覆盖业务详情区域。概览、图库、视频封面、文章配图和发布图片共用预览、键盘、关闭及重读行为。文章HTML经过固定版本DOMPurify清理，iframe禁止脚本、网络、表单和嵌入文档，仅允许父页面为实际图片接入预览。

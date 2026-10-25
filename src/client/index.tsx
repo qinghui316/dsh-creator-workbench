@@ -71,7 +71,7 @@ interface CreatorWorkbenchRemote {
   productionSettingsAction: (request: ProductionSettingsAction) => Promise<RemoteAnswer<ProductionSettingsView>>;
   getProductionState: (request: ContentScope) => Promise<RemoteAnswer<ProductionState>>;
   productionAction: (request: ProductionAction) => Promise<RemoteAnswer<ProductionState>>;
-  getProductionPreview: (request: ContentScope & { taskId?: string; articleFile?: string }) => Promise<RemoteAnswer<{ html: string; path: string }>>;
+  getProductionPreview: (request: ContentScope & import("../production/types.ts").ProductionPreviewRequest) => Promise<RemoteAnswer<{ html: string; path: string }>>;
   getCoverState: (request: CoverScope) => Promise<RemoteAnswer<CoverState>>;
   coverAction: (request: CoverAction) => Promise<RemoteAnswer<CoverState>>;
   getCoverImage: (request: CoverScope & { versionId: string }) => Promise<RemoteAnswer<{ mime: string; base64: string }>>;

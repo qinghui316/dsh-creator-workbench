@@ -4,7 +4,7 @@
   "sourceRoot": ".",
   "method": "scan",
   "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
-  "authority": "Confirmed Windows native Operate direction, approved light-only local contrast palette, final 0.6.0 source, native UI evidence, executed Agent article-version tools and verified local installed artifact.",
+  "authority": "Approved Windows Operate visual world, 0.7.0 publishing/autosave/image-preview implementation. Prior0.6.0 native evidence remains historical; required0.7.0 native acceptance pending targetable DSH window.",
   "hostValues": "Font family, basic theme colors and dark appearance remain owned by DSH. Six approved light-only local role colors are extracted exactly from WorkbenchContrast.css, without synthesized tonal ramps. Existing 16px/600/24px project heading is documented from InternalUi.css.",
   "sourceFiles": [
     {
@@ -49,15 +49,15 @@
     },
     {
       "path": "src/client/CreatorWorkbench.tsx",
-      "sha256": "f5b1673cffe84e8f4985e5afd33ca51a451f2d1e42191ef335ffd562a3a06367"
+      "sha256": "9afe1f0e23b190e15825998d767ec950984ad09652a26e2438a65750660bb9e4"
     },
     {
       "path": "src/client/ContentInspector.tsx",
-      "sha256": "af0dc5c059d760b1a7c99a50ccdde8b51e25e7507bd05b95f3a24668f48f7ef5"
+      "sha256": "ddbf7084d152c7404c2d3f680e49f6c81fbdd3f846380be7ff52db12e758f217"
     },
     {
       "path": "src/client/CoverPanel.tsx",
-      "sha256": "c537224d57b8684169972a36182b0beab60e42e9746b319620473d56007e6313"
+      "sha256": "fcea598b795b2dd8989cf78f3b9125103514268e83a26ce741a41e9b1b769410"
     },
     {
       "path": "src/client/VideoPanel.tsx",
@@ -65,7 +65,7 @@
     },
     {
       "path": "src/client/CreatorSettingsCard.tsx",
-      "sha256": "079141d60ba04e2ed69a87e1ee425781d07e2f3b19ab9b080b7c9a489951defb"
+      "sha256": "25b80af145f2914d5aa7b9338cf554f452b654d922e46c83ef7705702f87acff"
     },
     {
       "path": "src/client/sidebar/ContentSidebarPanel.css",
@@ -85,11 +85,11 @@
     },
     {
       "path": "src/production/creations.ts",
-      "sha256": "f17b13db5e0d58c3b02be4bb989af336d1e5c0e59bc21ab409e5c1aef9392508"
+      "sha256": "6d0c7bb7efaac85f16fcecefcb4ba0794f1e88bbed9185cf00007f47519e2dd4"
     },
     {
       "path": "src/production/publicationArticle.ts",
-      "sha256": "68685a470a971836093c0742834f564538164b527c386c219b32572809bb597e"
+      "sha256": "9cd2bcdacf7e3b860dd4e8eed2e7c655fd827c45bb7910d422d022ce12e5f4a3"
     },
     {
       "path": "src/client/ProjectPages.css",
@@ -97,23 +97,23 @@
     },
     {
       "path": "src/client/OverviewPage.tsx",
-      "sha256": "3be3cdd9cfc4626f438cc3c91d1d0bec87a968909168b9d19065bdc18122a275"
+      "sha256": "13b238dee9342e72f1089796ecdc801855b1b3f40b8537960d135007eeb52485"
     },
     {
       "path": "src/client/ArticlePanel.tsx",
-      "sha256": "c3458f3fa835133626f1a5d3308ab2d6fb8133ada83d2cfc84121b7ef9756fc9"
+      "sha256": "68242f8bd46205fecbfa45f360df49979478fe818257c79586dfe5b90238c81f"
     },
     {
       "path": "src/client/ImageLibraryPanel.tsx",
-      "sha256": "0e548ed12b414e3776fc03e74b122d5db4e6cc91659ad84ef7991a94d187932c"
+      "sha256": "373523530bfc64ebd27f3ecaef33878e4fe8c333a67e138c318e1c5cca0d15b4"
     },
     {
       "path": "src/client/ImageThumb.tsx",
-      "sha256": "6cbb4f8db8bfb52dd178a5249b3e21d08ac70ae5ef9d6b6da2af023dd44d147c"
+      "sha256": "08e71d7a07cc1741c1d2cee34ab1e4457c12a5c4a5471f64d463a6365768fdb0"
     },
     {
       "path": "src/client/PublicationPanel.tsx",
-      "sha256": "a8e3fb92e52bd82f9d3d059c7416dff2efc21e4f700832ac6d498273f155485b"
+      "sha256": "72eeeab988dd973e4ab2040a0dad8744593bd2abe69cbacd2385bd85b160cd83"
     },
     {
       "path": "src/client/SubtitlePanel.tsx",
@@ -121,7 +121,7 @@
     },
     {
       "path": "src/client/LegacyPublishingPanel.tsx",
-      "sha256": "38b3450ca7d933433325fa48eac90bbb188cc40432fb0727fdb28eccd4c70e06"
+      "sha256": "b7e0f1232aa15f75c12a117f155b7f211e3c5454cb2b88bc8710b891ec7b6dd6"
     },
     {
       "path": "src/client/ProjectData.tsx",
@@ -133,7 +133,7 @@
     },
     {
       "path": "src/projectView.ts",
-      "sha256": "69481bb5732abdb58d4d300de1983ef462dc7782d92368f0584d8c1dcfe94230"
+      "sha256": "3366710e8727a9fb2d388316864087d5412e00824712f35ec7614a3177550b76"
     },
     {
       "path": "src/production/articleEditing.ts",
@@ -141,7 +141,7 @@
     },
     {
       "path": "src/client/OverviewMedia.tsx",
-      "sha256": "636e3fbbeb9bde7b90135bc62f202f20cbc74e141f59b794219040ed8ae67647"
+      "sha256": "eeb1d9e179511cf57a722f02d3b5cacf86379a387f653ccdcbd2595ed662433d"
     },
     {
       "path": "src/client/PlatformMark.tsx",
@@ -153,11 +153,43 @@
     },
     {
       "path": "src/remote-contract.ts",
-      "sha256": "f8918cb058a07a27db45359df547eb04cc06565759fe662f22778d416427d7f5"
+      "sha256": "99418db6a011a9b7176ad2f6d4747a48d2649362008efd298c3958b5e3560fab"
     },
     {
       "path": "src/client/WorkbenchContrast.css",
       "sha256": "7fc844388ec7c362ede30ad13fee5694ac3bfc4c3136de1e238992dadd383f58"
+    },
+    {
+      "path": "src/client/PublicationPanel.css",
+      "sha256": "5347f70ad33254c4c69c2afe78fd37295ab8027da80b1df915aa2da6359aa142"
+    },
+    {
+      "path": "src/client/PublicationEditorPanel.tsx",
+      "sha256": "1c6a6c4cbafe18a65b9f1bc064e91124fcbe1a90976fb2d17d38e3dde70d7c0c"
+    },
+    {
+      "path": "src/client/PublicationResults.tsx",
+      "sha256": "582cf72ed34f17eb9c78c3abc9ce1307f8e0f3e202af220f65a4de51de7788a5"
+    },
+    {
+      "path": "src/client/PublicationHistory.tsx",
+      "sha256": "4c43e0eaa1869487e2830524a83dacfd71367320a05cec805769afda6ea1b75a"
+    },
+    {
+      "path": "src/client/ImagePreview.tsx",
+      "sha256": "abcb381b26e93a1890e1f07e862cb955b6c2657e62bce780a7dee7fa50992c91"
+    },
+    {
+      "path": "src/client/ImagePreview.css",
+      "sha256": "e78aac5c2d405002443855b1acf09a7782e88415af379b9bfb40f304e75baff7"
+    },
+    {
+      "path": "src/client/ArticlePreview.tsx",
+      "sha256": "87c55f6b282574e33540161e9f066e9f2c54bcb9b17d1a6de61572cc1dca50e7"
+    },
+    {
+      "path": "src/client/publicationAutosave.ts",
+      "sha256": "b9091deb2cf44b019c2b0561b1b1d6c11b7475daf9226de1f62b43981517d7f2"
     }
   ],
   "renderedEvidence": [
@@ -414,5 +446,6 @@
     ]
   },
   "nativeUnverified": [],
-  "nativeFinalConfirmation": "Tab moved focus from service address to empty saved-Key input with clear visible ring. Light business width320/client320/scroll320, body310/310; original width486.125 restored. Plugin font14px, body default16px, zoom1 unchanged."
+  "nativeFinalConfirmation": "Tab moved focus from service address to empty saved-Key input with clear visible ring. Light business width320/client320/scroll320, body310/310; original width486.125 restored. Plugin font14px, body default16px, zoom1 unchanged.",
+  "v070NativeStatus": "pending: desktop helper returns running app with zero targetable windows after normal restart; no0.6screenshot substituted."
 }

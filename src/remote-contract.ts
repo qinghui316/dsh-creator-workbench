@@ -94,7 +94,7 @@ export const CREATOR_WORKBENCH_INVOCATIONS: readonly InvocationDescriptor[] = [
   invocation("getCreationImage", scopeSchema.extend({ imageId: z.string() }), z.object({ mime: z.string(), base64: z.string() })),
   invocation("getCreationText", scopeSchema.extend({ file: z.string() }), z.object({ text: z.string() })),
   invocation("productionAction", productionActionSchema, productionStateSchema),
-  invocation("getProductionPreview", scopeSchema.extend({ taskId: z.string().uuid().optional(), articleFile: z.string().optional() }), z.object({ html: z.string(), path: z.string() })),
+  invocation("getProductionPreview", scopeSchema.extend({ taskId: z.string().uuid().optional(), articleFile: z.string().optional(), publicationId: z.string().optional(), revision: z.number().int().positive().optional() }), z.object({ html: z.string(), path: z.string() })),
   invocation("setVideoVisibility", z.object({ id: z.string().min(1), folderPath: z.string().min(1), name: z.string().min(1), hidden: z.boolean() }), contentDetailSchema),
   invocation("setContentVisibility", z.object({ id: z.string().min(1), folderPath: z.string().min(1), hidden: z.boolean() }), listContentsResultSchema),
   invocation("projectAction", z.object({ id: z.string().min(1), folderPath: z.string().min(1), action: z.enum(["inspect", "remove", "join"]), cancelTasks: z.boolean().optional() }), z.object({ tasks: z.array(z.string()), removed: z.boolean() })),

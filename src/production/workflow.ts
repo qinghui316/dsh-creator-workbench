@@ -24,7 +24,9 @@ import { formatArticle } from "./articlePreview.ts";
 import { admitUpload, uploadKey } from "./uploadAdmission.ts";
 import { safeError } from "./process.ts";
 import { metricsSnapshot, runMetricsTask } from "./metricsTask.ts";
-import { refreshMetric, validatePublication } from "./metrics.ts";
+import { refreshMetric } from "./metrics.ts";
+import { associatePublication } from "./publicationAssociation.ts";
+import { snapshotPublicationArticle } from "./publicationArticle.ts";
 
 export interface ProductionHost {
   dataDir: string; resolve: (scope: ContentScope) => Promise<ContentDetail>;
@@ -174,10 +176,18 @@ export class ProductionWorkflow {
   async action(request: ProductionAction, signal: AbortSignal): Promise<ProductionState> {
     const detail = await this.host.resolve(request), folder = detail.folderPath; signal.throwIfAborted();
     const creation = await creationAction(detail, request, signal, { dataDir: this.host.dataDir, key: this.host.key, changed: this.host.changed, assertAvailable: () => this.host.resolve(request), newTask: (kind, extra) => this.newTask(detail, kind, extra), launch: (task, work) => this.launch(folder, task, work) });
-    if (creation) return { ...await this.state(request), ...(typeof creation === "object" ? creation : {}) };
+    if (creation) {
+      if (request.action === "save-publication" && request.saveId && typeof creation === "object") {
+        const raw=await readState(folder),{publicationSaves:_receipts,...metadata}=raw;
+        const saved=raw.publications?.find(p=>p.id===creation.savedPublication.id&&p.revision===creation.savedPublication.revision);
+        const body=saved?await readFile(await inside(folder,saved.bodyFile),"utf8"):undefined;
+        return {...metadata,...creation,...(saved&&body!==undefined?{publications:raw.publications!.map(p=>p===saved?{...p,body}:p)}:{})};
+      }
+      return { ...await this.state(request), ...(typeof creation === "object" ? creation : {}) };
+    }
     const publicationHost = { dataDir: this.host.dataDir, platforms: this.host.platforms, key: this.host.key, resolve: this.host.resolve, changed: this.host.changed, reserve: (id: string) => this.pending.add(id) };
     if (request.action === "upload-publication") {
-      const { task, fresh, notice } = await preparePublicationUpload(detail, request.publicationId, request.expectedRevision, request.originalRightsConfirmed, publicationHost, signal, request.newUploadAfter);
+      const { task, fresh, notice } = await preparePublicationUpload(detail, request.publicationId, request.expectedRevision, request.originalRightsConfirmed, publicationHost, signal, request.newUploadAfter, request.expectedAccountId);
       if (fresh) await this.launch(folder, task, (current) => executePublicationUpload(folder, task, "create", current, publicationHost));
       return { ...await this.state(request), ...(notice ? { uploadNotice: notice } : {}) };
     }
@@ -240,33 +250,10 @@ export class ProductionWorkflow {
     } else if (request.action === "save-article") await this.commitArticle(request, signal);
     else if (request.action === "wechat-preview" || request.action === "wechat-draft") await this.wechatAction(detail, request, signal);
     else if (request.action === "associate-publication") {
-      if ((await readState(folder)).tasks.some((t) => t.kind === "metrics" && isActiveTask(t))) throw new Error("正在同步，请等待或取消原任务后再更换作品关联。");
-      validatePublication(request.platform, request.remoteId, request.url);
-      if (request.publicationId) {
-        const publication = (await readState(folder)).publications?.find((p) => p.id === request.publicationId && !p.hidden);
-        if (!publication || publication.platform !== request.platform) throw new Error("作品关联与发布内容的平台不符。");
-      }
-      const settings = await readSettings(this.host.dataDir), accountId = request.platform === "official-account" ? settings.wechat.appid : settings.accounts[request.platform]?.id;
-      if (!accountId) throw new Error("请先连接对应账号。");
-      await updateState(folder, (state) => {
-        let recordId = request.recordId;
-        if (request.publicationId && !recordId) {
-          const publication = state.publications?.find(p => p.id === request.publicationId && !p.hidden); if (!publication) throw new Error("发布内容已移除。");
-          const records = state.records ??= [];
-          const existing = records.find(r => r.publicationId === publication.id && r.accountId === accountId && r.remoteId === request.remoteId.trim());
-          recordId = existing?.id ?? randomUUID();
-          if (!existing) records.push({ id: recordId, publicationId: publication.id, revision: publication.revision, platform: publication.platform, type: publication.type, accountId, remoteId: request.remoteId.trim(), ...(request.url ? { url: request.url } : {}), state: "linked", updatedAt: Date.now() });
-        }
-        if (request.recordId && !state.records?.some(r => r.id === request.recordId && r.publicationId === request.publicationId && r.platform === request.platform && r.accountId === accountId)) throw new Error("作品记录不属于本次发布内容或账号。");
-        if (request.recordId) { const record = state.records!.find(r => r.id === request.recordId)!; record.remoteId = request.remoteId.trim(); record.state = "linked"; record.updatedAt = Date.now(); if (request.url) record.url = request.url; else delete record.url; }
-        const old = state.metrics.find((row) => row.platform === request.platform && row.accountId === accountId && (recordId ? row.recordId === recordId : request.publicationId ? row.publicationId === request.publicationId : !row.publicationId));
-        if (old) { old.remoteId = request.remoteId.trim(); if (request.url) old.url = request.url; else delete old.url; old.state = "unassociated"; delete old.syncedAt; delete old.views; delete old.likes; delete old.comments; delete old.shares; }
-        else state.metrics.push({ ...(request.publicationId ? { publicationId: request.publicationId } : {}), ...(recordId ? { recordId } : {}), platform: request.platform, accountId, remoteId: request.remoteId.trim(), ...(request.url ? { url: request.url } : {}), checkedAt: Date.now(), state: "unassociated" });
-        state.candidates = (state.candidates ?? []).filter((row) => row.platform !== request.platform || row.accountId !== accountId);
-      });
-      return this.action({ ...request, action: "refresh-metrics", platform: request.platform, ...(request.publicationId ? { publicationId: request.publicationId } : {}) }, signal);
+      const recordId = await associatePublication(this.host.dataDir, folder, request, () => this.host.resolve(request));
+      return this.action({ ...request, action: "refresh-metrics", platform: request.platform, ...(recordId ? { recordId } : {}), ...(request.publicationId ? { publicationId: request.publicationId } : {}) }, signal);
     } else if (request.action === "refresh-metrics") {
-      const snapshot = await metricsSnapshot(this.host.dataDir, folder, await this.host.platforms(), request.platform, request.publicationId);
+      const snapshot = await metricsSnapshot(this.host.dataDir, folder, await this.host.platforms(), request.platform, request.publicationId, { ...(request.recordId ? { recordId: request.recordId } : {}), ...(request.remoteId ? { remoteId: request.remoteId } : {}), ...(request.expectedAccountId ? { expectedAccountId: request.expectedAccountId } : {}) });
       const { task, fresh } = await this.newTask(detail, "metrics", snapshot); if (fresh) await this.launch(folder, task, (current) => this.refreshMetrics(folder, task, request.platform, current));
     }
     this.host.changed(); return this.state(request);
@@ -361,8 +348,20 @@ export class ProductionWorkflow {
       } catch (error) { throw new WechatError(safeError(error, [secret]), error instanceof WechatError ? error.unknownOutcome : true, error instanceof WechatError ? error.code : undefined); }
     });
   }
-  async preview(scope: ContentScope, request: { taskId?: string; articleFile?: string }, signal: AbortSignal): Promise<{ html: string; path: string }> {
+  async preview(scope: ContentScope, request: import("./types.ts").ProductionPreviewRequest, signal: AbortSignal): Promise<{ html: string; path: string }> {
     const detail = await this.host.resolve(scope), folder = detail.folderPath, state = await readState(folder);
+    if (request.publicationId) {
+      const publication = state.publications?.find(p => p.id === request.publicationId && !p.hidden);
+      if (!publication || publication.revision !== request.revision) throw new Error("发布内容已变化，请读取当前版本后预览。");
+      const body = await readFile(await inside(folder, publication.bodyFile), "utf8");
+      const dir = await owned(folder, "publication-previews", hashText(`${publication.id}:${publication.revision}:${body}`));
+      const manifest = join(dir, "preview-owner.json"), identity = JSON.stringify({ id: publication.id, revision: publication.revision, bodyFile: publication.bodyFile });
+      const previous = await readFile(manifest,"utf8").catch((e:NodeJS.ErrnoException)=>{if(e.code==="ENOENT")return undefined;throw e;});
+      if(previous!==undefined&&JSON.stringify(JSON.parse(previous))!==identity) throw new Error("预览来源记录与本次版本不符，请重新读取材料。");
+      if(previous===undefined) await atomic(manifest,JSON.parse(identity));
+      const article = await snapshotPublicationArticle(folder, dir, publication, body, publication.imageIds.map(id=>state.images?.find(i=>i.id===id)?.file).filter((file):file is string=>Boolean(file)), undefined, true);
+      return formatArticle(this.host.dataDir, folder, article, (await readSettings(this.host.dataDir)).wechat.theme, signal);
+    }
     if (request.taskId) {
       const task = state.tasks.find((row) => row.id === request.taskId && row.step === "preview");
       if (!task?.receipt) throw new Error("预览尚未准备好。");

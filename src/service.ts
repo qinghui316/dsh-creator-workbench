@@ -833,7 +833,7 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     return { text: await readFile(file, "utf8") };
   }
   async productionAction(request: ProductionAction, signal: AbortSignal): Promise<ProductionState> { return this.production.action(request, signal); }
-  async getProductionPreview(request: ContentScope & { taskId?: string; articleFile?: string }, signal: AbortSignal): Promise<{ html: string; path: string }> { signal.throwIfAborted(); return this.production.preview(request, request, signal); }
+  async getProductionPreview(request: ContentScope & import("./production/types.ts").ProductionPreviewRequest, signal: AbortSignal): Promise<{ html: string; path: string }> { signal.throwIfAborted(); return this.production.preview(request, request, signal); }
 
   async startCoverGenerate(_request: IdRequest & { title?: string }, _signal: AbortSignal): Promise<ContentDetail> {
     throw new Error("请使用‘让 Agent 制作封面’；由 Harness 当前 Agent 分析后调用新的封面工具。");
