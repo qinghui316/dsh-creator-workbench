@@ -23,6 +23,13 @@ describe("one business-area image modal",()=>{
  it("traps keyboard focus, changes viewed image and retries reading without choosing an asset",()=>{
   const reload=vi.fn();render(h(ImagePreviewProvider,null,h(Demo,{reload})));fireEvent.click(screen.getByText("放大"));const last=screen.getByRole("button",{name:"重新读取图片"});last.focus();fireEvent.keyDown(last,{key:"Tab"});expect(document.activeElement).toBe(screen.getByRole("button",{name:"关闭"}));fireEvent.click(last);expect(reload).toHaveBeenCalledOnce();fireEvent.click(screen.getByRole("button",{name:"下一张"}));expect(screen.getByAltText("二")).toBeTruthy();expect(screen.getByRole("dialog",{name:"图片二"})).toBeTruthy();
  });
+ it("keeps Escape and Tab working after clicking a non-focusable image",async()=>{
+  render(h(ImagePreviewProvider,null,h(Demo,{reload:vi.fn()})));const trigger=screen.getByRole("button",{name:"放大"});fireEvent.click(trigger);fireEvent.click(screen.getByAltText("一"));
+  const before=document.body.getAttribute("tabindex");document.body.tabIndex=-1;document.body.focus();fireEvent.keyDown(document.body,{key:"Tab"});expect(document.activeElement).toBe(screen.getByRole("button",{name:"关闭"}));
+  document.body.focus();fireEvent.keyDown(document.body,{key:"Escape"});expect(screen.queryByRole("dialog")).toBeNull();await waitFor(()=>expect(document.activeElement).toBe(trigger));
+  if(before===null)document.body.removeAttribute("tabindex");else document.body.setAttribute("tabindex",before);
+  const event=new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true});document.body.dispatchEvent(event);expect(event.defaultPrevented).toBe(false);
+ });
  it("reports a decoded-image failure and keeps the draft when closing from outside the business area",()=>{
   const reload=vi.fn();render(h("div",null,h("button",null,"宿主操作"),h(ImagePreviewProvider,null,h(Demo,{reload}))));
   fireEvent.click(screen.getByText("放大"));fireEvent.error(screen.getByAltText("一"));expect(screen.getByRole("alert").textContent).toContain("图片无法显示");

@@ -4,7 +4,7 @@
   "sourceRoot": ".",
   "method": "scan",
   "platform": "Windows DSH Desktop (Electron; HTML/CSS client)",
-  "authority": "Approved Windows Operate visual world, 0.7.0 publishing/autosave/image-preview implementation. Prior0.6.0 native evidence remains historical; required0.7.0 native acceptance pending targetable DSH window.",
+  "authority": "Approved Windows Operate world and0.7.0 implementation, real same-local-DSH-service browser supplement, independent scoped code/visual review. Native desktop shell remains pending;0.6.0 native evidence is historical.",
   "hostValues": "Font family, basic theme colors and dark appearance remain owned by DSH. Six approved light-only local role colors are extracted exactly from WorkbenchContrast.css, without synthesized tonal ramps. Existing 16px/600/24px project heading is documented from InternalUi.css.",
   "sourceFiles": [
     {
@@ -145,7 +145,7 @@
     },
     {
       "path": "src/client/PlatformMark.tsx",
-      "sha256": "9f5a964e0dd84b082dd40f94890582f9cdfaee5d4abd3c09dac2e2b09d34a590"
+      "sha256": "95ceb727d69d3b4ea3cc1ea2c3b31a06992e6db595c1fd8be9e6c49694463f82"
     },
     {
       "path": "src/production/projectQuery.ts",
@@ -161,7 +161,7 @@
     },
     {
       "path": "src/client/PublicationPanel.css",
-      "sha256": "5347f70ad33254c4c69c2afe78fd37295ab8027da80b1df915aa2da6359aa142"
+      "sha256": "4fb4d1036876363a5ea1481e87cae28fd04b14a35c9d62583318c052737c8f2b"
     },
     {
       "path": "src/client/PublicationEditorPanel.tsx",
@@ -177,7 +177,7 @@
     },
     {
       "path": "src/client/ImagePreview.tsx",
-      "sha256": "abcb381b26e93a1890e1f07e862cb955b6c2657e62bce780a7dee7fa50992c91"
+      "sha256": "fe3b4967ae04669271c3d12cf9b814fa925087a12fa80fce6e6300107b17cb31"
     },
     {
       "path": "src/client/ImagePreview.css",
@@ -422,7 +422,7 @@
       "sha256": "249bf8e5e1c44904ac880108e260ca3ebec1951e6a3fbda8a780561af308d210"
     }
   ],
-  "styleResolution": "Final 0.6.0 native captures confirm the scoped light group surfaces, selected project/tab, real action hover, and Agent article revision. WorkbenchContrast guards preserve aria-invalid and disabled fields. The existing 16px/600/24px project title and host font/zoom remain unchanged; dark interaction was accepted by the user. Geometry records 320/520/800px inspector widths and restored layout.",
+  "styleResolution": "0.7.0 browser supplement: light/dark320/520/800have no horizontal overflow; project rail remains visible,14px/zoom1. Hover and2pxfocus distinct. Dark monochrome Douyin mark confirmed white. Modal images/keyboard and existing article/WeWrite local preview checked; native shell not substituted.",
   "geometryEvidence": [
     {
       "path": ".impeccable/review/v060/geometry.json",
@@ -434,6 +434,22 @@
     }
   ],
   "localInstallation": {
+    "version": "0.7.0",
+    "packageFile": ".artifacts/dsh-creator-workbench-0.7.0-f38d13cc0c84.tgz",
+    "sha256": "f38d13cc0c8432a039280ed6072ade1308dd82036587b63784848125100ed97f",
+    "installedFileCount": 50,
+    "byteVerification": "All50installed files match; current rendered local-service asset contains complete installed client bytes.",
+    "browserEvidence": [
+      ".artifacts/v070-browser-acceptance/installed-running-browser.png",
+      ".artifacts/v070-browser-acceptance/switch-menu-browser.png"
+    ],
+    "nativeEvidence": []
+  },
+  "nativeUnverified": [
+    "0.7.0 native Desktop shell window/theme/geometry/loaded-state observation; tool reports no targetable DSH window."
+  ],
+  "v070NativeStatus": "pending after user foreground/maximized and fresh desktop-tool connection; browser supplement explicitly separate.",
+  "historicalNativeInstallation": {
     "version": "0.6.0",
     "packageFile": ".artifacts/dsh-creator-workbench-0.6.0-d2ec4377dd0f.tgz",
     "sha256": "d2ec4377dd0f8e141439b6a17641459026d96a67ef8e8b20273d0e99bf7321f9",
@@ -445,7 +461,67 @@
       ".impeccable/review/v060/final-switch-menu.jpg"
     ]
   },
-  "nativeUnverified": [],
-  "nativeFinalConfirmation": "Tab moved focus from service address to empty saved-Key input with clear visible ring. Light business width320/client320/scroll320, body310/310; original width486.125 restored. Plugin font14px, body default16px, zoom1 unchanged.",
-  "v070NativeStatus": "pending: desktop helper returns running app with zero targetable windows after normal restart; no0.6screenshot substituted."
+  "historicalNativeFinalConfirmation": "Tab moved focus from service address to empty saved-Key input with clear visible ring. Light business width320/client320/scroll320, body310/310; original width486.125 restored. Plugin font14px, body default16px, zoom1 unchanged.",
+  "browserSupplement": [
+    {
+      "path": ".artifacts/v070-browser-acceptance/layout-results.json",
+      "sha256": "b5751b45af830f9eb9488cb98dc34d39e54b5936754d2ab3fc9b45da9adc0b75"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/modal-results.json",
+      "sha256": "aef43d8866f86c4c7d962854d7f249be51b0ab8fd988a1d62b4a5bf4aa34ef6b"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/autosave.json",
+      "sha256": "b919a4fab614323e2cd825fb8b3c9a912269edac7bb4ab13c4801ac97f952be6"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/article-images.json",
+      "sha256": "095bfc2e1b17e43dcec670f4df5092459689e7df6d9fb42a12c0760f75988865"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/article-wewrite-results.json",
+      "sha256": "9abca0db8aa3855e256f750a9680ec6835db8a3e0ff17aac627ba6f428611b1d"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/loaded-asset-final.json",
+      "sha256": "9f2407ec0ad5dbcf53bec07525ffec77d12837b15622e6a409ab4e66d23169c3"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/installed-running-browser.json",
+      "sha256": "1d9a5e391f9a3c07940a9519d2160f40ed74befd21ecb4a938bfd7aac6dcb624"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/dark-800-logo-confirmation.png",
+      "sha256": "5edd35f8d592f039cea80ef596f904bf9e18a034318d7efdcbd5b1dee0f068ec"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/light-320.png",
+      "sha256": "556093a7a9ebde5a88202bcf71e03fe05f23bfe9f791a3dffbb91b0be3b24b4e"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/light-520.png",
+      "sha256": "e115c5cfc047e0867d97e715c310bcd4d7608582fc9b7a896b5d4d53a2cd4625"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/light-800.png",
+      "sha256": "034c7b68ddfdcbc8ecd80a756223b6086d1b29b516a064ffae34692ce89da3f2"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/dark-320.png",
+      "sha256": "c864f5e37e8b0a9d4bbcbfe2d5e6b26422fae51935b6c4b115c4ac2e221ebfb9"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/dark-520.png",
+      "sha256": "0751bc872dc2d8f2c2579d5580d696dc4e2073fe27e1b5e54b79921e520ed107"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/dark-800.png",
+      "sha256": "f8e346cf696f3d0c9d322786caa8e08b59f88fdf54ec730e78a8b59bcbeaac70"
+    },
+    {
+      "path": ".artifacts/v070-browser-acceptance/structure-light.png",
+      "sha256": "dc8cdfd05ca31fd98db52f3e6a677da41db499420c64973d9f2c791730bd361c"
+    }
+  ]
 }

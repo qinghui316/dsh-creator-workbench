@@ -6,6 +6,7 @@ export function PlatformMark({ id, size = 18 }: { id: PlatformId; size?: number 
   return (
     <img
       className="platformMark"
+      data-platform={id}
       src={PLATFORM_ICONS[id]}
       width={size}
       height={size}
