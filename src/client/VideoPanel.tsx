@@ -260,7 +260,7 @@ export function VideoPanel({ detail, t, ...face }: Props) {
           ))}
         </select>
       </label>
-      {detail.videoSelection !== "selected" && (
+      {detail.videoSelection === "missing" && (
         <p className="creatorMuted">
           {t(`video.${detail.videoSelection ?? "empty"}`)}
         </p>

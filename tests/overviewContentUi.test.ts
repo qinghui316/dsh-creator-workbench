@@ -28,7 +28,7 @@ it("shows real text, images and each platform material; editing is a separate se
  const f=fixture();await screen.findByText("这里是实际文章正文预览。");expect(screen.getByText("真实字幕内容。")).toBeTruthy();expect(screen.getByText(/这里是真实脚本/)).toBeTruthy();
  expect(screen.getByText("小红书独立文案")).toBeTruthy();expect(screen.getByText("小红书 · 图文 · 本地材料")).toBeTruthy();
  const video=await screen.findByLabelText("概览视频预览");expect(video.tagName).toBe("VIDEO");expect(video.getAttribute("controls")).not.toBeNull();
- fireEvent.click(screen.getByRole("button",{name:"编辑文章"}));expect(f.navigate).toHaveBeenLastCalledWith("article","article");
+ fireEvent.click(screen.getByRole("button",{name:"阅读文章"}));expect(f.navigate).toHaveBeenLastCalledWith("article","article");
  fireEvent.click(screen.getByRole("button",{name:"编辑发布内容：小红书独立文案"}));expect(f.navigate).toHaveBeenLastCalledWith("publishing","pub");
 });
 it("pauses the actual video element when the overview is unmounted",async()=>{
@@ -42,13 +42,13 @@ it("does not combine a newly saved article title with an older excerpt",async()=
 });
 it("clears a removed script instead of falling back to stale detail text",async()=>{
  const f=fixture();f.detail.script="已经移除的旧正文";await screen.findByText(/这里是真实脚本/);
- f.update({...f.view,script:{exists:false,excerpt:""}});await act(async()=>{bumpLibrary();});await screen.findByText("还没有脚本");expect(screen.queryByText("已经移除的旧正文")).toBeNull();
+ f.update({...f.view,script:{exists:false,excerpt:""}});await act(async()=>{bumpLibrary();});await screen.findByRole("button",{name:"写脚本"});expect(screen.queryByText("已经移除的旧正文")).toBeNull();
 });
 it("keeps playing media and the open image preview mounted across metadata refreshes",async()=>{
  const f=fixture(),video=await screen.findByLabelText("概览视频预览");
- fireEvent.click(screen.getByRole("button",{name:"查看图片 1"}));const preview=screen.getByRole("dialog",{name:"项目图片"});const image=await within(preview).findByRole("img");
+ fireEvent.click(screen.getByRole("button",{name:"查看图片：image.png"}));const preview=screen.getByRole("dialog",{name:"项目图片：image.png"});const image=await within(preview).findByRole("img");
  expect(f.api.image).toHaveBeenCalledTimes(1);expect(f.navigate).not.toHaveBeenCalled();
  f.update({...f.view,production:{...f.view.production,publications:(f.view.production.publications??[]).map(p=>({...p,title:"后台更新的材料"}))}});
- await act(async()=>{bumpLibrary();});await screen.findByText("后台更新的材料");expect(screen.getByLabelText("概览视频预览")).toBe(video);expect(within(screen.getByRole("dialog",{name:"项目图片"})).getByRole("img")).toBe(image);expect(f.media.getVideoPlayback).toHaveBeenCalledTimes(1);expect(f.api.image).toHaveBeenCalledTimes(1);expect(f.api.settings).not.toHaveBeenCalled();
- fireEvent.keyDown(preview,{key:"Escape"});await waitFor(()=>expect(screen.queryByRole("dialog",{name:"项目图片"})).toBeNull());await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("button",{name:"查看图片 1"})));
+ await act(async()=>{bumpLibrary();});await screen.findByText("后台更新的材料");expect(screen.getByLabelText("概览视频预览")).toBe(video);expect(within(screen.getByRole("dialog",{name:"项目图片：image.png"})).getByRole("img")).toBe(image);expect(f.media.getVideoPlayback).toHaveBeenCalledTimes(1);expect(f.api.image).toHaveBeenCalledTimes(1);expect(f.api.settings).not.toHaveBeenCalled();
+ fireEvent.keyDown(preview,{key:"Escape"});await waitFor(()=>expect(screen.queryByRole("dialog",{name:"项目图片：image.png"})).toBeNull());await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("button",{name:"查看图片：image.png"})));
 });

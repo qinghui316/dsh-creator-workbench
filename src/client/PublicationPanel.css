@@ -25,7 +25,7 @@ html[style*="color-scheme: dark"] [data-plugin="dsh-creator-workbench"] .publica
 [data-plugin="dsh-creator-workbench"] .publicationGroup h4 { margin:0 0 12px;font-size:14px;font-weight:600; }
 [data-plugin="dsh-creator-workbench"] .publicationSaveStatus { display:flex;align-items:center;gap:8px;min-height:32px;margin-bottom:8px; }
 [data-plugin="dsh-creator-workbench"] :is(.publicationImageOrder,.publicationImagePicker) { display:flex;align-items:start;flex-wrap:wrap;gap:12px;margin:12px 0; }
-[data-plugin="dsh-creator-workbench"] :is(.publicationOrderedItem,.publicationImagePicker>div) { display:flex;flex-direction:column;gap:6px;max-width:160px; }
+[data-plugin="dsh-creator-workbench"] :is(.publicationOrderedItem,.publicationImagePicker>div) { display:flex;flex-direction:column;gap:6px;min-width:0; }
 [data-plugin="dsh-creator-workbench"] .publicationImage { display:flex;align-items:center;justify-content:center;width:120px;height:130px;overflow:hidden;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);cursor:zoom-in;padding:6px; }
 [data-plugin="dsh-creator-workbench"] .publicationImage:hover { border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover); }
 [data-plugin="dsh-creator-workbench"] .publicationImage :is(img,.creationThumb,.overviewCover) { max-width:100%;max-height:100%;object-fit:contain; }
@@ -38,3 +38,8 @@ html[style*="color-scheme: dark"] [data-plugin="dsh-creator-workbench"] .publica
 [data-plugin="dsh-creator-workbench"] .publicationResultRow p { margin:4px 0;font-size:13px;line-height:1.65; }
 [data-plugin="dsh-creator-workbench"] .publicationEmpty { padding:20px 0;color:var(--dsw-alias-label-secondary);line-height:1.7; }
 @container (max-width:400px) { [data-plugin="dsh-creator-workbench"] .publicationReuse { align-items:stretch; } [data-plugin="dsh-creator-workbench"] .publicationImage { width:104px;height:116px; } }
+
+[data-plugin="dsh-creator-workbench"] .publicationEditHeading { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+[data-plugin="dsh-creator-workbench"] .publicationEditHeading .publicationSaveStatus { margin:0;min-width:0;flex-wrap:wrap; }
+[data-plugin="dsh-creator-workbench"] .publicationHistoryEntry { padding:16px 0;border-top:1px solid var(--dsw-alias-border-l1); }
+[data-plugin="dsh-creator-workbench"] .publicationSubmission { margin-top:4px; }

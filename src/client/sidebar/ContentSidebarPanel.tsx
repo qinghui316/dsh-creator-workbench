@@ -1,3 +1,5 @@
+import { ActionMenu } from "../ui/ActionMenu.tsx";
+import { ActionButton } from "../ui/ActionButton.tsx";
 import { useEffect, useRef, useState } from "react";
 import {
   Button,
@@ -378,6 +380,7 @@ export function ContentSidebarPanel({
             </span>
             <span className="rowBody">
               <span className="rowTitle" title={`${item.title}\n${item.folderPath}`}>{item.title}</span>
+              {items.some(other=>other.id!==item.id&&other.title===item.title)&&<span className="rowLocation" title={item.folderPath}>{item.folderPath}</span>}
               <span className="rowMeta">
                 <StatusPill tone={item.accessError ? "pending" : WORKFLOW_TONE[item.workflow]}>
                   {item.accessError ? "暂不可访问" : t(`inspector.stage.${item.workflow}` as CreatorKey)}
@@ -386,7 +389,7 @@ export function ContentSidebarPanel({
               </span>
             </span>
           </button>
-          <button type="button" className="contentRowDelete" aria-label={`删除项目：${item.title}`} title="删除项目" disabled={updatingId !== null} onClick={() => { setDeleteItem(item); setError(undefined); setRemovalTasks([]); if (inspectProject) { setInspecting(true); void inspectProject(item.id, item.folderPath).then(setRemovalTasks, (cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => setInspecting(false)); } }}>删除</button>
+          <ActionMenu label="更多" ariaLabel={`项目操作：${item.title}`} align="end"><ActionButton tone="ghost" aria-label={`删除项目：${item.title}`} title="删除项目" disabled={updatingId !== null} onClick={() => { setDeleteItem(item); setError(undefined); setRemovalTasks([]); if (inspectProject) { setInspecting(true); void inspectProject(item.id, item.folderPath).then(setRemovalTasks, (cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => setInspecting(false)); } }}>删除</ActionButton></ActionMenu>
           </div>
         ))}
       </div>

@@ -14,9 +14,7 @@
 [data-plugin="dsh-creator-workbench"] .creatorSecretToggle:disabled { opacity:.4;cursor:default; }
 [data-plugin="dsh-creator-workbench"] :is(.creatorInlineStatus,.scriptStatus,.articleSaveStatus,.publicationSaveStatus) { min-height:24px;line-height:24px; }
 [data-plugin="dsh-creator-workbench"] :is(.creatorMuted,.creatorError,.overviewCaption,.publicationSaveStatus) { overflow-wrap:anywhere; }
-[data-plugin="dsh-creator-workbench"] :is(.overviewImage,.creationImageButton,.coverPreview,.publicationImage) { cursor:pointer; }
-[data-plugin="dsh-creator-workbench"] .creationImageItem { min-width:0; }
-[data-plugin="dsh-creator-workbench"] .creationImageItem>div { align-items:center; }
+[data-plugin="dsh-creator-workbench"] :is(.coverPreview,.publicationImage) { cursor:pointer; }
 [data-plugin="dsh-creator-workbench"] .coverVersionRow { flex-wrap:wrap;gap:8px 12px; }
 [data-plugin="dsh-creator-workbench"] .coverVersionRow .creatorRowCopy { flex:1;min-width:100px; }
 [data-plugin="dsh-creator-workbench"] .productionSettings>.creatorMuted { max-width:65ch; }

@@ -240,21 +240,6 @@
   cursor: pointer;
 }
 
-[data-plugin="dsh-creator-workbench"][data-surface="library"] .contentRowDelete {
-  flex: none;
-  padding: 6px 2px;
-  border: 0;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-[data-plugin="dsh-creator-workbench"][data-surface="library"] .contentRowDelete:hover {
-  color: var(--dsw-alias-state-error-primary);
-}
-
 [data-plugin="dsh-creator-workbench"][data-surface="library"] .removedContents {
   padding: 8px;
   font-size: 12px;
@@ -281,8 +266,7 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-[data-plugin="dsh-creator-workbench"][data-surface="library"] .contentRowSelect:focus-visible,
-[data-plugin="dsh-creator-workbench"][data-surface="library"] .contentRowDelete:focus-visible {
+[data-plugin="dsh-creator-workbench"][data-surface="library"] .contentRowSelect:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
 }
@@ -400,3 +384,7 @@
   background:var(--dsw-alias-bg-base); color:var(--dsw-alias-label-primary); font:inherit; padding:6px 8px;
 }
 [data-plugin="dsh-creator-workbench"][data-surface="create-dialog"] .createPath { color:var(--dsw-alias-label-secondary); font-size:12px; overflow-wrap:anywhere; line-height:1.5; }
+
+[data-plugin="dsh-creator-workbench"] .rowLocation { display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:12px; }
+
+[data-plugin="dsh-creator-workbench"] .contentRow>.creatorMenu>button { min-width:32px;padding-inline:4px; }

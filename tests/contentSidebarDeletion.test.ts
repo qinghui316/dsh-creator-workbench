@@ -29,12 +29,14 @@ function fixture() {
 describe("project deletion controls in the existing sidebar", () => {
   it("requires confirmation, clears detail and does not expose deleted rows after remount", async () => {
     const f = fixture(); f.view();
-    fireEvent.click(await screen.findByRole("button", { name: `删除项目：${f.item.title}` }));
+    fireEvent.click(await screen.findByRole("button", { name: `项目操作：${f.item.title}` }));
+    fireEvent.click(screen.getByRole("menuitem", { name: `删除项目：${f.item.title}` }));
     expect(f.setContentVisibility).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog", { name: "删除项目" }).textContent).toContain("磁盘文件保留");
     fireEvent.click(screen.getByRole("button", { name: "取消" }));
     expect(f.setContentVisibility).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: `删除项目：${f.item.title}` }));
+    fireEvent.click(screen.getByRole("button", { name: `项目操作：${f.item.title}` }));
+    fireEvent.click(screen.getByRole("menuitem", { name: `删除项目：${f.item.title}` }));
     fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
     await waitFor(() => expect(getSelectedContentId()).toBeNull());
     expect(f.setContentVisibility).toHaveBeenCalledWith("episode", f.item.folderPath, true);
@@ -46,19 +48,21 @@ describe("project deletion controls in the existing sidebar", () => {
   });
   it("retains the item and selection when deletion fails", async () => {
     const f = fixture(); f.setContentVisibility.mockRejectedValue(new Error("资料库已切换，请刷新")); f.view();
-    fireEvent.click(await screen.findByRole("button", { name: `删除项目：${f.item.title}` })); fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
+    fireEvent.click(await screen.findByRole("button", { name: `项目操作：${f.item.title}` }));
+    fireEvent.click(screen.getByRole("menuitem", { name: `删除项目：${f.item.title}` })); fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
     await screen.findByRole("alert");
     expect(getSelectedContentId()).toBe("episode");
-    expect(screen.getByRole("button", { name: `删除项目：${f.item.title}` })).toBeTruthy();
+    expect(screen.getByRole("button", { name: `项目操作：${f.item.title}` })).toBeTruthy();
   });
   it("removes the rendered row when archiving the active session changes host navigation", async () => {
     const f = fixture(); let active = true;
     f.face.captureNavigation = () => () => active;
     f.face.removeProject = vi.fn(async () => { await f.setContentVisibility(f.item.id, f.item.folderPath, true); active = false; });
     f.view();
-    fireEvent.click(await screen.findByRole("button", { name: `删除项目：${f.item.title}` }));
+    fireEvent.click(await screen.findByRole("button", { name: `项目操作：${f.item.title}` }));
+    fireEvent.click(screen.getByRole("menuitem", { name: `删除项目：${f.item.title}` }));
     fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
-    await waitFor(() => expect(screen.queryByRole("button", { name: `删除项目：${f.item.title}` })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("button", { name: `项目操作：${f.item.title}` })).toBeNull());
     expect(getSelectedContentId()).toBeNull();
   });
   it("renders the global project list when host conversation navigation settles during first load", async () => {
@@ -68,7 +72,7 @@ describe("project deletion controls in the existing sidebar", () => {
     vi.mocked(f.face.listContents).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
     f.view(); await waitFor(()=>expect(finish).toBeTypeOf("function"));
     active=false; await act(async()=>finish(original));
-    expect(await screen.findByRole("button",{name:`删除项目：${f.item.title}`})).toBeTruthy();
+    expect(await screen.findByRole("button",{name:`项目操作：${f.item.title}`})).toBeTruthy();
     expect(getSelectedContentId()).toBe(f.item.id);
   });
   it("rejects a late list response from the previous profile", async () => {
@@ -78,15 +82,15 @@ describe("project deletion controls in the existing sidebar", () => {
     vi.mocked(f.face.listContents).mockResolvedValue({...original,items:[{...f.item,title:"新配置项目"}]});
     f.view(); await waitFor(()=>expect(finish).toBeTypeOf("function"));
     await act(async()=>bumpProfile());
-    await screen.findByRole("button",{name:"删除项目：新配置项目"});
+    await screen.findByRole("button",{name:"项目操作：新配置项目"});
     await act(async()=>finish(original));
-    expect(screen.queryByRole("button",{name:`删除项目：${f.item.title}`})).toBeNull();
-    expect(screen.getByRole("button",{name:"删除项目：新配置项目"})).toBeTruthy();
+    expect(screen.queryByRole("button",{name:`项目操作：${f.item.title}`})).toBeNull();
+    expect(screen.getByRole("button",{name:"项目操作：新配置项目"})).toBeTruthy();
   });
   it.each(["unmount", "suspend"])("does not restart a list read after a deferred refresh and %s", async (mode) => {
     const f=fixture(); let finish!: () => void;
     f.face.refreshCatalog=vi.fn(()=>new Promise<Awaited<ReturnType<CreatorViewFace["refreshCatalog"]>>>(resolve=>{finish=()=>resolve(undefined as never);}));
-    const view=f.view(); await screen.findByRole("button",{name:`删除项目：${f.item.title}`});
+    const view=f.view(); await screen.findByRole("button",{name:`项目操作：${f.item.title}`});
     const reads=vi.mocked(f.face.listContents).mock.calls.length;
     fireEvent.click(screen.getByRole("button",{name:"刷新"}));
     if(mode==="unmount")view.unmount();

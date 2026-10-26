@@ -389,7 +389,8 @@ describe("cover previews", () => {
     await waitFor(() => expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "预览 3:4 封面" }),
     ));
-    fireEvent.click(screen.getByRole("button",{name:"历史版本 · 1"}));
+    fireEvent.click(screen.getByRole("button",{name:"3:4 封面操作"}));
+    fireEvent.click(screen.getByRole("menuitem",{name:"历史版本 · 1"}));
     expect((screen.getByRole("button",{name:"已选用"})as HTMLButtonElement).disabled).toBe(true);
   });
   it("shows asset readiness without treating an old unsent record or a service test as current work", async () => {

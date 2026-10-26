@@ -45,5 +45,5 @@ it.each([['bilibili','images'],['xiaohongshu','video']] as const)('keeps old upl
  const settings={revision:'r',accounts:{xiaohongshu:{id:'A',name:'小红书账号A',platform:'xiaohongshu',checkedAt:1},bilibili:{id:'B',name:'B站账号B',platform:'bilibili',checkedAt:1}},accountHistory:[],observations:{},wechat:{appid:'',theme:'claude-editorial',author:''},wechatConfigured:false};
  const api={state:async()=>state,settings:async()=>settings,publication:async()=>p,action:vi.fn(async()=>state)}as any;
  render(h(ImagePreviewProvider,null,h(PublicationPanel,{detail,api,enabledPlatforms:['xiaohongshu','bilibili']})));
- await screen.findByText('小红书账号A');expect(screen.getByText('原小红书上传待继续')).toBeTruthy();expect(screen.getByText('图文 · old-XHS-work')).toBeTruthy();
+ await screen.findByText('小红书账号A');fireEvent.click(screen.getByRole('button',{name:'作品记录'}));expect(screen.getByText('原小红书上传待继续')).toBeTruthy();expect(screen.getByText('图文 · old-XHS-work')).toBeTruthy();
 });

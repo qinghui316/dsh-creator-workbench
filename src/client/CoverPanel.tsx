@@ -19,6 +19,7 @@ import {
 import type { CreatorViewFace } from "./face.ts";
 import { useLibraryEpoch } from "./contentSelection.ts";
 import { ActionBar, ActionButton } from "./ui/ActionButton.tsx";
+import { ActionMenu } from "./ui/ActionMenu.tsx";
 import { SectionPanel } from "./ui/SectionPanel.tsx";
 import "./CoverPanel.css";
 
@@ -344,11 +345,7 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
               <article className="coverRatio" key={r}>
                 <div className="coverRatioHeading">
                   <h4>{r.replace("x", ":")}</h4>
-                  <details className="creatorActionMenu">
-                    <summary aria-label={r.replace("x", ":") + " 封面操作"}>
-                      操作
-                    </summary>
-                    <div>
+                  <ActionMenu label="更多" ariaLabel={r.replace("x", ":") + " 封面操作"} align="end">
                       <ActionButton
                         tone="ghost"
                         disabled={busy}
@@ -376,8 +373,7 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
                       >
                         重做此画幅
                       </ActionButton>
-                    </div>
-                  </details>
+                  </ActionMenu>
                 </div>
                 {current ? (
                   <Thumbnail

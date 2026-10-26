@@ -15,7 +15,7 @@ function fixture(){
  const state={...emptyProduction(),articles:[article]};let current={article,source:"# 原文\n\n原始正文",sourceHash:"old"};
  const articleSource=vi.fn(async()=>current),articleSave=vi.fn(async()=>{throw new Error("来源文章已被修改");});
  const api={state:async()=>state,articleSource,articleSave,articlePreview:async()=>({path:"preview.html",html:"<h1>预览</h1>"})} as unknown as ProductionClient;
- const props={detail,api,goPublish:vi.fn()};const view=render(h(ArticlePanel,props));
+ const props={detail,api,goPublish:vi.fn(),openPath:vi.fn(async()=>undefined)};const view=render(h(ArticlePanel,props));
  return {view,props,api,articleSave,articleSource,article,setCurrent:(source:string,sourceHash:string)=>{current={article,source,sourceHash};}};
 }
 it("prepares an edit request for the exact saved version and leaves sending to the native conversation",async()=>{
@@ -24,8 +24,11 @@ it("prepares an edit request for the exact saved version and leaves sending to t
  expect(prepareRequest).toHaveBeenCalledWith(f.props.detail,expect.stringContaining("creator_read_article_source 读取文章 base"),false);expect(prepareRequest.mock.calls[0]?.[1]).toContain("creator_save_article_revision");
  fireEvent.click(screen.getByText("编辑"));fireEvent.change(screen.getByLabelText("文章源稿"),{target:{value:"# 正在编辑\n\n我的未保存内容"}});expect((screen.getByRole("button",{name:"让 Agent 修改"}) as HTMLButtonElement).disabled).toBe(true);
 });
-it("keeps creation and export subordinate while current-version editing stays directly available",async()=>{
- const f=fixture();await screen.findByTitle("文章排版预览");expect(screen.getByRole("button",{name:"编辑"})).toBeTruthy();expect(screen.getByRole("button",{name:"去发布"})).toBeTruthy();expect(screen.queryByText("导入文章")).toBeNull();fireEvent.click(screen.getByRole("button",{name:"更多"}));expect(screen.getByRole("menuitem",{name:"导入文章"})).toBeTruthy();fireEvent.keyDown(screen.getByRole("button",{name:"更多"}),{key:"Escape"});expect(screen.queryByRole("menu")).toBeNull();expect(f.articleSave).not.toHaveBeenCalled();
+it("keeps creation and export in their named menus while editing stays directly available",async()=>{
+ fixture();await screen.findByTitle("文章排版预览");expect(screen.getByRole("button",{name:"编辑"})).toBeTruthy();expect(screen.getByRole("button",{name:"去发布"})).toBeTruthy();
+ expect(screen.queryByRole("menuitem")).toBeNull();const create=screen.getByRole("button",{name:"新建文章"});fireEvent.click(create);
+ expect(screen.getByRole("menuitem",{name:"导入文章"})).toBeTruthy();fireEvent.keyDown(screen.getByRole("menuitem",{name:"导入文章"}),{key:"Escape"});expect(screen.queryByRole("menu")).toBeNull();expect(document.activeElement).toBe(create);
+ fireEvent.click(screen.getByRole("button",{name:"更多"}));expect(screen.getByRole("menuitem",{name:"打开 HTML 成品"})).toBeTruthy();expect(screen.queryByRole("menuitem",{name:"导入文章"})).toBeNull();
 });
 it("keeps the original draft hash after remount and permits explicit conflict resolution",async()=>{
  const f=fixture();await screen.findByTitle("文章排版预览");fireEvent.click(screen.getByText("编辑"));fireEvent.change(screen.getByLabelText("文章源稿"),{target:{value:"# 我的文稿\n\n当前修改"}});

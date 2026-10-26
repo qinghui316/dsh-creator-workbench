@@ -106,41 +106,6 @@
   flex-direction: column;
   gap: 3px;
 }
-[data-plugin="dsh-creator-workbench"] .creatorActionMenu {
-  position: relative;
-}
-[data-plugin="dsh-creator-workbench"] .creatorActionMenu > summary {
-  display: block;
-  padding: 5px 8px;
-  cursor: pointer;
-  border-radius: var(--dsw-radius-sm);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
-  list-style: none;
-}
-[data-plugin="dsh-creator-workbench"]
-  .creatorActionMenu
-  > summary::-webkit-details-marker {
-  display: none;
-}
-[data-plugin="dsh-creator-workbench"] .creatorActionMenu > summary:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-[data-plugin="dsh-creator-workbench"] .creatorActionMenu[open] > div {
-  position: absolute;
-  z-index: 4;
-  right: 0;
-  top: 100%;
-  display: flex;
-  align-items: stretch;
-  flex-direction: column;
-  min-width: 120px;
-  padding: 5px;
-  border: 1px solid var(--dsw-alias-border-l1);
-  border-radius: 6px;
-  box-shadow: 0 6px 18px #0002;
-  background: var(--dsw-alias-bg-base);
-}
 [data-plugin="dsh-creator-workbench"] .creatorSectionPanel {
   min-width: 0;
 }

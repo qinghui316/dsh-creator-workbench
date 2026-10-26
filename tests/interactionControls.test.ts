@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createElement as h, useState } from "react";
+import { createElement as h, Fragment, useState } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -43,6 +43,18 @@ describe("local navigation visibility",()=>{
 });
 
 describe("one-level action menus",()=>{
+  it("dismisses a detached menu when its owning page scrolls but keeps menu-internal scrolling",()=>{
+    render(h("section",{"aria-label":"页面"},h(ActionMenu,{label:"更多",children:h(ActionButton,{children:"操作"})})));
+    fireEvent.click(screen.getByRole("button",{name:"更多"}));fireEvent.scroll(screen.getByRole("menu"));expect(screen.getByRole("menu")).toBeTruthy();
+    fireEvent.scroll(screen.getByRole("region",{name:"页面"}));expect(screen.queryByRole("menu")).toBeNull();
+  });
+  it("gives Fragment-supplied material actions the same keyboard and dismissal behavior",async()=>{
+    const copy=vi.fn();render(h(ActionMenu,{label:"材料操作",children:[h(Fragment,{key:"creation"},h(ActionButton,{children:"新建材料"}),h(Fragment,{},h(ActionButton,{children:"复制材料",onClick:copy}))),h(ActionButton,{key:"remove",children:"移除材料"})]}));
+    const trigger=screen.getByRole("button",{name:"材料操作"});fireEvent.click(trigger);
+    await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole("menuitem",{name:"新建材料"})));
+    fireEvent.keyDown(document.activeElement!,{key:"ArrowDown"});expect(document.activeElement).toBe(screen.getByRole("menuitem",{name:"复制材料"}));
+    fireEvent.click(document.activeElement!);expect(copy).toHaveBeenCalledOnce();expect(screen.queryByRole("menu")).toBeNull();expect(document.activeElement).toBe(trigger);
+  });
   it("moves focus into a pointer or accessibility-opened menu so Escape dismisses it",async()=>{
     render(h(ActionMenu,{label:"更多",children:[h(ActionButton,{key:"disabled",disabled:true,children:"不可用"}),h(ActionButton,{key:"import",children:"导入"})]}));
     const trigger=screen.getByRole("button",{name:"更多"});expect(document.activeElement).toBe(document.body);fireEvent.click(trigger);

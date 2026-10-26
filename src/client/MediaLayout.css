@@ -1,0 +1,17 @@
+/* This stylesheet owns media geometry; pages retain their business actions. */
+[data-plugin="dsh-creator-workbench"] :is(.projectOverview,.creationPanel,.publicationWorkspace) { container-name:creator-media; container-type:inline-size; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaGrid { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; margin:12px 0; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaGrid>*,
+[data-plugin="dsh-creator-workbench"] .creatorMediaCaption { min-width:0; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaFrame { display:flex; align-items:center; justify-content:center; box-sizing:border-box; width:100%; aspect-ratio:4/3; padding:8px; border:1px solid var(--dsw-alias-border-l1); border-radius:8px; background:var(--dsw-alias-bg-layer-2); color:var(--dsw-alias-label-primary); cursor:zoom-in; overflow:hidden; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaFrame:hover { border-color:var(--dsw-alias-state-business-primary); background:var(--dsw-alias-interactive-bg-hover); }
+[data-plugin="dsh-creator-workbench"] .creatorMediaFrame:focus-visible { outline:2px solid var(--dsw-alias-state-business-primary); outline-offset:2px; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaFrame :is(.creationThumb,.overviewCover) { display:flex; align-items:center; justify-content:center; width:100%; height:100%; min-height:0; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaFrame :is(img,.creationImageThumb) { display:block; width:100%; height:100%; max-height:100%; object-fit:contain; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaCaption { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:6px; font-size:13px; line-height:20px; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaName { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaDetails { margin:12px 0; display:grid; grid-template-columns:auto minmax(0,1fr); gap:10px 16px; font-size:13px; line-height:1.6; }
+[data-plugin="dsh-creator-workbench"] .creatorMediaDetails dt { color:var(--dsw-alias-label-secondary); }
+[data-plugin="dsh-creator-workbench"] .creatorMediaDetails dd { margin:0; overflow-wrap:anywhere; }
+@container creator-media (min-width:400px) { [data-plugin="dsh-creator-workbench"] .creatorMediaGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@container creator-media (min-width:680px) { [data-plugin="dsh-creator-workbench"] .creatorMediaGrid { grid-template-columns:repeat(3,minmax(0,1fr)); } }

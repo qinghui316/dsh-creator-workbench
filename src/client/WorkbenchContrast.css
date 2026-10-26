@@ -45,11 +45,11 @@ html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .tab:ho
 html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .tab.active {
   color:var(--dsw-alias-state-business-primary);
 }
-html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.overviewImage,.creationImageButton,.coverPreview) {
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.creatorMediaFrame,.coverPreview) {
   box-sizing:border-box;
   border:1px solid var(--creator-light-line);
 }
-html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.overviewImage,.creationImageButton,.coverPreview):hover {
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] :is(.creatorMediaFrame,.coverPreview):hover {
   border-color:var(--dsw-alias-state-business-primary);
   background:var(--creator-light-hover);
 }
