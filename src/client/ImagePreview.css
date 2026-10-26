@@ -8,6 +8,7 @@
 .creatorLightbox.creatorLightboxClosing { animation:creatorLightboxExit 120ms ease-in both; }
 .creatorLightboxContent { position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0; }
 .creatorLightboxImage { display:block;width:auto;height:auto;max-width:calc(100vw - 112px);max-height:calc(100dvh - max(112px,var(--dsh-frame-overlay-top,24px) + 64px));object-fit:contain;border-radius:8px;box-shadow:var(--dsw-elevation-prominent);animation:creatorImageChange 120ms ease-out; }
+.creatorLightboxImage { background:#f1f4f8 conic-gradient(#e3eaf5 25%,transparent 0 50%,#e3eaf5 0 75%,transparent 0) 0 0/16px 16px; }
 .creatorLightboxControl { display:grid;place-items:center;position:absolute;z-index:1;width:36px;height:36px;flex:none;padding:0;border:0;border-radius:50%;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-elevation-prominent);cursor:pointer;transition:background 120ms ease-out; }
 .creatorLightboxControl:hover { background:var(--dsw-alias-interactive-bg-hover); }
 .creatorLightboxControl:focus-visible,.creatorLightboxMessage button:focus-visible { outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:3px; }

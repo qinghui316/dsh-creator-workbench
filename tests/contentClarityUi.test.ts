@@ -17,7 +17,7 @@ function fixture(){
  let state={...emptyProduction(),images:[{id:"image-one",file:"图片/素材归档封面.png",width:800,height:600,mime:"image/png",sha256:"test-sha",createdAt:1,source:"imported"as const,purpose:"illustration"as const}]};
  const action=vi.fn(async(request:{action:string;imageId?:string})=>{if(request.action==="remove-image")state={...state,images:state.images.map(i=>({...i,hidden:true}))};return state;});
  const api={state:async()=>state,action,image:vi.fn(async()=>({mime:"image/png",base64:"YWJj"}))}as unknown as ProductionClient;
- render(h(ImagePreviewProvider,{children:h(ImageLibraryPanel,{api,detail})}));return{api,action};
+ render(h("div",{role:"tabpanel"},h(ImagePreviewProvider,{children:h(ImageLibraryPanel,{api,detail})})));return{api,action};
 }
 it("identifies the real file and opens details without selecting or removing it",async()=>{
  const f=fixture();await screen.findByText("素材归档封面.png");expect(screen.queryByText("800×600")).toBeNull();
@@ -39,3 +39,11 @@ it("previews and closes the real image without business writes",async()=>{
  await waitFor(()=>expect(screen.queryByRole("dialog")).toBeNull());expect(document.activeElement).toBe(trigger);expect(f.action).not.toHaveBeenCalled();
 });
 it("keeps Windows and slash file labels factual",()=>{expect(imageName({file:"E:\\资料\\长名称 主题.png"})).toBe("长名称 主题.png");expect(imageName({file:".dsh-creator-workbench/images/card.webp"})).toBe("card.webp");});
+it("reveals offscreen image details within the project pane and restores its reading position",async()=>{
+ fixture();await screen.findByText("素材归档封面.png");const pane=screen.getByRole("tabpanel");pane.scrollTop=100;
+ vi.spyOn(HTMLElement.prototype,"getBoundingClientRect").mockImplementation(function(this:HTMLElement){return {top:this===pane?50:700,bottom:this===pane?400:900} as DOMRect;});
+ const trigger=screen.getByRole("button",{name:"图片操作：素材归档封面.png"});fireEvent.click(trigger);fireEvent.click(screen.getByRole("menuitem",{name:"查看详情"}));
+ expect(pane.scrollTop).toBe(738);
+ fireEvent.click(within(screen.getByRole("region",{name:"图片详情"})).getByRole("button",{name:"返回"}));
+ expect(pane.scrollTop).toBe(100);expect(document.activeElement).toBe(trigger);
+});
