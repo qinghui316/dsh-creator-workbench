@@ -76,7 +76,7 @@ describe("Desktop workbench client", () => {
   it("creates content under the chosen location without asking for a session", async () => {
     const mounted = mountClient(vi.fn(async () => "/chosen"));
     await expect(mounted.panel().props.face.createContent("New content")).resolves.toMatchObject({ id: "new" });
-    expect(mounted.setLibraryRoot).toHaveBeenCalledWith({ path: "/chosen" });
+    expect(mounted.setLibraryRoot).not.toHaveBeenCalled();
     expect(mounted.createContent).toHaveBeenCalledWith({ title: "New content", libraryRoot: "/chosen" });
     await mounted.dispose();
   });

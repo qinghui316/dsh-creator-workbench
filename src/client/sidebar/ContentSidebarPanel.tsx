@@ -11,6 +11,7 @@ import {
   Tooltip,
 } from "@deepseek-ai/dsh-client-ui-primitives";
 
+import { datedProjectName } from "../../projectNames.ts";
 import type { ContentSummary } from "../../types.ts";
 import { CoverThumb, coverThumbRevision } from "../CoverThumb.tsx";
 import type { CreatorViewFace } from "../face.ts";
@@ -36,7 +37,7 @@ export function ContentSidebarPanel({
   listContents,
   getCoverThumb,
   refreshCatalog,
-  createContent,
+  createContent, getSettings, getProjectLocations, pickDirectory,
   setContentVisibility,
   inspectProject, removeProject, joinProject,
 }: CreatorViewFace & {
@@ -64,6 +65,24 @@ export function ContentSidebarPanel({
   const [creating, setCreating] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
+  const [createParent, setCreateParent] = useState("");
+  const [parents, setParents] = useState<string[]>([]);
+  const [parentBusy, setParentBusy] = useState(false);
+  const createRequest = useRef(crypto.randomUUID());
+  const pickingParent = useRef(false);
+  useEffect(() => {
+    if (!createOpen) return;
+    let live = true; setParentBusy(true); setCreateError(undefined); setCreateParent(""); createRequest.current = crypto.randomUUID();
+    void (getProjectLocations?.() ?? getSettings()).then(settings => { if (!live) return; setParents(settings.projectLocations?.map(p => p.path) ?? [settings.libraryRoot]); setCreateParent(settings.libraryConfirmed ? settings.libraryRoot : ""); }, cause => { if (live) setCreateError(cause instanceof Error ? cause.message : "保存位置读取失败，请重试。"); }).finally(() => { if (live) setParentBusy(false); });
+    return () => { live = false; };
+  }, [createOpen]);
+  const chooseParent = async () => {
+    if (pickingParent.current) return;
+    pickingParent.current = true; setParentBusy(true);
+    try { const path = await pickDirectory(); if (path) { setCreateError(undefined); setParents(values => [...new Set([...values, path])]); setCreateParent(path); createRequest.current = crypto.randomUUID(); } }
+    catch (cause) { setCreateError(cause instanceof Error ? cause.message : "目录选择失败。"); }
+    finally { pickingParent.current = false; setParentBusy(false); }
+  };
   const [createError, setCreateError] = useState<string | undefined>(undefined);
 
   const loadList = async (nextQuery = query) => {
@@ -83,7 +102,8 @@ export function ContentSidebarPanel({
       if (result.cleanupWarnings?.length) setError(result.cleanupWarnings.join("；"));
       const currentId = selectedIdRef.current;
       if (nextQuery === "" && currentId !== null && !result.items.some((item) => item.id === currentId)) {
-        setSelectedId(null);
+        const old = result.items.filter(item => item.folderPath.replace(/[\\/]+$/, "").split(/[\\/]/).at(-1) === currentId);
+        setSelectedId(old.length === 1 ? old[0]!.id : null);
       }
     } catch (cause) {
       if (ticket === requestVersion.current) setError(cause instanceof Error ? cause.message : t("empty.error"));
@@ -130,7 +150,7 @@ export function ContentSidebarPanel({
   };
 
   const closeCreate = (): void => {
-    if (creating) return;
+    if (creating || parentBusy) return;
     setCreateOpen(false);
     setCreateName("");
     setCreateError(undefined);
@@ -138,13 +158,13 @@ export function ContentSidebarPanel({
 
   const onCreate = async () => {
     const title = createName.trim();
-    if (title === "" || creating) return;
+    if (title === "" || creating || parentBusy || !createParent) return;
     const isCurrent = captureNavigation();
     const originalSelection = selectedIdRef.current;
     setCreating(true);
     setCreateError(undefined);
     try {
-      const created = await createContent(title);
+      const created = await createContent(title, createParent, createRequest.current);
       if (!isCurrent()) return;
       setCreateOpen(false);
       setCreateName("");
@@ -268,7 +288,7 @@ export function ContentSidebarPanel({
             </Button>
             <Button
               variant="primary"
-              disabled={creating || createName.trim() === ""}
+              disabled={creating || parentBusy || !createParent || createName.trim() === ""}
               onClick={() => { void onCreate(); }}
             >
               {t("create.confirm")}
@@ -286,7 +306,7 @@ export function ContentSidebarPanel({
               placeholder={t("create.name.placeholder")}
               autoFocus={true}
               disabled={creating}
-              onChange={(event) => { setCreateName(event.target.value); }}
+              onChange={(event) => { setCreateName(event.target.value); createRequest.current = crypto.randomUUID(); }}
               onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
@@ -294,8 +314,17 @@ export function ContentSidebarPanel({
               }}
             />
           </div>
+          <div className="createField">
+            <label className="createLabel" htmlFor="creator-create-parent">保存到</label>
+            <select id="creator-create-parent" value={createParent} disabled={creating || parentBusy} onChange={event => { setCreateParent(event.target.value); createRequest.current = crypto.randomUUID(); }}>
+              <option value="" disabled>选择父目录</option>
+              {parents.map(path => <option key={path} value={path}>{path}</option>)}
+            </select>
+            <Button variant="ghost" disabled={creating || parentBusy} onClick={() => { void chooseParent(); }}>选择其他位置</Button>
+            {createParent && <div className="createPath" title={createParent}>预计路径：{createParent.replace(/[\\/]+$/, "")}{createParent.includes("\\") ? "\\" : "/"}{datedProjectName(createName || "项目名称")}</div>}
+          </div>
           {createError !== undefined && <div className="createError">{createError}</div>}
-          {joinProject && <Button variant="ghost" disabled={creating} onClick={() => { setCreating(true); void joinProject().then(async (item) => { if (item) { setCreateOpen(false); await loadList(); setSelectedId(item.id); } }, (cause: unknown) => setCreateError(cause instanceof Error ? cause.message : String(cause))).finally(() => setCreating(false)); }}>使用已有目录</Button>}
+          {joinProject && <Button variant="ghost" disabled={creating} onClick={() => { const selectionCurrent = captureContentSelection(), navigationCurrent = captureNavigation(); setCreating(true); void joinProject().then(async (item) => { if (item) { setCreateOpen(false); await loadList(); if (selectionCurrent() && navigationCurrent()) setSelectedId(item.id); } }, (cause: unknown) => setCreateError(cause instanceof Error ? cause.message : String(cause))).finally(() => setCreating(false)); }}>使用已有目录</Button>}
         </div>
       </Modal>
       <Modal
@@ -337,10 +366,10 @@ export function ContentSidebarPanel({
               />
             </span>
             <span className="rowBody">
-              <span className="rowTitle" title={item.title}>{item.title}</span>
+              <span className="rowTitle" title={`${item.title}\n${item.folderPath}`}>{item.title}</span>
               <span className="rowMeta">
-                <StatusPill tone={WORKFLOW_TONE[item.workflow]}>
-                  {t(`inspector.stage.${item.workflow}` as CreatorKey)}
+                <StatusPill tone={item.accessError ? "pending" : WORKFLOW_TONE[item.workflow]}>
+                  {item.accessError ? "暂不可访问" : t(`inspector.stage.${item.workflow}` as CreatorKey)}
                 </StatusPill>
                 <span className="rowDate">{formatRelativeTime(item.recordedAt, Date.now(), t)}</span>
               </span>

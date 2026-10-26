@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { restoreProjectSessionMembership } from "../src/projectSessionsHost.ts";
+import { restoreProjectSessionMembership, verifyProjectSessionDirectory } from "../src/projectSessionsHost.ts";
 
 let root: string, folder: string;
 beforeEach(async () => { root = await mkdtemp(join(tmpdir(), "creator-restore-")); folder = join(root, "中文 项目"); await mkdir(folder); });
@@ -43,4 +43,10 @@ describe("original project session membership", () => {
     await expect(restoreProjectSessionMembership(f.ctx, folder, "original", controller.signal)).rejects.toThrow();
     expect(f.query.observeSession).not.toHaveBeenCalled(); expect(f.registry.create).not.toHaveBeenCalled();
   });
+});
+
+it("recovers reliable offline session hints without creating a workspace",async()=>{
+ const missing=join(root,"offline");const f=fixture(missing);
+ await verifyProjectSessionDirectory(f.ctx,missing,"old",new AbortController().signal);
+ expect(f.registry.create).not.toHaveBeenCalled();expect(f.workspace.attachSession).not.toHaveBeenCalled();expect(f.observation[Symbol.dispose]).toHaveBeenCalledOnce();
 });

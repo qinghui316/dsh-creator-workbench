@@ -20,10 +20,10 @@ describe("reversible project list deletion", () => {
     expect(removedContentIds(saved, other)).toEqual([]);
     expect(saved.videoSelections?.[root]?.episode).toBe("video.mp4"); expect(saved.items.episode?.title).toBe("原标题");
     const service = Object.create(CreatorWorkbenchService.prototype) as CreatorWorkbenchService;
-    Object.assign(service, { dataDir: data, catalogRevision: 1, scanned: async () => { const overlay = await loadOverlay(data); return { overlay, libraryRoot: root, items: await scanLibrary(root, overlay) }; }, settingsOf: async () => ({}), invalidateCatalog: () => undefined });
+    Object.assign(service, { dataDir: data, libraryRoot: root, catalogRevision: 1, ensureWatch: () => undefined, settingsOf: async () => ({}), invalidateCatalog: () => undefined });
     const listed = await service.listContents({ query: "", filter: "all" }, new AbortController().signal);
     await expect(service.getContent({ id: "episode" }, new AbortController().signal)).rejects.toThrow("已从工作台移除");
-    expect(listed.items).toHaveLength(0); expect(listed.counts.total).toBe(0); expect(listed.removedItems?.[0]?.id).toBe("episode");
+    expect(listed.items).toHaveLength(0); expect(listed.counts.total).toBe(0); expect(listed.removedItems?.[0]?.folderPath).toBe(folder);
     await service.setContentVisibility({ id: "episode", folderPath: folder, hidden: false }, new AbortController().signal);
     expect((await service.listContents({ query: "", filter: "all" }, new AbortController().signal)).items).toHaveLength(1);
     expect(await readFile(video, "utf8")).toBe("original video bytes"); expect(await readFile(article, "utf8")).toBe("# 用户原稿");

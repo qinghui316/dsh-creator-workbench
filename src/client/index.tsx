@@ -2,7 +2,9 @@ import type { ProjectView, ArticleSource, ArticleEdit, ArticleSave, ArticleSaved
 import type { CoverScope, CoverAction, CoverState, ImageSettings } from "../covers/types.ts";
 import type { ContentScope, ProductionAction, ProductionSettingsAction, ProductionSettingsView, ProductionState } from "../production/types.ts";
 import { prepareCoverRequest } from "./coverRequests.ts";
-import { prepareBusinessRequest } from "./workbench.ts";
+import { browserCreatorStorage, loadCreatorUiState } from "./persistence.ts";
+import { projectRecovery } from "./projectRecovery.ts";
+import { prepareBusinessRequest, sameFolder } from "./workbench.ts";
 import { removeProjectWithHost, planProjectCleanup, restoreProjectSessions, reconcileRemovedProjects } from "./projectCleanup.ts";
 import type { Context as ClientContext } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-client-ui-workspace/client";
@@ -66,7 +68,7 @@ interface CreatorWorkbenchRemote {
   getCreationImage: (request: ContentScope & { imageId: string }) => Promise<RemoteAnswer<{ mime: string; base64: string }>>;
   getCreationText: (request: ContentScope & { file: string }) => Promise<RemoteAnswer<{ text: string }>>;
   restoreProjectSession: (request: { id: string; folderPath: string; sessionId: string }) => Promise<RemoteAnswer<Record<string, never>>>;
-  projectAction: (request: { id: string; folderPath: string; action: "inspect" | "remove" | "join"; cancelTasks?: boolean }) => Promise<RemoteAnswer<{ tasks: string[]; removed: boolean }>>;
+  projectAction: (request: { id: string; folderPath: string; action: "inspect" | "remove" | "join"; cancelTasks?: boolean }) => Promise<RemoteAnswer<{ tasks: string[]; removed: boolean; directoryAliases?: string[] }>>;
   getProductionSettings: (request: Record<string, never>) => Promise<RemoteAnswer<ProductionSettingsView>>;
   productionSettingsAction: (request: ProductionSettingsAction) => Promise<RemoteAnswer<ProductionSettingsView>>;
   getProductionState: (request: ContentScope) => Promise<RemoteAnswer<ProductionState>>;
@@ -89,7 +91,7 @@ interface CreatorWorkbenchRemote {
   listContents: (request: { query: string; filter: ContentFilter }) => Promise<RemoteAnswer<ListContentsResult>>;
   setContentVisibility: (request: { id: string; folderPath: string; hidden: boolean }) => Promise<RemoteAnswer<ListContentsResult>>;
   openContentPath: (request: { path: string }) => Promise<RemoteAnswer<Record<string, never>>>;
-  getContent: (request: { id: string }) => Promise<RemoteAnswer<ContentDetail>>;
+  getContent: (request: { id: string; folderPath?: string }) => Promise<RemoteAnswer<ContentDetail>>;
   getCoverThumb: (request: { id: string }) => Promise<RemoteAnswer<CoverThumbResult>>;
   getVideoPlayback: (request: { id: string }) => Promise<RemoteAnswer<VideoPlaybackResult>>;
   getArticleMedia: (request: { id: string }) => Promise<RemoteAnswer<ArticleMediaResult>>;
@@ -97,11 +99,15 @@ interface CreatorWorkbenchRemote {
   getSettings: (request: Record<string, never>) => Promise<RemoteAnswer<LibrarySettings>>;
   getCapabilities: (request: Record<string, never>) => Promise<RemoteAnswer<{ capabilities: CreatorCapabilities }>>;
   getRevision: (request: Record<string, never>) => Promise<RemoteAnswer<{ revision: number }>>;
+  getProjectLocations: (request: Record<string, never>) => Promise<RemoteAnswer<import("../types.ts").ProjectLocationsView>>;
+  setProjectLocation: (request: { path: string }) => Promise<RemoteAnswer<import("../types.ts").ProjectLocationsView>>;
   setLibraryRoot: (request: { path: string }) => Promise<RemoteAnswer<LibrarySettings>>;
   setProfile: (request: { profile: CreatorProfile }) => Promise<RemoteAnswer<LibrarySettings>>;
   setScriptRules: (request: { text: string }) => Promise<RemoteAnswer<LibrarySettings>>;
   refreshCatalog: (request: Record<string, never>) => Promise<RemoteAnswer<ListContentsResult>>;
-  createContent: (request: { title: string; libraryRoot?: string }) => Promise<RemoteAnswer<CreateContentResult>>;
+  recoverProject: (request: { folderPath: string; sessionId: string }) => Promise<RemoteAnswer<CreateContentResult>>;
+  addProject: (request: { path: string }) => Promise<RemoteAnswer<CreateContentResult>>;
+  createContent: (request: { title: string; libraryRoot?: string; requestId?: string }) => Promise<RemoteAnswer<CreateContentResult>>;
   setPublish: (request: {
     id: string;
     platform: PublishPlatform;
@@ -136,25 +142,36 @@ export function apply(ctx: ClientContext): void {
   const remoteOf = (): CreatorWorkbenchRemote | undefined =>
     ctx.get("remote.creatorWorkbench") as CreatorWorkbenchRemote | undefined;
 
+  const recovery = projectRecovery({
+    bindings: () => loadCreatorUiState(browserCreatorStorage()).sessionContents ?? {},
+    owns: session => desktopWorkbenchesOf(ctx).ownsSession(session),
+    recover: async (sessionId, folderPath) => { const remote = remoteOf(); if (!remote) throw new Error("服务尚未就绪。"); return unwrap(await remote.recoverProject({ sessionId, folderPath }), "原项目恢复失败"); },
+    changed: () => bumpLibrary(),
+  });
+
   const face = (): CreatorViewFace => ({
     prepareCoverRequest: async (detail, ratios, append) => {
       const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。");
       await prepareCoverRequest(ctx, detail, ratios, async (request) => unwrap(await r.coverAction(request), "封面请求更新未完成"), append); bumpLibrary();
     },
-    inspectProject: async (id, folderPath) => { planProjectCleanup(ctx, folderPath); const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.projectAction({ id, folderPath, action: "inspect" }), "项目检查失败").tasks; },
-    projectRemoved: async (id, folderPath) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.projectAction({ id, folderPath, action: "inspect" }), "项目状态读取失败").removed; },
+    inspectProject: async (id, folderPath) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); const result = unwrap(await r.projectAction({ id, folderPath, action: "inspect" }), "项目检查失败"); planProjectCleanup(ctx, folderPath, result.directoryAliases); return result.tasks; },
+    projectRemoved: async (id, folderPath) => {
+      const session = desktopWorkbenchesOf(ctx).currentSession(), binding = session ? loadCreatorUiState(browserCreatorStorage()).sessionContents?.[session] : undefined;
+      if (session && binding && sameFolder(binding.folder, folderPath)) await recovery.one(session, folderPath);
+      const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.projectAction({ id, folderPath, action: "inspect" }), "项目状态读取失败").removed; },
     removeProject: async (id, folderPath, cancelTasks) => {
       const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。");
-      await removeProjectWithHost(ctx, { id, folderPath }, async () => { unwrap(await r.projectAction({ id, folderPath, action: "remove", cancelTasks }), "项目移除未完成"); });
+      const inspected = unwrap(await r.projectAction({ id, folderPath, action: "inspect" }), "项目检查失败");
+      await removeProjectWithHost(ctx, { id, folderPath, ...(inspected.directoryAliases ? { directoryAliases: inspected.directoryAliases } : {}) }, async () => { unwrap(await r.projectAction({ id, folderPath, action: "remove", cancelTasks }), "项目移除未完成"); });
     },
     joinProject: async () => {
+      const navigationCurrent = captureWorkbenchNavigation(desktopWorkbenchesOf(ctx)), selectionCurrent = captureContentSelection();
       const folderPath = await pickCreatorDirectory(ctx); if (!folderPath) return null;
       const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。");
-      const id = folderPath.replace(/[\\/]+$/, "").split(/[\\/]/).at(-1)!;
-      const navigationCurrent = captureWorkbenchNavigation(desktopWorkbenchesOf(ctx)), selectionCurrent = captureContentSelection();
-      unwrap(await r.projectAction({ id, folderPath, action: "join" }), "加入项目失败");
-      if (!navigationCurrent() || !selectionCurrent()) throw new Error("会话已切换，项目资料已加入，请从列表重新打开。");
-      await restoreProjectSessions(ctx, folderPath, async (sessionId) => { unwrap(await r.restoreProjectSession({ id, folderPath, sessionId }), "原会话分组恢复失败"); }); bumpLibrary(); return { id, folderPath };
+      const added = unwrap(await r.addProject({ path: folderPath }), "加入项目失败"); bumpLibrary();
+      if (!navigationCurrent() || !selectionCurrent()) return null;
+      await restoreProjectSessions(ctx, added.folderPath, async (sessionId, nativeFolder) => { unwrap(await r.restoreProjectSession({ id: added.id, folderPath: nativeFolder ?? added.folderPath, sessionId }), "原会话分组恢复失败"); }, added.directoryAliases, added.id);
+      return added;
     },
     getProjectView: async (id) => { const r = remoteOf(); if (!r) throw new Error("服务尚未就绪。"); return unwrap(await r.getProjectView({ id }), "项目读取失败"); },
     production: {
@@ -189,6 +206,7 @@ export function apply(ctx: ClientContext): void {
     listContents: async (query, filter) => {
       const remote = remoteOf();
       if (remote === undefined) throw new Error("remote unavailable");
+      void recovery.history();
       const result = unwrap(await remote.listContents({ query, filter }), "list failed");
       const previousSession = desktopWorkbenchesOf(ctx).currentSession();
       const cleanupWarnings = await reconcileRemovedProjects(ctx, result.removedItems ?? []);
@@ -200,10 +218,10 @@ export function apply(ctx: ClientContext): void {
       const result = unwrap(await remote.setContentVisibility({ id, folderPath, hidden }), "项目列表更新失败");
       return result;
     },
-    getContent: async (id) => {
+    getContent: async (id, folderPath) => {
       const remote = remoteOf();
       if (remote === undefined) throw new Error("remote unavailable");
-      return unwrap(await remote.getContent({ id }), "content failed");
+      return unwrap(await remote.getContent({ id, ...(folderPath ? { folderPath } : {}) }), "content failed");
     },
     getCoverThumb: async (id) => {
       const remote = remoteOf();
@@ -256,12 +274,12 @@ export function apply(ctx: ClientContext): void {
       if (remote === undefined) throw new Error("remote unavailable");
       return unwrap(await remote.getRevision({}), "revision failed").revision;
     },
+    getProjectLocations: async () => { const remote = remoteOf(); if (!remote) throw new Error("服务尚未就绪。"); return unwrap(await remote.getProjectLocations({}), "保存位置读取失败"); },
     setLibraryRoot: async (path) => {
       const remote = remoteOf();
       if (remote === undefined) throw new Error("remote unavailable");
-      unwrap(await remote.setLibraryRoot({ path }), "set root failed");
-      setSelectedContentId(null);
-      bumpLibrary();
+      const settings = unwrap(await remote.setProjectLocation({ path }), "保存位置更新失败");
+      bumpLibrary(); return settings;
     },
     setProfile: async (profile) => {
       const remote = remoteOf();
@@ -282,20 +300,16 @@ export function apply(ctx: ClientContext): void {
       bumpLibrary();
       return listed;
     },
-    createContent: async (title) => {
-      const remote = remoteOf();
-      if (remote === undefined) throw new Error("remote unavailable");
-      const service = desktopWorkbenchesOf(ctx);
-      const originalSession = service.currentSession();
-      const settings = unwrap(await remote.getSettings({}), "读取资料库失败");
-      const capabilities = unwrap(await remote.getCapabilities({}), "读取目录状态失败");
-      const path = settings.libraryConfirmed && capabilities.capabilities.library.state === "ready" ? settings.libraryRoot : await pickCreatorDirectory(ctx);
-      if (path === null || !service.isActive() || service.currentSession() !== originalSession) throw new Error("已取消选择资料目录。");
-      unwrap(await remote.setLibraryRoot({ path }), "set root failed");
-      const created = unwrap(await remote.createContent({ title, libraryRoot: path }), "create failed");
-      if (!service.isActive() || service.currentSession() !== originalSession) throw new Error(`内容已保存到 ${created.folderPath}；会话已切换，请从对应片库打开。`);
-      bumpLibrary();
-      return created;
+    createContent: async (title, parent, requestId) => {
+      const remote = remoteOf(); if (!remote) throw new Error("服务尚未就绪。");
+      const navigationCurrent = captureWorkbenchNavigation(desktopWorkbenchesOf(ctx));
+      if (!parent) {
+        const settings = unwrap(await remote.getSettings({}), "保存位置读取失败");
+        parent = settings.libraryConfirmed ? settings.libraryRoot : await pickCreatorDirectory(ctx) ?? undefined;
+        if (!parent || !navigationCurrent()) throw new Error("已取消选择保存位置。");
+      }
+      const created = unwrap(await remote.createContent({ title, libraryRoot: parent, ...(requestId ? { requestId } : {}) }), "创建项目失败");
+      bumpLibrary(); return created;
     },
     startVideoImport: async (id, sourcePath, name, folderPath) => {
       const remote = remoteOf();

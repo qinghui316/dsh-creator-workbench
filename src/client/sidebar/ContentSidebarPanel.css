@@ -393,3 +393,10 @@
 
 [data-plugin="dsh-creator-workbench"] .contentHeader { position:relative; }
 [data-plugin="dsh-creator-workbench"] .contentRefreshStatus { position:absolute; inset-inline-end:0; top:0; color:var(--dsw-alias-label-secondary); }
+
+[data-plugin="dsh-creator-workbench"][data-surface="create-dialog"] select {
+  box-sizing:border-box; min-width:0; max-width:100%; min-height:36px;
+  border:1px solid var(--dsw-alias-border-l2); border-radius:6px;
+  background:var(--dsw-alias-bg-base); color:var(--dsw-alias-label-primary); font:inherit; padding:6px 8px;
+}
+[data-plugin="dsh-creator-workbench"][data-surface="create-dialog"] .createPath { color:var(--dsw-alias-label-secondary); font-size:12px; overflow-wrap:anywhere; line-height:1.5; }

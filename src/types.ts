@@ -84,6 +84,9 @@ export interface VideoImportRequest { id: string; folderPath: string; sourcePath
 export interface VideoImportState { token: string; id: string; name: string; status: "running" | "completed" | "failed" | "cancelled"; jobId?: string; error?: string }
 
 export interface ContentSummary {
+  accessError?: string;
+  directoryRevision?: string;
+  directoryAliases?: string[];
   videos?: VideoCandidate[];
   hiddenVideos?: VideoCandidate[];
   selectedVideo?: string;
@@ -115,12 +118,15 @@ export interface CreatorProfile {
 }
 
 export interface LibrarySettings {
+  projectLocations?: Array<{ path: string }>;
   libraryRoot: string;
   libraryConfirmed?: boolean;
   profile: CreatorProfile;
   secrets: CreatorSecrets;
   scriptRules?: string;
 }
+
+export type ProjectLocationsView = Pick<LibrarySettings, "libraryRoot" | "libraryConfirmed" | "projectLocations">;
 
 export type CreatorCapabilityState = "ready" | "missing" | "unsupported";
 
@@ -186,6 +192,7 @@ export interface ListContentsResult {
 
 export interface IdRequest {
   id: string;
+  folderPath?: string;
 }
 
 export interface ContentDetail extends ContentSummary {
@@ -225,9 +232,11 @@ export interface SetLibraryRootRequest {
 export interface CreateContentRequest {
   title: string;
   libraryRoot?: string;
+  requestId?: string;
 }
 
 export interface CreateContentResult {
+  directoryAliases?: string[];
   id: string;
   folderPath: string;
 }
@@ -290,6 +299,7 @@ export interface OrganizeMove {
 }
 
 export interface OrganizeRequest {
+  libraryRoot?: string;
   apply: boolean;
   ids: string[];
 }
@@ -314,6 +324,7 @@ export interface CreatorGuideResult {
 
 export interface SetTopicNoteRequest {
   id: string;
+  folderPath?: string;
   text: string;
 }
 

@@ -19,6 +19,7 @@ import type { CreatorKey } from "./locales.ts";
 import { CREATOR_SETTINGS_PLATFORMS } from "./publishPlatforms.ts";
 import { ActionBar, ActionButton } from "./ui/ActionButton.tsx";
 import { saveImageForm } from "./imageSettingsSave.ts";
+import { directoryReply } from "./directoryReply.ts";
 import "./CreatorSettingsCard.css";
 import { ProductionSettingsPanel, type ProductionSettingsHandle } from "./ProductionSettingsPanel.tsx";
 
@@ -29,6 +30,7 @@ export type CreatorSettingsCardProps = Pick<
   CreatorViewFace,
   | "ready"
   | "getSettings"
+  | "getProjectLocations"
   | "getCapabilities"
   | "getImageSettings"
   | "setImageSettings"
@@ -72,6 +74,9 @@ export const CreatorSettingsCard = forwardRef<
   const [loading, setLoading] = useState(true),
     [loadError, setLoadError] = useState<string>(),
     [retry, setRetry] = useState(0);
+  const directorySaving = useRef(false);
+  const attemptedDirectory = useRef<string>();
+  const [directoryBusy, setDirectoryBusy] = useState(false), [directoryError, setDirectoryError] = useState<string>(), [directoryNotice, setDirectoryNotice] = useState<string>();
   const [checking, setChecking] = useState(false);
   const lastField = useRef<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false),
@@ -156,8 +161,7 @@ export const CreatorSettingsCard = forwardRef<
       !!key);
   const generalDirty =
     !!saved &&
-    (root !== saved.libraryRoot ||
-      rules !== (saved.scriptRules ?? "") ||
+    (rules !== (saved.scriptRules ?? "") ||
       JSON.stringify(platforms) !==
         JSON.stringify(saved.profile.enabledPlatforms) ||
       !!subtitleKey);
@@ -171,7 +175,7 @@ export const CreatorSettingsCard = forwardRef<
     imageCredential?.configured ?? saved?.secrets.cover.configured ?? false;
   useImperativeHandle(ref, () => ({
     requestClose: () => {
-      if (saving.current || productionBusy) return;
+      if (saving.current || productionBusy || directorySaving.current) return;
       if (dirty) setLeaving(true);
       else onClose?.();
     },
@@ -258,13 +262,6 @@ export const CreatorSettingsCard = forwardRef<
           },
         }));
       }
-      let general = saved;
-      if (root !== saved.libraryRoot) {
-        await face.setLibraryRoot(root);
-        completed = true;
-        general = { ...general, libraryRoot: root };
-        if (alive.current) setSaved(general);
-      }
       if (
         JSON.stringify(platforms) !==
         JSON.stringify(saved.profile.enabledPlatforms)
@@ -275,14 +272,12 @@ export const CreatorSettingsCard = forwardRef<
         };
         await face.setProfile(nextProfile);
         completed = true;
-        general = { ...general, profile: nextProfile };
-        if (alive.current) setSaved(general);
+        if (alive.current) setSaved(current => current ? { ...current, profile: nextProfile } : current);
       }
       if (rules !== (saved.scriptRules ?? "")) {
         await face.setScriptRules(rules);
         completed = true;
-        general = { ...general, scriptRules: rules };
-        if (alive.current) setSaved(general);
+        if (alive.current) setSaved(current => current ? { ...current, scriptRules: rules } : current);
       }
       if (subtitleKey.trim() && subtitleRef) {
         let ok = false;
@@ -321,6 +316,30 @@ export const CreatorSettingsCard = forwardRef<
       saving.current = false;
       if (alive.current) setBusy(false);
     }
+  };
+  const changeDirectory = async (path?: string) => {
+    if (directorySaving.current) return;
+    directorySaving.current = true; setDirectoryBusy(true); setDirectoryError(undefined); setDirectoryNotice(undefined);
+    let selected = path;
+    const accept = (value: import("../types.ts").ProjectLocationsView) => {
+      if (!alive.current) return;
+      setRoot(value.libraryRoot);
+      setSaved(current => current ? { ...current, libraryRoot: value.libraryRoot, libraryConfirmed: value.libraryConfirmed, projectLocations: value.projectLocations } as LibrarySettings : current);
+    };
+    try {
+      selected ??= await face.pickDirectory() ?? undefined;
+      if (!selected || !alive.current) return;
+      attemptedDirectory.current = selected;
+      const response = await directoryReply(face.setLibraryRoot(selected));
+      const actual = response ?? await directoryReply(face.getProjectLocations?.() ?? face.getSettings()); accept(actual);
+      if (alive.current) setDirectoryNotice("已生效");
+    } catch (cause) {
+      // A lost reply does not prove the commit failed. Read only location fields;
+      // image keys, writing rules and platform edits remain untouched.
+      let reconciled = false;
+      try { accept(await directoryReply(face.getProjectLocations?.() ?? face.getSettings())); reconciled = true; } catch { /* Keep the previous confirmed location, explicitly marked uncertain. */ }
+      if (alive.current) setDirectoryError((cause instanceof Error ? cause.message : "保存位置更新未完成。") + (reconciled ? " 已读取当前保存位置，可核对后重试。" : " 结果尚未确认，当前显示上次确认的位置，请重试核对。"));
+    } finally { directorySaving.current = false; if (alive.current) setDirectoryBusy(false); }
   };
   const errorId = (field: string) => uid + "-" + field;
   return (
@@ -501,26 +520,20 @@ export const CreatorSettingsCard = forwardRef<
             </>
           ) : group === "general" ? (
             <>
-              <label className="creatorField">
-                资料库位置
+              <div className="creatorField">
+                <label htmlFor={uid + "-parent"}>项目保存位置</label>
                 <span className="creatorPathRow">
-                  <span title={root}>{root || "尚未选择资料库"}</span>
-                  <ActionButton
-                    disabled={busy}
-                    onClick={async () => {
-                      try {
-                        const path = await face.pickDirectory();
-                        if (path && alive.current) setRoot(path);
-                      } catch {
-                        if (alive.current)
-                          setError("目录选择器暂不可用，请重试。");
-                      }
-                    }}
-                  >
-                    更换
-                  </ActionButton>
+                  <select id={uid + "-parent"} aria-label="默认父目录" value={saved?.libraryConfirmed ? root : ""} disabled={directoryBusy} onChange={e => { void changeDirectory(e.target.value); }}>
+                    <option value="" disabled>选择默认父目录</option>
+                    {[...new Set([root, ...(saved?.projectLocations?.map(p => p.path) ?? [])])].filter(Boolean).map(path => <option key={path} value={path}>{path}</option>)}
+                  </select>
+                  <ActionButton disabled={directoryBusy} onClick={() => { void changeDirectory(); }}>选择其他位置</ActionButton>
                 </span>
-              </label>
+                <span className="creatorMuted" title={root}>{root || "尚未选择默认父目录"}</span>
+                {directoryBusy && <span role="status">正在更新…</span>}
+                {directoryNotice && <span role="status">{directoryNotice}</span>}
+                {directoryError && <span className="creatorError" role="alert">{directoryError}<ActionButton disabled={directoryBusy} onClick={() => { void changeDirectory(attemptedDirectory.current); }}>重试</ActionButton></span>}
+              </div>
               <details className="creatorDisclosure">
                 <summary>写稿偏好</summary>
                 <textarea

@@ -97,7 +97,7 @@ describe("content-owned sessions", () => {
     expect(await startContentSession(service, content, async () => null)).toBe("creator-session");
     expect(ensureSession.mock.calls[1]?.[0]).toHaveProperty("sessionId", "creator-session");
   });
-  it("restores the confirmed library before reading a repeated content id", async () => {
+  it("resolves the exact project folder without changing the default parent", async () => {
     const { service, owned, setCurrent } = host();
     owned.add("saved"); setCurrent("saved");
     saveCreatorUiState(storage, { ...DEFAULT_UI_STATE, sessionContents: {
@@ -107,9 +107,9 @@ describe("content-owned sessions", () => {
     const reads: string[] = [];
     expect(await restoreSessionContent(service, {
       setLibraryRoot: async (root) => { currentRoot = root; },
-      getContent: async (id) => { const folderPath = `${currentRoot}/${id}`; reads.push(folderPath); return { folderPath }; },
-    })).toBe("same-id");
-    expect(reads).toEqual(["/library-a/same-id"]);
+      getContent: async (_id, folder) => { reads.push(folder!); return { id: "stable-project", folderPath: folder! }; },
+    })).toBe("stable-project");
+    expect(currentRoot).toBe("/library-b"); expect(reads).toEqual(["/library-a/same-id"]);
   });
   it("fails visibly when a confirmed location is missing, without silently creating or rebinding it", async () => {
     const { service, owned, setCurrent, ensureSession } = host();
@@ -119,7 +119,7 @@ describe("content-owned sessions", () => {
     } });
     await expect(restoreSessionContent(service, {
       setLibraryRoot: async () => { throw new Error("directory missing"); },
-      getContent: async () => ({ folderPath: content.folderPath }),
+      getContent: async () => { throw new Error("directory missing"); },
     })).rejects.toThrow("directory missing");
     expect(ensureSession).not.toHaveBeenCalled();
     expect(contentForSession(service)).toBe(content.id);
@@ -202,4 +202,11 @@ describe("content-owned sessions", () => {
     expect(face.setLibraryRoot).not.toHaveBeenCalled(); expect(face.getContent).not.toHaveBeenCalled();
   });
 
+});
+
+it("reuses a legacy session through the server-verified directory alias",async()=>{
+ const {service,owned,ensureSession}=host();owned.add("legacy");
+ saveCreatorUiState(storage,{...DEFAULT_UI_STATE,sessionContents:{legacy:{contentId:"old-name",folder:"/old-link",workspaceFolder:"/old-link"}}});
+ await startContentSession(service,{id:"project-stable",folderPath:"/actual",directoryAliases:["/old-link"]},async()=>null);
+ expect(ensureSession).toHaveBeenCalledWith({folder:"/actual",sessionId:"legacy"});
 });

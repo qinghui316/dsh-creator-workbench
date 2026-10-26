@@ -73,7 +73,7 @@ describe("project cleanup through public host services", () => {
     expect(await restoreSessionContent(f.service as never, face)).toBeNull(); expect(face.setLibraryRoot).not.toHaveBeenCalled();
     const restore = vi.fn(async (id: string) => { f.snapshot.items.push({ workspaceId: "restored", path: "E:/资料/本期", sessionIds: [id] }); });
     await restoreProjectSessions(f.ctx, "E:/资料/本期", restore);
-    expect(restore).toHaveBeenCalledExactlyOnceWith("own");
+    expect(restore).toHaveBeenCalledExactlyOnceWith("own", "E:/资料/本期");
     await restoreProjectSessions(f.ctx, "E:/资料/本期");
     expect(restore).toHaveBeenCalledOnce();
     expect(f.navigation.unarchiveSession).toHaveBeenCalledExactlyOnceWith("own");
@@ -94,7 +94,7 @@ describe("project cleanup through public host services", () => {
     const f = fixture(); f.snapshot.items[0]!.sessionIds = []; f.snapshot.archivedSessionIds.push("own");
     const restore = vi.fn(async (id: string) => { expect(f.snapshot.archivedSessionIds).toContain(id); f.snapshot.items[0]!.sessionIds.push(id); });
     await restoreProjectSessions(f.ctx, "E:/资料/本期", restore);
-    expect(restore).toHaveBeenCalledExactlyOnceWith("own"); expect(f.workspaces.create).not.toHaveBeenCalled();
+    expect(restore).toHaveBeenCalledExactlyOnceWith("own", "E:/资料/本期"); expect(f.workspaces.create).not.toHaveBeenCalled();
     expect(f.service.ensureSession).toHaveBeenCalledExactlyOnceWith({ folder: "E:/资料/本期", sessionId: "own" });
   });
   it("preserves archived history and removal state if membership restoration fails", async () => {
@@ -112,4 +112,18 @@ describe("project cleanup through public host services", () => {
     expect(f.navigation.archiveSession).toHaveBeenCalledOnce();
     expect(f.workspaces.delete).toHaveBeenCalledOnce();
   });
+});
+
+it("rejoining a canonical directory restores its original alias session and clears both barriers",async()=>{
+ const f=fixture();const canonical="E:/实际目录/本期",alias="E:/资料/本期";
+ f.snapshot.archivedSessionIds.push("own");markProjectRemoved(canonical,true);markProjectRemoved(alias,true);
+ await restoreProjectSessions(f.ctx,canonical,undefined,[alias]);
+ expect(f.service.ensureSession).toHaveBeenCalledExactlyOnceWith({folder:alias,sessionId:"own"});
+ expect(loadCreatorUiState(localStorage).removedProjectFolders).toEqual([]);expect(f.workspaces.create).not.toHaveBeenCalled();
+});
+
+it("accepts its own legacy-to-stable selection during original-session rejoin",async()=>{
+ const f=fixture();setSelectedContentId("本期");f.service.ensureSession.mockImplementation(async()=>{setSelectedContentId("project-stable");return "own";});
+ await expect(restoreProjectSessions(f.ctx,"E:/资料/本期",undefined,[],"project-stable")).resolves.toBeUndefined();
+ expect(getSelectedContentId()).toBe("project-stable");expect(f.service.ensureSession).toHaveBeenCalledOnce();
 });

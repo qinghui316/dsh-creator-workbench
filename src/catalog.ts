@@ -2,7 +2,7 @@ import { selectedCoverPaths } from "./covers/workflow.ts";
 import { validVideoName, resolveVideoSelection, currentVideoPath, sameVideoName } from "./videoSelection.ts";
 import { videoFile } from "./videoFiles.ts";
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import {
   ARTICLE_DIR,
@@ -163,6 +163,7 @@ export function matchesQuery(item: ContentSummary, query: string): boolean {
   if (needle === "") return true;
   return item.title.toLowerCase().includes(needle)
     || item.id.toLowerCase().includes(needle)
+    || item.folderPath.toLowerCase().includes(needle)
     || item.tags.some((tag) => tag.toLowerCase().includes(needle));
 }
 
@@ -185,11 +186,12 @@ async function scanFolder(
   libraryRoot: string,
   folderName: string,
   overlay: OverlayStore,
+  explicitPath?: string,
 ): Promise<ContentSummary | undefined> {
-  const folderPath = join(libraryRoot, folderName);
+  const folderPath = explicitPath ?? join(libraryRoot, folderName);
   const info = await stat(folderPath).catch(() => undefined);
   if (info === undefined || !info.isDirectory()) return undefined;
-  if (SKIP_DIRS.has(folderName) || folderName.startsWith(".")) return undefined;
+  if (!explicitPath && (SKIP_DIRS.has(folderName) || folderName.startsWith("."))) return undefined;
 
   const entries = await readdir(folderPath, { withFileTypes: true });
   const names = entries.map((entry) => entry.name);
@@ -299,6 +301,11 @@ async function scanFolder(
     pipeline: pipelineOf(draft),
     workflow: workflowOf(draft, overlay.items[folderName]),
   };
+}
+
+export async function scanProject(folderPath: string, id: string, overlay: OverlayStore): Promise<ContentSummary | undefined> {
+  const item = await scanFolder(dirname(folderPath), basename(folderPath), overlay, folderPath);
+  return item ? { ...item, id } : undefined;
 }
 
 async function fileExists(path: string): Promise<boolean> {

@@ -40,7 +40,7 @@ export interface CreatorViewFace {
   listContents: (query: string, filter: ContentFilter) => Promise<ListContentsResult>;
   setContentVisibility: (id: string, folderPath: string, hidden: boolean) => Promise<ListContentsResult>;
   getRevision: () => Promise<number>;
-  getContent: (id: string) => Promise<ContentDetail>;
+  getContent: (id: string, folderPath?: string) => Promise<ContentDetail>;
   getCoverThumb: (id: string) => Promise<CoverThumbResult>;
   startVideoImport: (id: string, sourcePath: string, name: string, folderPath: string) => Promise<VideoImportState>;
   getVideoImport: (token: string) => Promise<VideoImportState>;
@@ -53,12 +53,13 @@ export interface CreatorViewFace {
   pickDirectory: () => Promise<string | null>;
   openPath: (path: string) => Promise<void>;
   getSettings: () => Promise<LibrarySettings>;
+  getProjectLocations?: () => Promise<import("../types.ts").ProjectLocationsView>;
   getCapabilities: () => Promise<CreatorCapabilities>;
-  setLibraryRoot: (path: string) => Promise<void>;
+  setLibraryRoot: (path: string) => Promise<import("../types.ts").ProjectLocationsView | void>;
   setProfile: (profile: CreatorProfile) => Promise<void>;
   setScriptRules: (text: string) => Promise<void>;
   refreshCatalog: () => Promise<ListContentsResult>;
-  createContent: (title: string) => Promise<{ id: string; folderPath: string }>;
+  createContent: (title: string, parent?: string, requestId?: string) => Promise<{ id: string; folderPath: string }>;
   setPublish: (id: string, platform: PublishPlatform, status: PublishMark, url?: string, folderPath?: string) => Promise<ContentDetail>;
   syncPublish: (request?: { platform?: PublishPlatform; id?: string }) => Promise<SyncPublishResult>;
   openSubtitlePreview: (id: string) => Promise<SubtitlePreviewResult>;

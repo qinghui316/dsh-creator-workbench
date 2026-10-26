@@ -16,7 +16,7 @@ describe("creator-workbench skill", () => {
     expect(CREATOR_WORKBENCH_SKILL.content).toContain("creator_guide");
     expect(CREATOR_WORKBENCH_SKILL.content).toContain("creator_setup");
     expect(CREATOR_WORKBENCH_SKILL.content).toContain("creator_script_rules");
-    expect(CREATOR_WORKBENCH_SKILL.content).toContain("内容目录和 `enabledPlatforms`");
+    expect(CREATOR_WORKBENCH_SKILL.content).toContain("默认父目录和 `enabledPlatforms`");
     expect(CREATOR_WORKBENCH_SKILL.content).toContain("这里不配置创作者名称或平台主页");
     expect(CREATOR_WORKBENCH_SKILL.content).toContain("脚本规则（人设）");
     expect(CREATOR_WORKBENCH_SKILL.content).toContain("只处理 `enabledPlatforms` 中的平台");

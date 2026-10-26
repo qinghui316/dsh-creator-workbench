@@ -53,3 +53,7 @@ node scripts/check-workbench-package.mjs .artifacts/dsh-creator-workbench-0.7.0.
 
 Fork 自 [oil-oil/dsh-oil-creator](https://github.com/oil-oil/dsh-oil-creator)，基线提交 `58bd30d0d05b04e149552e8bdb4ff0becae614f0`。
 保留原项目历史与 [MIT 许可](LICENSE)。当前 Fork：[qinghui316/dsh-creator-workbench](https://github.com/qinghui316/dsh-creator-workbench)。
+
+### 项目保存位置
+
+支持多个父目录和统一项目列表。设置中更换默认位置立即生效；新建项目可单次选择位置，已有文件夹可直接加入。操作与迁移说明见 [项目与保存位置](docs/project-locations.md)。

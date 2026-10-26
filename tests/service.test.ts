@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -259,6 +259,8 @@ describe("CreatorWorkbenchService subtitle job reconcile", () => {
     const overlay = emptyOverlay();
     overlay.libraryRoot = libraryRoot;
     overlay.items.demo = item;
+    await mkdir(join(libraryRoot, "demo"));
+    overlay.videoSelections = { [libraryRoot]: { demo: null } };
     await saveOverlay(dataDir, overlay);
     const service = Object.create(CreatorWorkbenchService.prototype) as CreatorWorkbenchService;
     const probe = service as unknown as {
@@ -277,6 +279,9 @@ describe("CreatorWorkbenchService subtitle job reconcile", () => {
     probe.watchClose = () => undefined;
     probe.catalogRevision = 0;
     probe.exportWaiters = new Map();
+    service.ensureWatch = () => undefined;
+    await service.projectState();
+    await service.projectRegistry().update(state => { state.projects[0]!.item = item; });
     return { dataDir, service };
   }
 
@@ -301,8 +306,8 @@ describe("CreatorWorkbenchService subtitle job reconcile", () => {
           pid: child.pid as number,
         },
       });
-      await service.scanned();
-      const overlay = await loadOverlay(dataDir);
+      await service.reconcileLegacyJobs();
+      const overlay = { items: { demo: (await service.projectRegistry().read())!.projects[0]!.item } };
       expect(overlay.items.demo?.subtitleJob?.status).toBe("running");
     } finally {
       if (child.pid !== undefined) process.kill(child.pid);
@@ -327,8 +332,8 @@ describe("CreatorWorkbenchService subtitle job reconcile", () => {
           error: "subtitleJob process exited",
         },
       });
-      await service.scanned();
-      const overlay = await loadOverlay(dataDir);
+      await service.reconcileLegacyJobs();
+      const overlay = { items: { demo: (await service.projectRegistry().read())!.projects[0]!.item } };
       expect(overlay.items.demo?.subtitleJob).toMatchObject({
         status: "running",
         pid: child.pid,

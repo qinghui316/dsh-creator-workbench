@@ -415,3 +415,48 @@ describe("cover previews", () => {
   });
 
 });
+
+
+describe("immediate project parent setting", () => {
+  function locationFixture() {
+    const f = fixture(), a = general.libraryRoot, b = "D:/另一处内容";
+    f.face.getSettings.mockResolvedValue({ ...general, libraryConfirmed: true, projectLocations: [{ path: a }, { path: b }] });
+    return { ...f, a, b };
+  }
+  it("takes effect without Save or a dirty leave prompt", async () => {
+    const f = locationFixture(), closed = vi.fn(), ref = createRef<CreatorSettingsHandle>();
+    f.face.setLibraryRoot.mockResolvedValue({ ...general, libraryRoot: f.b, libraryConfirmed: true, projectLocations: [{path:f.a},{path:f.b}] });
+    render(h(CreatorSettingsCard, { ...f.face, credentials: f.credentials, ref, onClose: closed, initialGroup: "general" }));
+    const select = await screen.findByLabelText("默认父目录"); fireEvent.change(select, { target: { value: f.b } });
+    await screen.findByText("已生效"); expect(f.face.setLibraryRoot).toHaveBeenCalledOnce(); expect(f.face.setLibraryRoot).toHaveBeenCalledWith(f.b);
+    expect((screen.getByRole("button", { name: "保存" }) as HTMLButtonElement).disabled).toBe(true);
+    act(() => ref.current!.requestClose()); expect(closed).toHaveBeenCalledOnce(); expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(f.face.setScriptRules).not.toHaveBeenCalled(); expect(f.credentials.set).not.toHaveBeenCalled();
+  });
+  it("does not submit or discard other inputs, and a late rules save cannot overwrite the new parent", async () => {
+    const f = locationFixture(); let finish!: () => void;
+    f.face.setScriptRules.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.face.setLibraryRoot.mockResolvedValue({ ...general, libraryRoot: f.b, libraryConfirmed: true, projectLocations: [{path:f.a},{path:f.b}] });
+    render(h(CreatorSettingsCard, { ...f.face, credentials: f.credentials, initialGroup: "general" }));
+    await screen.findByLabelText("默认父目录"); fireEvent.change(screen.getByLabelText("写稿偏好"), { target: { value: "我的新偏好" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" })); await waitFor(() => expect(f.face.setScriptRules).toHaveBeenCalledWith("我的新偏好"));
+    fireEvent.change(screen.getByLabelText("默认父目录"), { target: { value: f.b } }); await screen.findByText("已生效");
+    await act(async () => finish()); expect((screen.getByLabelText("默认父目录") as HTMLSelectElement).value).toBe(f.b);
+    expect((screen.getByLabelText("写稿偏好") as HTMLTextAreaElement).value).toBe("我的新偏好"); expect(f.credentials.set).not.toHaveBeenCalled();
+  });
+  it("keeps dirty preferences on failed location change and reconciles an uncertain reply", async () => {
+    const f = locationFixture(); f.face.setLibraryRoot.mockRejectedValue(new Error("连接中断"));
+    render(h(CreatorSettingsCard, { ...f.face, credentials: f.credentials, initialGroup: "general" }));
+    await screen.findByLabelText("默认父目录"); fireEvent.change(screen.getByLabelText("写稿偏好"), { target: { value: "未保存偏好" } });
+    fireEvent.change(screen.getByLabelText("默认父目录"), { target: { value: f.b } }); await screen.findByRole("alert");
+    expect((screen.getByLabelText("默认父目录") as HTMLSelectElement).value).toBe(f.a); expect((screen.getByLabelText("写稿偏好") as HTMLTextAreaElement).value).toBe("未保存偏好"); expect(f.face.setScriptRules).not.toHaveBeenCalled();
+    f.face.getSettings.mockResolvedValue({ ...general, libraryRoot: f.b, libraryConfirmed: true, projectLocations:[{path:f.a},{path:f.b}] });
+    fireEvent.change(screen.getByLabelText("默认父目录"), { target: { value: f.b } }); await waitFor(() => expect((screen.getByLabelText("默认父目录") as HTMLSelectElement).value).toBe(f.b));
+    expect(f.face.getSettings).toHaveBeenCalledTimes(3); expect((screen.getByLabelText("写稿偏好") as HTMLTextAreaElement).value).toBe("未保存偏好");
+  });
+  it("cancelled picker does not commit a location", async () => {
+    const f = locationFixture(); render(h(CreatorSettingsCard, { ...f.face, credentials: f.credentials, initialGroup: "general" }));
+    await screen.findByLabelText("默认父目录"); fireEvent.click(screen.getByRole("button", { name: "选择其他位置" }));
+    await waitFor(() => expect(f.face.pickDirectory).toHaveBeenCalledOnce()); expect(f.face.setLibraryRoot).not.toHaveBeenCalled();
+  });
+});

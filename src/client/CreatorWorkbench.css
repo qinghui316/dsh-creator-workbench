@@ -44,3 +44,5 @@
 }
 
 [data-plugin="dsh-creator-workbench"][data-surface="workbench"] [hidden] { display: none; }
+
+[data-plugin="dsh-creator-workbench"] .workbenchRestoreStatus { padding:4px 12px; font-size:12px; color:var(--dsw-alias-label-secondary); }

@@ -32,7 +32,7 @@ export function registerCreatorTools(ctx: ToolsContext, service: CreatorWorkbenc
   ctx.tools.register(defineTool({
     name: "creator_get_content",
     description: "Read an episode's exact folderPath, video candidates, current video selection, local materials and task states. Do this before importing, selecting a video or preparing any external Skill input.",
-    parameters: { id: { type: "string", required: true, description: "Episode folder id." } },
+    parameters: { id: { type: "string", required: true, description: "Stable project id; legacy folder name only when unambiguous." }, folderPath: { type: "string", description: "Exact directory for a legacy id or same-name projects." } },
     output: { schema: JSON_VALUE, render: (_args, value) => compactText("内容资料", JSON.stringify(value)) },
     presentCall: (args) => present("查看内容资料", args),
     execute: (args, exec) => service.getContent(args, signalOf(exec)).then(asJson),
@@ -149,11 +149,32 @@ export function registerCreatorTools(ctx: ToolsContext, service: CreatorWorkbenc
   }));
 
   ctx.tools.register(defineTool({
+    name: "creator_list_projects", description: "List registered projects across all saved parent directories with exact paths and stable identities. Does not create folders, sessions or tasks. Settings include remembered parents and the creation default.",
+    parameters: { query: { type: "string", description: "Optional title or directory search." } },
+    output: { schema: JSON_VALUE, render: (_args, value) => compactText("项目", JSON.stringify(value)) },
+    execute: (args, exec) => service.listContents({ query: args.query ?? "", filter: "all" }, signalOf(exec)).then(asJson),
+  }));
+  ctx.tools.register(defineTool({
+    name: "creator_add_project", description: "Join the exact existing folder selected or explicitly requested by the user. Empty/read-only folders can be registered; files stay in place. Does not create a session or change the default parent. Rejoining restores the same project identity.",
+    parameters: { path: { type: "string", required: true, description: "Exact absolute project folder." } },
+    output: { schema: JSON_VALUE, render: (_args, value) => compactText("加入项目", JSON.stringify(value)) },
+    execute: (args, exec) => service.addProject(args, signalOf(exec)).then(asJson),
+  }));
+  ctx.tools.register(defineTool({
+    name: "creator_set_default_parent", description: "Remember and immediately use the user's explicitly selected existing parent as the creation default. Existing projects, files and tasks stay where they are; does not save other settings.",
+    parameters: { path: { type: "string", required: true } },
+    output: { schema: JSON_VALUE, render: (_args, value) => compactText("默认保存位置", JSON.stringify(value)) },
+    execute: (args, exec) => service.setProjectLocation(args, signalOf(exec)).then(asJson),
+  }));
+
+  ctx.tools.register(defineTool({
     name: "creator_create_content",
     description:
-      "Create an empty dated library folder named YYYY-MM-DD_title using today's date and a readable title.",
+      "Create a registered project in the explicitly chosen parent (or saved default), named YYYY-MM-DD_title. Returns a stable project id and exact directory. The parent override does not change the default. Reuse requestId when retrying.",
     parameters: {
-      title: { type: "string", required: true, description: "Episode title. Hyphens become spaces." },
+      title: { type: "string", required: true, description: "Project title. Hyphens become spaces." },
+      libraryRoot: { type: "string", description: "Explicit absolute parent directory for this creation only." },
+      requestId: { type: "string", description: "Stable unique creation request identity; reuse for a retry." },
     },
     output: {
       schema: {
@@ -169,7 +190,7 @@ export function registerCreatorTools(ctx: ToolsContext, service: CreatorWorkbenc
     presentCall: (args) => present("Create content", args),
     execute: (args, exec) => {
       if (args.title.trim() === "") throw new Error("title is required");
-      return service.createContent({ title: args.title }, signalOf(exec));
+      return service.createContent({ title: args.title, ...(args.libraryRoot ? { libraryRoot: args.libraryRoot } : {}), ...(args.requestId ? { requestId: args.requestId } : {}) }, signalOf(exec));
     },
   }));
 
@@ -256,11 +277,12 @@ export function registerCreatorTools(ctx: ToolsContext, service: CreatorWorkbenc
       + "Adds a date from the recording/folder time when missing, and turns hyphens/underscores in titles into spaces. "
       + "Never deletes files. apply=false (default) only previews. Pass ids to limit the batch.",
     parameters: {
+      libraryRoot: { type: "string", description: "Exact parent directory. Required for apply; only registered projects in it participate." },
       apply: { type: "boolean", description: "False previews. True renames folders." },
       ids: {
         type: "array",
         items: { type: "string" },
-        description: "Optional folder ids to organize. Empty means the whole library.",
+        description: "Optional registered project ids to organize within the explicitly chosen parent.",
       },
     },
     output: {
@@ -274,6 +296,7 @@ export function registerCreatorTools(ctx: ToolsContext, service: CreatorWorkbenc
     presentCall: (args) => present("Organize library", args),
     execute: async (args, exec) => asJson(await service.organizeLibrary({
       apply: args.apply === true,
+      ...(args.libraryRoot ? { libraryRoot: args.libraryRoot } : {}),
       ids: args.ids ?? [],
     }, signalOf(exec))),
   }));

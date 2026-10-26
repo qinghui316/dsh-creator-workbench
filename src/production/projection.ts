@@ -1,14 +1,15 @@
 import { readState, inside, readSettings } from "./storage.ts";
+import type { ProductionSettings } from "./types.ts";
 import type { ContentSummary } from "../types.ts";
 
 /** Project only artifacts whose recorded source still matches the explicit current video. */
-export async function projectProduction<T extends ContentSummary>(item: T, dataDir?: string): Promise<T> {
+export async function projectProduction<T extends ContentSummary>(item: T, dataDir?: string, configured?: ProductionSettings): Promise<T> {
   const state = await readState(item.folderPath).catch(() => undefined); if (!state) return item;
   const current = item.videos?.find((video) => video.name === item.selectedVideo);
   const transcript = [...state.transcripts].reverse().find((entry) => current && entry.video.name === current.name && entry.video.size === current.size && entry.video.modifiedAt === current.modifiedAt);
   const article = state.articles.at(-1), result = { ...item };
   if (dataDir) {
-    const settings = await readSettings(dataDir); result.publish = { ...item.publish };
+    const settings = configured ?? await readSettings(dataDir); result.publish = { ...item.publish };
     for (const key of Object.keys(result.publish) as Array<keyof typeof result.publish>) {
       const row = result.publish[key], accountId = settings.accounts[key]?.id;
       if (row.verifiedAccountId && row.verifiedAccountId !== accountId) result.publish[key] = { status: "unpublished", source: "none" };

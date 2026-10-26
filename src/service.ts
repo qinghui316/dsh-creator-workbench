@@ -6,8 +6,7 @@ import { readSettings } from "./production/storage.ts";
 import { CoverWorkflow } from "./covers/workflow.ts";
 import { ProductionWorkflow } from "./production/workflow.ts";
 import { projectProduction } from "./production/projection.ts";
-import { removedContentIds, setContentHidden } from "./contentVisibility.ts";
-import { restoreProjectSessionMembership } from "./projectSessionsHost.ts";
+import { restoreProjectSessionMembership, verifyProjectSessionDirectory } from "./projectSessionsHost.ts";
 import type { ContentScope, ProductionAction, ProductionSettingsAction, ProductionSettingsView, ProductionState } from "./production/types.ts";
 import { creationImage } from "./production/creations.ts";
 import { inside as creationFile } from "./production/storage.ts";
@@ -34,7 +33,7 @@ import { pathExists } from "./artifacts.ts";
 import {
   countsOf,
   coverPathOf,
-  createContentFolder,
+  folderDateAndTitle,
   matchesFilter,
   matchesQuery,
   readArticle,
@@ -44,6 +43,7 @@ import {
   readScript,
   readTopicNote,
   scanLibrary,
+  scanProject,
   writeScript,
   writeTopicNote,
 } from "./catalog.ts";
@@ -55,7 +55,7 @@ import {
 } from "./config.ts";
 import { inspectCreatorSetup } from "./capabilities.ts";
 import { creatorGuideText } from "./guide.ts";
-import { applyOrganize, previewOrganize, remapOverlayItems } from "./organize.ts";
+import { applyOrganize, previewOrganize } from "./organize.ts";
 import { cacheIsFresh, loadCollectCache, nextCollectCacheScope, saveCollectCache } from "./collectCache.ts";
 import {
   applyMatchesToOverlay,
@@ -71,12 +71,15 @@ import {
 } from "./collectPublish.ts";
 import { collectScriptPath, runCollectPublish } from "./collectEgo.ts";
 import { pickCoverLaunch, pickSubtitleWorkflow, resolveCoverSkill, type GenerateStep } from "./generate.ts";
-import { startLibraryWatch } from "./libraryWatch.ts";
+import { startProjectWatch } from "./projectWatch.ts";
+import { ProjectRegistry, directoryKey, projectOverlay, type ProjectsState, type ProjectRecord } from "./projects.ts";
+import { emptyBurn, emptyPublish } from "./publishStatus.ts";
+import { boundedRead } from "./fsReadDeadline.ts";
+import { randomUUID } from "node:crypto";
 import {
   emptyProfile,
   loadOverlay,
   normalizeEnabledPlatforms,
-  overlayPath,
   saveOverlay,
   withOverlayLock,
 } from "./overlay.ts";
@@ -154,9 +157,11 @@ export class CreatorWorkbenchService extends TypertRemoteService {
   // user installs after Harness started is discovered without a restart.
   readonly subtitleSkillDirConfig: string;
   readonly coverSkillDirConfig: string;
-  cache: { libraryRoot: string; items: Awaited<ReturnType<typeof scanLibrary>> } | undefined;
+  cache: { libraryRoot: string; registryRevision?: number; items: Awaited<ReturnType<typeof scanLibrary>> } | undefined;
   cachedScriptRules: string | undefined;
   cachedEnabledPlatforms: string[] | undefined;
+  projects: ProjectRegistry | undefined;
+  projectsReady: Promise<void> | undefined;
   catalogRevision = 0;
   watchClose: (() => void) | undefined;
   watchedRoot: string | undefined;
@@ -177,15 +182,14 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     this.production = new ProductionWorkflow({ dataDir: this.dataDir,
       published: async (scope, record) => { if (record.platform === "official-account") return; const platform = record.platform; await this.patchItem(scope.id, (item) => { item.publish ??= {}; item.publish[platform] = { status: "published", verifiedAccountId: record.accountId, remoteId: record.remoteId, ...(record.url ? { url: record.url } : {}), ...(record.syncedAt ? { syncedAt: record.syncedAt } : {}) }; }, new AbortController().signal, scope.folderPath); },
       platforms: async () => (await loadOverlay(this.dataDir)).profile?.enabledPlatforms ?? emptyProfile().enabledPlatforms,
-      resolve: async (scope) => { const detail = await this.getContent({ id: scope.id }, new AbortController().signal); if (detail.folderPath !== scope.folderPath) throw new Error("资料位置已切换，请重新打开内容。"); return detail; },
+      resolve: async (scope) => { const detail = await this.getContent({ id: scope.id, folderPath: scope.folderPath }, new AbortController().signal); if (directoryKey(detail.folderPath) !== directoryKey(await realpath(scope.folderPath))) throw new Error("资料位置已切换，请重新打开内容。"); return detail; },
       key: (ref) => resolveWorkbenchCredential(this.ctx, ref), hasKey: (ref) => workbenchCredentialConfigured(this.ctx, ref), setKey: (ref, value) => saveWorkbenchCredential(this.ctx, ref, value), jobs: () => this.importJobs, changed: () => this.invalidateCatalog(),
     });
     this.covers = new CoverWorkflow({ dataDir: this.dataDir,
       resolve: async (scope) => {
-        const detail = await this.getContent({ id: scope.id }, new AbortController().signal);
-        if (detail.folderPath !== scope.folderPath) throw new Error("资料位置已切换，请重新打开内容。");
-        const { libraryRoot } = await this.scanned();
-        return { folder: await contentFolder(libraryRoot, detail.folderPath), ...(detail.selectedVideo ? { selectedVideo: detail.selectedVideo } : {}), title: detail.title, script: detail.script, transcript: detail.subtitles.srt ? (await readSubtitleText(detail)).slice(0, 30000) : "" };
+        const detail = await this.getContent({ id: scope.id, folderPath: scope.folderPath }, new AbortController().signal);
+        if (directoryKey(detail.folderPath) !== directoryKey(await realpath(scope.folderPath))) throw new Error("资料位置已切换，请重新打开内容。");
+        return { folder: await contentFolder(dirname(detail.folderPath), detail.folderPath), ...(detail.selectedVideo ? { selectedVideo: detail.selectedVideo } : {}), title: detail.title, script: detail.script, transcript: detail.subtitles.srt ? (await readSubtitleText(detail)).slice(0, 30000) : "" };
       }, key: () => resolveCreatorSecret(this.ctx, "cover"), jobs: () => this.importJobs,
       changed: () => this.invalidateCatalog(), skill: () => this.coverSkillDir(),
     });
@@ -254,21 +258,23 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     this.watchedRoot = undefined;
   }
 
-  ensureWatch(libraryRoot: string): void {
-    if (this.watchedRoot === libraryRoot && this.watchClose !== undefined) return;
-    this.stopWatch();
-    this.watchedRoot = libraryRoot;
-    try {
-      mkdirSync(this.dataDir, { recursive: true });
-    } catch {
-      // Watch can still attach to an existing library root.
-    }
-    this.watchClose = startLibraryWatch({
-      libraryRoot,
-      overlayPath: overlayPath(this.dataDir),
-      onChange: () => {
-        this.invalidateCatalog();
-      },
+  projectRegistry(): ProjectRegistry { return this.projects ??= new ProjectRegistry(this.dataDir); }
+
+  async projectState(): Promise<ProjectsState> {
+    const registry = this.projectRegistry();
+    this.projectsReady ??= loadOverlay(this.dataDir).then(overlay => registry.initialize(overlay, this.libraryRoot)).then(() => undefined).catch(error => { this.projectsReady = undefined; throw error; });
+    await this.projectsReady;
+    const state = await registry.read(); if (!state) throw new Error("项目记录已丢失，请保留现场并检查后重试。"); if (state.defaultParent) this.libraryRoot = state.defaultParent; return state;
+  }
+
+  ensureWatch(state: ProjectsState): void {
+    const signature = JSON.stringify([state.locations.map(p => p.path), state.projects.filter(p => !p.removed).map(p => p.path)]);
+    if (this.watchedRoot === signature && this.watchClose !== undefined) return;
+    this.stopWatch(); this.watchedRoot = signature;
+    mkdirSync(this.dataDir, { recursive: true });
+    this.watchClose = startProjectWatch({ parents: state.locations.map(p => p.path), projects: state.projects.filter(p => !p.removed).map(p => p.path), dataDir: this.dataDir,
+      onChange: () => this.invalidateCatalog(),
+      onDiscover: async () => { await this.projectRegistry().discover(); this.invalidateCatalog(); },
     }).close;
   }
 
@@ -280,25 +286,31 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     return resolveCoverSkill(this.coverSkillDir());
   }
 
-  async scanned(reconcile = true) {
-    return withOverlayLock(this.dataDir, async () => {
-      let overlay = await loadOverlay(this.dataDir);
-      const libraryRoot = overlay.libraryRoot ?? this.libraryRoot;
-      this.rememberOverlay(overlay);
-      this.ensureWatch(libraryRoot);
-      const reconciled = reconcile ? await reconcileOverlayBurns(overlay) : undefined;
-      if (reconciled !== undefined) {
-        overlay = reconciled;
-        await saveOverlay(this.dataDir, overlay);
-        this.invalidateCatalog();
+  async scanned(_reconcile = true) {
+    const [overlay, registry] = await Promise.all([loadOverlay(this.dataDir), this.projectState()]);
+    const libraryRoot = registry.defaultParent ?? overlay.libraryRoot ?? this.libraryRoot;
+    this.rememberOverlay(overlay); this.ensureWatch(registry);
+    if (this.cache?.registryRevision === registry.revision && this.cache.libraryRoot === libraryRoot) return { overlay, libraryRoot, items: this.cache.items, registry };
+    const revision = this.catalogRevision;
+    const productionSettings = await readSettings(this.dataDir);
+    const items = await Promise.all(registry.projects.map(async project => {
+      try {
+        return await boundedRead((async () => {
+          await this.projectRegistry().locate(project);
+          const item = await scanProject(project.path, project.id, projectOverlay(project, overlay));
+          if (!item) throw new Error("项目文件夹暂不可访问。");
+          return { ...await projectProduction(item, this.dataDir, productionSettings), title: project.item.title ?? folderDateAndTitle(project.name).title, directoryAliases: project.pathAliases, directoryRevision: project.revision };
+        })(), 8000);
+      } catch (error) {
+        return { id: project.id, folderPath: project.path, title: project.item.title ?? folderDateAndTitle(project.name).title, directoryAliases: project.pathAliases, directoryRevision: project.revision,
+          recordedAt: project.addedAt, createdMs: project.addedAt, covers: {}, subtitles: {}, tags: [], hasArticle: false, hasPublishPackage: false,
+          pipeline: "raw" as const, workflow: "idle" as const, publish: emptyPublish(), burn: emptyBurn(), subtitleJob: emptyBurn(), coverJob: emptyBurn(),
+          accessError: error instanceof Error ? error.message : "项目暂不可访问，请重试。" };
       }
-      if (this.cache?.libraryRoot === libraryRoot) {
-        return { overlay, libraryRoot, items: this.cache.items };
-      }
-      const items = await Promise.all((await scanLibrary(libraryRoot, overlay)).map((item) => projectProduction(item, this.dataDir)));
-      this.cache = { libraryRoot, items };
-      return { overlay, libraryRoot, items };
-    });
+    }));
+    items.sort((a,b) => b.recordedAt - a.recordedAt || b.createdMs - a.createdMs || a.folderPath.localeCompare(b.folderPath));
+    if (revision === this.catalogRevision) this.cache = { libraryRoot, registryRevision: registry.revision, items };
+    return { overlay, libraryRoot, items, registry };
   }
 
   async getRevision(
@@ -315,8 +327,8 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     signal: AbortSignal,
   ): Promise<ListContentsResult> {
     signal.throwIfAborted();
-    const { overlay, libraryRoot, items: scanned } = await this.scanned();
-    const hidden = new Set(removedContentIds(overlay, libraryRoot));
+    const { overlay, libraryRoot, items: scanned, registry } = await this.scanned();
+    const hidden = new Set(registry.projects.filter(p => p.removed).map(p => p.id));
     const visible = scanned.filter((item) => !hidden.has(item.id));
     const items = visible.filter((item) =>
       matchesFilter(item, request.filter) && matchesQuery(item, request.query)
@@ -335,51 +347,57 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     return this.listContents({ query: "", filter: "all" }, signal);
   }
 
-  async projectAction(request: { id: string; folderPath: string; action: "inspect" | "remove" | "join"; cancelTasks?: boolean }, signal: AbortSignal): Promise<{ tasks: string[]; removed: boolean }> {
+  async projectAction(request: { id: string; folderPath: string; action: "inspect" | "remove" | "join"; cancelTasks?: boolean }, signal: AbortSignal): Promise<{ tasks: string[]; removed: boolean; directoryAliases?: string[] }> {
     signal.throwIfAborted();
-    const { libraryRoot, overlay } = await this.scanned();
-    const folder = await contentFolder(request.action === "inspect" ? dirname(request.folderPath) : libraryRoot, request.folderPath);
-    if (basename(folder) !== request.id) throw new Error("项目目录已变化，请刷新后重试。");
-    if (request.action === "join") {
-      await setContentHidden(this.dataDir, libraryRoot, request.id, folder, false); this.invalidateCatalog();
-      return { tasks: [], removed: false };
-    }
-    const production = await readState(folder), cover = await readCoverState(folder);
-    const tasks = production.tasks.filter((t) => ["queued", "running", "waiting-agent"].includes(t.status)).map((t) => t.step ?? ({ upload: "上传视频", article: "文章制作", asr: "语音转文字", metrics: "同步数据", wechat: "公众号草稿", images: "制作图片" }[t.kind]));
-    tasks.push(...cover.runs.filter((r) => ["preparing", "running"].includes(r.status) || r.status === "waiting_agent" && Boolean(r.deliveredAt || r.frames.length)).map((r) => r.status === "waiting_agent" ? "封面制作请求" : "封面制作"));
+    await this.projectState();
+    if (request.action === "join") { await this.addProject({ path: request.folderPath }, signal); return { tasks: [], removed: false }; }
+    const registry = await this.projectState();
+    const project = this.projectRegistry().resolve(registry, request.id, request.folderPath, true);
+    if (!project) throw new Error("项目未加入工作台。");
+    let accessible = true;
+    try { await this.projectRegistry().locate(project); } catch { accessible = false; }
+    const folder = project.path;
+    const aliasChecks = await Promise.all(project.pathAliases.map(async path => {
+      try { return directoryKey(await boundedRead(realpath(path))) === project.key ? path : undefined; }
+      catch { return path; } // Known offline paths remain historical identities.
+    }));
+    const directoryAliases = aliasChecks.filter((path): path is string => Boolean(path));
+    const production = accessible ? await readState(folder) : undefined, cover = accessible ? await readCoverState(folder) : undefined;
+    const tasks = (production?.tasks ?? []).filter((t) => ["queued", "running", "waiting-agent"].includes(t.status)).map((t) => t.step ?? ({ upload: "上传视频", article: "文章制作", asr: "语音转文字", metrics: "同步数据", wechat: "公众号草稿", images: "制作图片" }[t.kind]));
+    tasks.push(...(cover?.runs ?? []).filter((r) => ["preparing", "running"].includes(r.status) || r.status === "waiting_agent" && Boolean(r.deliveredAt || r.frames.length)).map((r) => r.status === "waiting_agent" ? "封面制作请求" : "封面制作"));
     const imports = [...this.imports.tasks.values()].filter((t) => t.folder === folder && t.state.status === "running");
     tasks.push(...imports.map(() => "导入视频"));
-    if (request.action === "inspect") return { tasks, removed: removedContentIds(overlay, dirname(folder)).includes(request.id) };
+    if (!accessible) tasks.push("目录暂不可访问，历史任务结果保留待核对");
+    if (request.action === "inspect") return { tasks, removed: project.removed, directoryAliases };
     if (tasks.length && !request.cancelTasks) throw new Error("项目仍有任务，请确认‘取消任务并移除’。");
     // Persist the admission barrier first, including when a later host cleanup fails.
-    await setContentHidden(this.dataDir, libraryRoot, request.id, folder, true); this.invalidateCatalog();
-    for (const task of this.production.active.values()) if (task.folder === folder) task.controller.abort();
-    this.covers.active.get(folder)?.controller.abort();
+    await this.projectRegistry().update(state => { const p = this.projectRegistry().resolve(state, project.id, folder, true); if (!p) throw new Error("项目未找到。"); p.removed = true; }); this.invalidateCatalog();
+    for (const task of this.production?.active.values() ?? []) if (task.folder === folder) task.controller.abort();
+    this.covers?.active.get(folder)?.controller.abort();
     for (const task of imports) task.controller.abort();
     const stoppingDeadline = Date.now() + 10_000;
-    const stillRunning = () => [...this.production.active.values()].some((task) => task.folder === folder) || this.covers.active.has(folder) || imports.some((task) => task.state.status === "running");
+    const stillRunning = () => [...(this.production?.active.values() ?? [])].some((task) => task.folder === folder) || this.covers?.active.has(folder) || imports.some((task) => task.state.status === "running");
     while (stillRunning() && Date.now() < stoppingDeadline) { signal.throwIfAborted(); await new Promise((resolve) => setTimeout(resolve, 50)); }
     if (stillRunning()) throw new Error("项目已停止接收新任务，部分本地任务尚未确认结束。请稍后重试移除；现有文件和远端结果保留。");
-    await updateState(folder, (state) => { for (const task of state.tasks) if (["queued", "running", "waiting-agent"].includes(task.status)) { task.status = task.status === "running" && (task.kind === "upload" || task.kind === "wechat") ? "unconfirmed" : "cancelled"; task.error = "项目已移除；已完成文件保留，远端结果未撤回。"; task.updatedAt = Date.now(); } });
-    await coverLock(folder, async () => { const state = await readCoverState(folder); for (const run of state.runs) if (["waiting_agent", "preparing", "running"].includes(run.status)) { run.status = this.covers.active.has(folder) ? "unconfirmed" : "cancelled"; run.updatedAt = Date.now(); } await writeCoverState(folder, state); });
-    this.videos.get(request.id)?.close(); this.videos.delete(request.id);
+    if (accessible && production?.tasks.some(task => ["queued", "running", "waiting-agent"].includes(task.status))) await updateState(folder, (state) => { for (const task of state.tasks) if (["queued", "running", "waiting-agent"].includes(task.status)) { task.status = task.status === "running" && (task.kind === "upload" || task.kind === "wechat") ? "unconfirmed" : "cancelled"; task.error = "项目已移除；已完成文件保留，远端结果未撤回。"; task.updatedAt = Date.now(); } });
+    if (accessible && cover?.runs.some(run => ["waiting_agent", "preparing", "running"].includes(run.status))) await coverLock(folder, async () => { const state = await readCoverState(folder); for (const run of state.runs) if (["waiting_agent", "preparing", "running"].includes(run.status)) { run.status = this.covers.active.has(folder) ? "unconfirmed" : "cancelled"; run.updatedAt = Date.now(); } await writeCoverState(folder, state); });
+    this.videos.get(project.id)?.close(); this.videos.delete(project.id);
+    this.articles?.get(project.id)?.close(); this.articles?.delete(project.id);
     this.invalidateCatalog();
-    return { tasks, removed: true };
+    return { tasks, removed: true, directoryAliases };
   }
 
   async restoreProjectSession(request: { id: string; folderPath: string; sessionId: string }, signal: AbortSignal): Promise<Record<string, never>> {
-    const detail = await this.getContent({ id: request.id }, signal);
+    const detail = await this.getContent({ id: request.id, folderPath: request.folderPath }, signal);
     const folder = await contentFolder(dirname(detail.folderPath), request.folderPath);
     if (await realpath(detail.folderPath) !== await realpath(folder)) throw new Error("项目位置已变化，请刷新后重新加入。");
-    await restoreProjectSessionMembership(this.ctx, folder, request.sessionId, signal);
+    await restoreProjectSessionMembership(this.ctx, request.folderPath, request.sessionId, signal);
     return {};
   }
 
   async getContent(request: IdRequest, signal: AbortSignal): Promise<ContentDetail> {
     signal.throwIfAborted();
-    const catalog = await this.scanned();
-    if (removedContentIds(catalog.overlay, catalog.libraryRoot).includes(request.id)) throw new Error("此项目已从工作台移除，请通过‘使用已有目录’重新加入。");
-    const found = await this.find(request.id);
+    const found = await this.find(request.id, request.folderPath);
     const item = found ? await projectProduction(found, this.dataDir) : undefined;
     if (item === undefined) {
       throw new Error(`content not found: ${request.id}`);
@@ -398,25 +416,25 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     signal.throwIfAborted();
     const folderId = request.id.split("::")[0] ?? request.id;
     const ratio = request.id.split("::")[1];
-    const item = await this.find(folderId);
+    const item = await this.find(folderId, request.folderPath);
     const path = ratio === "3x4" || ratio === "4x3" || ratio === "16x9"
       ? item?.covers[ratio]
       : item === undefined ? undefined : coverPathOf(item);
-    return coverThumb(this.dataDir, request.id, path);
+    return coverThumb(this.dataDir, `${item?.id ?? folderId}::${ratio ?? ""}`, path);
   }
 
   async getVideoPlayback(request: IdRequest, signal: AbortSignal): Promise<VideoPlaybackResult> {
     signal.throwIfAborted();
-    const item = await this.find(request.id);
+    const item = await this.find(request.id, "folderPath" in request ? request.folderPath : undefined);
     const picked = item === undefined ? undefined : playbackOf(item);
     if (picked === undefined) return { found: false, url: "", kind: "raw" };
-    const existing = this.videos.get(request.id);
+    const existing = this.videos.get(item!.id);
     if (existing !== undefined && existing.path === picked.path) {
       return { found: true, url: existing.url, kind: picked.kind };
     }
     existing?.close();
     const session = await startVideoServer(picked.path);
-    this.videos.set(request.id, { url: session.url, path: picked.path, close: session.close });
+    this.videos.set(item!.id, { url: session.url, path: picked.path, close: session.close });
     return { found: true, url: session.url, kind: picked.kind };
   }
 
@@ -425,19 +443,19 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     const item = await this.getContent(request, signal);
     if (item?.articlePath === undefined) return { found: false, origin: "" };
     const root = dirname(item.articlePath);
-    const existing = this.articles.get(request.id);
+    const existing = this.articles.get(item.id);
     if (existing !== undefined && existing.root === root) {
       return { found: true, origin: existing.origin };
     }
     existing?.close();
     const session = await startArticleServer(root);
-    this.articles.set(request.id, { origin: session.origin, root, close: session.close });
+    this.articles.set(item.id, { origin: session.origin, root, close: session.close });
     return { found: true, origin: session.origin };
   }
 
   async getSubtitleText(request: IdRequest, signal: AbortSignal): Promise<SubtitleTextResult> {
     signal.throwIfAborted();
-    const found = await this.find(request.id);
+    const found = await this.find(request.id, "folderPath" in request ? request.folderPath : undefined);
     const item = found ? await projectProduction(found, this.dataDir) : undefined;
     if (item === undefined) return { text: "", cues: [] };
     const cues = await readSubtitleCues(item);
@@ -447,13 +465,12 @@ export class CreatorWorkbenchService extends TypertRemoteService {
 
   async openContentPath(request: { path: string }, signal: AbortSignal): Promise<Record<string, never>> {
     signal.throwIfAborted();
-    const overlay = await loadOverlay(this.dataDir);
-    const root = await realpath(overlay.libraryRoot ?? this.libraryRoot);
-    const target = await realpath(request.path);
-    const inside = relative(root, target);
-    if (inside === ".." || inside.startsWith("../") || inside.startsWith("..\\") || isAbsolute(inside)) {
-      throw new Error("只能打开当前资料目录里的文件。");
+    const state = await this.projectState(), target = await realpath(request.path);
+    let allowed = false;
+    for (const p of state.projects.filter(p => !p.removed)) {
+      try { const root = await this.projectRegistry().locate(p), rel = relative(root, target); if (!isAbsolute(rel) && rel !== ".." && !rel.startsWith("../") && !rel.startsWith("..\\")) { allowed = true; break; } } catch { /* Isolated unavailable project. */ }
     }
+    if (!allowed) throw new Error("只能打开已加入项目中的文件。");
     signal.throwIfAborted();
     await openExternalPath(target);
     return {};
@@ -466,25 +483,30 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     return this.settingsOf(overlay.libraryRoot ?? this.libraryRoot, overlay);
   }
 
-  async setLibraryRoot(
-    request: SetLibraryRootRequest,
-    signal: AbortSignal,
-  ): Promise<LibrarySettings> {
-    signal.throwIfAborted();
-    const libraryRoot = resolveUserPath(request.path);
-    const info = await stat(libraryRoot).catch(() => undefined);
-    if (info === undefined || !info.isDirectory()) {
-      throw new Error(`library root is not a directory: ${libraryRoot}`);
-    }
-    return withOverlayLock(this.dataDir, async () => {
-      const overlay = await loadOverlay(this.dataDir);
-      overlay.libraryRoot = libraryRoot;
-      await saveOverlay(this.dataDir, overlay);
-      this.libraryRoot = libraryRoot;
-      this.stopWatch();
-      this.invalidateCatalog();
-      return this.settingsOf(libraryRoot, overlay);
-    });
+  async getProjectLocations(_request: Record<string, never>, signal: AbortSignal): Promise<import("./types.ts").ProjectLocationsView> {
+    signal.throwIfAborted(); const state = await this.projectState();
+    return { libraryRoot: state.defaultParent ?? this.libraryRoot, libraryConfirmed: state.defaultParent !== undefined, projectLocations: state.locations.map(p => ({ path: p.path })) };
+  }
+  async setProjectLocation(request: SetLibraryRootRequest, signal: AbortSignal): Promise<import("./types.ts").ProjectLocationsView> {
+    signal.throwIfAborted(); await this.projectState();
+    await this.projectRegistry().setDefault(resolveUserPath(request.path)); this.invalidateCatalog();
+    return this.getProjectLocations({}, signal);
+  }
+  async setLibraryRoot(request: SetLibraryRootRequest, signal: AbortSignal): Promise<LibrarySettings> {
+    await this.setProjectLocation(request, signal); return this.getSettings({}, signal);
+  }
+
+  async addProject(request: { path: string }, signal: AbortSignal): Promise<CreateContentResult> {
+    signal.throwIfAborted(); await this.projectState();
+    const project = await this.projectRegistry().join(resolveUserPath(request.path));
+    this.invalidateCatalog(); return { id: project.id, folderPath: project.path, directoryAliases: project.pathAliases };
+  }
+
+  async recoverProject(request: { folderPath: string; sessionId: string }, signal: AbortSignal): Promise<CreateContentResult> {
+    await this.projectState();
+    await verifyProjectSessionDirectory(this.ctx, request.folderPath, request.sessionId, signal);
+    const project = await this.projectRegistry().recover(request.folderPath);
+    this.invalidateCatalog(); return { id: project.id, folderPath: project.path, directoryAliases: project.pathAliases };
   }
 
   async setProfile(request: SetProfileRequest, signal: AbortSignal): Promise<LibrarySettings> {
@@ -560,9 +582,9 @@ export class CreatorWorkbenchService extends TypertRemoteService {
         throw new Error(`library root is not a directory: ${proposal.libraryRoot}`);
       }
     }
+    if (proposal.libraryRoot !== undefined) await this.setLibraryRoot({ path: proposal.libraryRoot }, signal);
     await withOverlayLock(this.dataDir, async () => {
       const overlay = await loadOverlay(this.dataDir);
-      if (proposal.libraryRoot !== undefined) overlay.libraryRoot = proposal.libraryRoot;
       const profile = overlay.profile ?? emptyProfile();
       if (proposal.enabledPlatforms !== undefined) {
         profile.enabledPlatforms = [...proposal.enabledPlatforms];
@@ -581,43 +603,66 @@ export class CreatorWorkbenchService extends TypertRemoteService {
 
   async setTopicNote(request: SetTopicNoteRequest, signal: AbortSignal): Promise<ContentDetail> {
     signal.throwIfAborted();
-    const item = await this.find(request.id);
+    const item = await this.find(request.id, "folderPath" in request ? request.folderPath : undefined);
     if (item === undefined) throw new Error(`content not found: ${request.id}`);
+    if (request.folderPath && directoryKey(await boundedRead(realpath(request.folderPath))) !== directoryKey(item.folderPath)) throw new Error("资料位置已切换，草稿已保留，请重新打开对应项目。");
     await writeTopicNote(item.folderPath, request.text);
-    return this.getContent({ id: request.id }, signal);
+    return this.getContent({ id: item.id, folderPath: item.folderPath }, signal);
   }
 
   async setScript(request: SetScriptRequest, signal: AbortSignal): Promise<ContentDetail> {
     signal.throwIfAborted();
-    const item = await this.find(request.id);
+    const item = await this.find(request.id, "folderPath" in request ? request.folderPath : undefined);
     if (item === undefined) throw new Error(`content not found: ${request.id}`);
-    if (request.folderPath !== undefined && request.folderPath !== item.folderPath) throw new Error("资料位置已切换，脚本草稿已保留，请重新打开对应内容。");
+    if (request.folderPath && directoryKey(await boundedRead(realpath(request.folderPath))) !== directoryKey(item.folderPath)) throw new Error("资料位置已切换，草稿已保留，请重新打开对应项目。");
     signal.throwIfAborted();
     await writeScript(item.folderPath, request.text);
-    return this.getContent({ id: request.id }, signal);
+    return this.getContent({ id: item.id, folderPath: item.folderPath }, signal);
   }
 
   async organizeLibrary(request: OrganizeRequest, signal: AbortSignal): Promise<OrganizePreview> {
     signal.throwIfAborted();
-    const overlay = await loadOverlay(this.dataDir);
-    const libraryRoot = overlay.libraryRoot ?? this.libraryRoot;
-    if (!request.apply) {
-      return previewOrganize(libraryRoot, overlay, request.ids);
+    const registry = await this.projectState();
+    const root = request.libraryRoot ? resolveUserPath(request.libraryRoot) : registry.defaultParent;
+    if (!root || request.apply && !request.libraryRoot) throw new Error("请明确要整理的父目录；其他保存位置的项目不会参与。");
+    const actual = await realpath(root);
+    const projects = registry.projects.filter(p => !p.removed && directoryKey(dirname(p.path)) === directoryKey(actual));
+    const selected = request.ids.length ? request.ids.map(id => this.projectRegistry().resolve(registry, id)).filter((p): p is ProjectRecord => Boolean(p)) : projects;
+    if (selected.some(p => !projects.some(row => row.id === p.id))) throw new Error("所选项目不在本次整理的父目录中。");
+    if (!selected.length) return { moves: [], unchanged: 0 };
+    const scoped: OverlayStore = { schemaVersion: 1, items: Object.fromEntries(projects.map(p => [basename(p.path), p.item])) };
+    const names = selected.map(p => basename(p.path));
+    if (!request.apply) return previewOrganize(actual, scoped, names);
+    // A rename is explicit and limited to this parent. Running/uncertain tasks
+    // retain their exact directory and must be resolved before moving files.
+    for (const p of selected) {
+      if (registry.projects.some(other => other.id !== p.id && !other.removed && (() => { const rel = relative(p.path, other.path); return rel !== "" && !isAbsolute(rel) && rel !== ".." && !rel.startsWith("../") && !rel.startsWith("..\\"); })())) throw new Error("所选目录包含另一个已登记项目，请分别处理，避免改变子项目任务的位置。");
+      if ([...(this.production?.active.values() ?? [])].some(task => task.folder === p.path) || this.covers?.active.has(p.path) || [...(this.imports?.tasks.values() ?? [])].some(task => task.folder === p.path && task.state.status === "running")) throw new Error("项目仍有任务正在运行，请先处理后再整理目录。");
+      const state = await readState(p.path), covers = await readCoverState(p.path);
+      if (state.tasks.some(t => ["running","queued","waiting-agent","unconfirmed"].includes(t.status)) || covers.runs.some(r => ["running","preparing","waiting_agent","unconfirmed"].includes(r.status))) throw new Error("所选项目仍有运行或待核对任务，请先处理后再整理目录。");
     }
-    if ([...this.covers.active.keys()].some((folder) => dirname(folder) === libraryRoot)) throw new Error("资料库中有封面任务正在运行，请等待或取消后再整理目录。");
-    const result = await applyOrganize(libraryRoot, overlay, request.ids);
-    await withOverlayLock(this.dataDir, async () => {
-      const latest = await loadOverlay(this.dataDir);
-      await saveOverlay(this.dataDir, remapOverlayItems(latest, result.preview.moves, libraryRoot));
-    });
-    this.invalidateCatalog();
-    return result.preview;
+    const result = await applyOrganize(actual, scoped, names);
+    try {
+      await this.projectRegistry().update(state => {
+        for (const move of result.preview.moves) {
+          const before = join(actual, move.from), after = join(actual, move.to);
+          for (const p of state.projects) {
+            const rel = relative(before, p.path);
+            if (isAbsolute(rel) || rel === ".." || rel.startsWith("..\\") || rel.startsWith("../")) continue;
+            p.path = join(after, rel); p.key = directoryKey(p.path); p.sourcePath = p.path; p.pathAliases = [p.path];
+            p.aliases = [...new Set([...p.aliases, basename(p.path)])]; p.name = basename(p.path); p.parent = dirname(p.path); p.revision = randomUUID();
+          }
+        }
+      });
+    } catch (error) { throw new Error("文件夹已整理，项目记录未完成更新；请保留原记录并通过新位置重新加入。", { cause: error }); }
+    this.invalidateCatalog(); return result.preview;
   }
 
   async refreshCatalog(
     _request: Record<string, never>,
     signal: AbortSignal,
   ): Promise<ListContentsResult> {
+    await this.projectState(); await this.projectRegistry().discover();
     this.invalidateCatalog();
     return this.listContents({ query: "", filter: "all" }, signal);
   }
@@ -627,12 +672,11 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     signal: AbortSignal,
   ): Promise<CreateContentResult> {
     signal.throwIfAborted();
-    const overlay = await loadOverlay(this.dataDir);
-    const libraryRoot = request.libraryRoot === undefined ? overlay.libraryRoot : resolveUserPath(request.libraryRoot);
-    if (libraryRoot === undefined) throw new Error("请先在内容工作台的系统目录选择器中确认资料位置。");
-    const created = await createContentFolder(libraryRoot, request.title);
-    this.invalidateCatalog();
-    return created;
+    const state = await this.projectState();
+    const parent = request.libraryRoot === undefined ? state.defaultParent : resolveUserPath(request.libraryRoot);
+    if (!parent) throw new Error("请选择这次项目的保存位置。");
+    const created = await this.projectRegistry().create(parent, request.title, request.requestId ?? randomUUID());
+    this.invalidateCatalog(); return { id: created.id, folderPath: created.path, directoryAliases: created.pathAliases };
   }
 
   async setPublish(request: SetPublishRequest, signal: AbortSignal): Promise<ContentDetail> {
@@ -686,16 +730,16 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     signal: AbortSignal,
   ): Promise<SubtitlePreviewResult> {
     signal.throwIfAborted();
-    const item = await this.find(request.id);
+    const item = await this.find(request.id, request.folderPath);
     if (item === undefined) throw new Error(`content not found: ${request.id}`);
     const registryPath = previewRegistryPathForDataDir(this.dataDir);
-    const recorded = livePreviewRecord(loadPreviewRegistry(registryPath), request.id);
-    const existing = this.previews.get(request.id);
+    const recorded = livePreviewRecord(loadPreviewRegistry(registryPath), item.id);
+    const existing = this.previews.get(item.id);
     const reusable = existing !== undefined && jobPidMatches(existing.pid, ["preview_editor"])
       ? existing
       : recorded;
     if (reusable !== undefined) {
-      this.previews.set(request.id, reusable);
+      this.previews.set(item.id, reusable);
       await openExternalPath(reusable.url);
       return { url: reusable.url, port: reusable.port };
     }
@@ -712,8 +756,8 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     if (pid === undefined) throw new Error("preview failed to start");
     child.unref();
     const url = `http://127.0.0.1:${port}`;
-    const record = { url, port, pid, id: request.id, startedAt: Date.now() };
-    this.previews.set(request.id, record);
+    const record = { url, port, pid, id: item.id, startedAt: Date.now() };
+    this.previews.set(item.id, record);
     upsertPreviewRecord(registryPath, record);
     try {
       await waitHttp(url, 8000, signal);
@@ -724,9 +768,9 @@ export class CreatorWorkbenchService extends TypertRemoteService {
         // Cleanup must still happen if the termination probe itself fails.
       }
       try {
-        this.previews.delete(request.id);
+        this.previews.delete(item.id);
       } finally {
-        removePreviewRecord(registryPath, request.id);
+        removePreviewRecord(registryPath, item.id);
       }
       throw cause;
     }
@@ -736,10 +780,10 @@ export class CreatorWorkbenchService extends TypertRemoteService {
 
   async startSubtitleBurn(request: IdRequest, signal: AbortSignal): Promise<ContentDetail> {
     signal.throwIfAborted();
-    const item = await this.find(request.id);
+    const item = await this.find(request.id, request.folderPath);
     if (item === undefined) throw new Error(`content not found: ${request.id}`);
     if (item.burn.status === "running" && jobPidMatches(item.burn.pid, ["burn_subtitles.py"])) {
-      return this.getContent({ id: request.id }, signal);
+      return this.getContent({ id: item.id }, signal);
     }
     const skill = await this.subtitleSkill();
     const launch = await pickBurnLaunch(item);
@@ -764,12 +808,12 @@ export class CreatorWorkbenchService extends TypertRemoteService {
           output: launch.output,
           error: stderr.trim() === "" ? `burn failed: ${code}` : stderr.trim(),
         };
-      void this.patchItem(request.id, (next) => {
+      void this.patchItem(item.id, (next) => {
         next.burn = burn;
       }, new AbortController().signal).catch(() => undefined);
     });
     child.unref();
-    return this.patchItem(request.id, (next) => {
+    return this.patchItem(item.id, (next) => {
       next.burn = { status: "running", startedAt, output: launch.output, pid };
     }, signal);
   }
@@ -785,16 +829,15 @@ export class CreatorWorkbenchService extends TypertRemoteService {
   async productionSettingsAction(request: ProductionSettingsAction, signal: AbortSignal): Promise<ProductionSettingsView> { return this.production.settingsAction(request, signal); }
   async getProjectView(request: { id: string; folderPath?: string }, signal: AbortSignal): Promise<ProjectView> {
     signal.throwIfAborted();
-    const { libraryRoot, overlay, items } = await this.scanned(false);
-    if (removedContentIds(overlay, libraryRoot).includes(request.id)) throw new Error("项目已移除，请明确重新加入。");
-    const item = items.find(item => item.id === request.id);
-    if (!item || request.folderPath && await realpath(request.folderPath) !== await realpath(item.folderPath)) throw new Error("项目位置已变化，请重新打开。");
+    const item = await this.find(request.id, request.folderPath);
+    if (!item) throw new Error("项目位置已变化，请重新打开。");
     const config = await readSettings(this.dataDir);
     const accountIds = Object.fromEntries(Object.entries(config.accounts).map(([p,a]) => [p,a?.id]));
     if (config.wechat.appid) accountIds["official-account"] = config.wechat.appid;
     return { ...await queryProject(item, () => this.covers.load(item.folderPath)), accountIds, settingsRevision: config.revision };
   }
   async reconcileProject(request: ContentScope, signal: AbortSignal): Promise<Record<string, never>> {
+    await this.reconcileLegacyJobs();
     await this.getProjectView(request, signal);
     await this.production.reconcile(request); await this.covers.state(request); return {};
   }
@@ -1002,89 +1045,76 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     }, signal);
   }
 
-  async find(id: string) {
-    const { items, overlay, libraryRoot } = await this.scanned();
-    if (removedContentIds(overlay, libraryRoot).includes(id)) return undefined;
-    return items.find((item) => item.id === id);
+  async reconcileLegacyJobs(): Promise<void> {
+    await this.projectState();
+    await this.projectRegistry().update(async state => {
+      for (const p of state.projects.filter(p => !p.removed)) {
+        const current: OverlayStore = { schemaVersion: 1, items: { [p.id]: p.item } };
+        const next = await reconcileOverlayBurns(current); if (next?.items[p.id]) p.item = next.items[p.id]!;
+      }
+    });
+    this.invalidateCatalog();
   }
 
-  async saveVideoSelection(libraryRoot: string, id: string, name: string, allowRestore = true): Promise<void> {
-    await withOverlayLock(this.dataDir, async () => {
-      const overlay = await loadOverlay(this.dataDir);
-      if (removedContentIds(overlay, libraryRoot).includes(id)) throw new Error("项目已移除，导入文件保留但未更改选择。");
-      if (!allowRestore && ((overlay.libraryRoot ?? this.libraryRoot) !== libraryRoot || overlay.hiddenVideos?.[libraryRoot]?.[id]?.some((n) => sameVideoName(n, name, process.platform === "win32")))) throw new Error("资料库或视频可见性已变化，请刷新后重选。");
-      overlay.videoSelections ??= {};
-      overlay.videoSelections[libraryRoot] ??= {};
-      overlay.videoSelections[libraryRoot]![id] = name;
-      const hidden = overlay.hiddenVideos?.[libraryRoot]?.[id];
-      if (hidden) overlay.hiddenVideos![libraryRoot]![id] = hidden.filter((n) => !sameVideoName(n, name, process.platform === "win32"));
-      await saveOverlay(this.dataDir, overlay);
-      this.invalidateCatalog();
+  async find(id: string, folderPath?: string) {
+    const { items, registry } = await this.scanned(false);
+    const project = this.projectRegistry().resolve(registry, id, folderPath);
+    const item = project && items.find(item => item.id === project.id);
+    if (item?.accessError) throw new Error(`项目暂不可访问：${item.accessError}`);
+    return item;
+  }
+
+  async saveVideoSelection(folder: string, id: string, name: string, allowRestore = true): Promise<void> {
+    await this.projectRegistry().mutate(id, folder, p => {
+      if (!allowRestore && p.hiddenVideos.some(n => sameVideoName(n, name, process.platform === "win32"))) throw new Error("视频已移除，请重新导入后选择。");
+      p.selectedVideo = name; p.hiddenVideos = p.hiddenVideos.filter(n => !sameVideoName(n, name, process.platform === "win32"));
     });
+    this.invalidateCatalog();
   }
 
   async selectVideo(request: { id: string; name: string; folderPath: string }, signal: AbortSignal): Promise<ContentDetail> {
     signal.throwIfAborted();
-    const { libraryRoot, items } = await this.scanned();
-    const item = items.find((entry) => entry.id === request.id);
-    if (item === undefined) throw new Error("内容已找不到，请刷新片库。");
-    if (item.folderPath !== request.folderPath) throw new Error("资料库已切换，请重新打开对应内容。");
-    const folder = await contentFolder(libraryRoot, item.folderPath);
-    if (!item.videos?.some((v) => sameVideoName(v.name, request.name, process.platform === "win32"))) throw new Error("请先恢复这个视频，再选择使用。");
-    await videoFile(folder, request.name);
-    signal.throwIfAborted();
-    await this.saveVideoSelection(libraryRoot, request.id, request.name, false);
-    return this.getContent({ id: request.id }, signal);
+    const item = await this.find(request.id, request.folderPath);
+    if (!item) throw new Error("项目未找到，请刷新。");
+    const folder = await contentFolder(dirname(item.folderPath), item.folderPath);
+    if (!item.videos?.some(v => sameVideoName(v.name, request.name, process.platform === "win32"))) throw new Error("请先重新导入这个视频，再选择使用。");
+    await videoFile(folder, request.name); signal.throwIfAborted();
+    await this.saveVideoSelection(folder, item.id, request.name, false);
+    return this.getContent({ id: item.id }, signal);
   }
 
   async setVideoVisibility(request: { id: string; name: string; folderPath: string; hidden: boolean }, signal: AbortSignal): Promise<ContentDetail> {
     signal.throwIfAborted();
-    const { libraryRoot, items } = await this.scanned();
-    const item = items.find((v) => v.id === request.id);
-    if (!item || item.folderPath !== request.folderPath) throw new Error("资料库或内容已切换，请重新打开。");
-    const folder = await contentFolder(libraryRoot, item.folderPath);
+    const item = await this.find(request.id, request.folderPath);
+    if (!item) throw new Error("项目未找到，请刷新。");
+    const folder = await contentFolder(dirname(item.folderPath), item.folderPath);
     if (!request.hidden) await videoFile(folder, request.name);
-    else if (!item.videos?.some((v) => sameVideoName(v.name, request.name, process.platform === "win32"))) throw new Error("视频已不在当前列表，请刷新。");
-    await withOverlayLock(this.dataDir, async () => {
+    else if (!item.videos?.some(v => sameVideoName(v.name, request.name, process.platform === "win32"))) throw new Error("视频已不在当前列表，请刷新。");
+    await this.projectRegistry().mutate(item.id, folder, p => {
       signal.throwIfAborted();
-      const overlay = await loadOverlay(this.dataDir);
-      overlay.hiddenVideos ??= {}; overlay.hiddenVideos[libraryRoot] ??= {};
-      if ((overlay.libraryRoot ?? this.libraryRoot) !== libraryRoot) throw new Error("资料库已切换，请重新打开。");
-      const names = overlay.hiddenVideos[libraryRoot]![request.id] ?? [];
-      const candidates = [...(item.videos ?? []), ...(item.hiddenVideos ?? []).filter((v) => !v.missing)].filter((v) => !names.some((n) => sameVideoName(n, v.name, process.platform === "win32")));
-      const selected = resolveVideoSelection(candidates, overlay.videoSelections?.[libraryRoot]?.[request.id]).selectedVideo;
-      overlay.hiddenVideos[libraryRoot]![request.id] = [...names.filter((n) => !sameVideoName(n, request.name, process.platform === "win32")), ...(request.hidden ? [request.name] : [])];
-      if (request.hidden && selected && sameVideoName(selected, request.name, process.platform === "win32")) {
-        overlay.videoSelections ??= {}; overlay.videoSelections[libraryRoot] ??= {}; overlay.videoSelections[libraryRoot]![request.id] = null;
-      }
-      await saveOverlay(this.dataDir, overlay); this.invalidateCatalog();
+      const candidates = [...(item.videos ?? []), ...(item.hiddenVideos ?? []).filter(v => !v.missing)].filter(v => !p.hiddenVideos.some(n => sameVideoName(n, v.name, process.platform === "win32")));
+      const selected = resolveVideoSelection(candidates, p.selectedVideo).selectedVideo;
+      p.hiddenVideos = [...p.hiddenVideos.filter(n => !sameVideoName(n, request.name, process.platform === "win32")), ...(request.hidden ? [request.name] : [])];
+      if (request.hidden && selected && sameVideoName(selected, request.name, process.platform === "win32")) p.selectedVideo = null;
     });
-    return this.getContent({ id: request.id }, signal);
+    this.invalidateCatalog(); return this.getContent({ id: item.id }, signal);
   }
 
   async startVideoImport(request: VideoImportRequest, signal: AbortSignal): Promise<VideoImportState> {
     signal.throwIfAborted();
-    const { libraryRoot, items } = await this.scanned();
-    const item = items.find((entry) => entry.id === request.id);
-    if (item === undefined) throw new Error("内容已找不到，请刷新片库。");
-    if (item.folderPath !== request.folderPath) throw new Error("资料库已切换，请重新打开对应内容。");
-    await contentFolder(libraryRoot, item.folderPath);
+    const item = await this.find(request.id, request.folderPath);
+    if (!item) throw new Error("项目未找到，请刷新。");
+    const folder = await contentFolder(dirname(item.folderPath), item.folderPath);
     const source = await realpath(request.sourcePath).catch(() => "");
-    let existing: NonNullable<typeof item.hiddenVideos>[number] | undefined;
-    for (const candidate of item.hiddenVideos ?? []) {
-      const actual = await realpath(candidate.path).catch(() => "");
-      if (!candidate.missing && actual && source && sameVideoName(actual, source, process.platform === "win32")) { existing = candidate; break; }
-    }
+    const existing = (item.hiddenVideos ?? []).find(candidate => !candidate.missing && directoryKey(candidate.path) === directoryKey(source));
     if (existing && (!request.name || sameVideoName(existing.name, request.name, process.platform === "win32"))) {
-      await this.setVideoVisibility({ id: request.id, name: existing.name, folderPath: item.folderPath, hidden: false }, signal);
-      await this.saveVideoSelection(libraryRoot, request.id, existing.name);
-      return { token: `restored-${Date.now()}`, id: request.id, name: existing.name, status: "completed" };
+      await this.setVideoVisibility({ id: item.id, name: existing.name, folderPath: folder, hidden: false }, signal);
+      await this.saveVideoSelection(folder, item.id, existing.name);
+      return { token: `restored-${Date.now()}`, id: item.id, name: existing.name, status: "completed" };
     }
     signal.throwIfAborted();
-    if (this.importJobs === undefined) throw new Error("后台任务服务尚未就绪，请等待工作台加载完成后重试。");
-    return this.imports.start(this.importJobs, { ...request, folder: item.folderPath, libraryRoot }, async (name) => {
-      await this.saveVideoSelection(libraryRoot, request.id, name);
-    });
+    if (!this.importJobs) throw new Error("后台任务服务尚未就绪，请等待工作台加载完成后重试。");
+    return this.imports.start(this.importJobs, { ...request, id: item.id, folder, libraryRoot: dirname(folder) }, async name => { await this.saveVideoSelection(folder, item.id, name); });
   }
 
   async getVideoImport(request: { token: string }, signal: AbortSignal): Promise<VideoImportState> {
@@ -1106,35 +1136,25 @@ export class CreatorWorkbenchService extends TypertRemoteService {
     libraryRoot: string,
     overlay: { profile?: LibrarySettings["profile"]; scriptRules?: string; libraryRoot?: string },
   ): Promise<LibrarySettings> {
+    const registry = await this.projectState();
     return {
-      libraryRoot,
-      libraryConfirmed: overlay.libraryRoot !== undefined,
+      libraryRoot: registry.defaultParent ?? libraryRoot,
+      libraryConfirmed: registry.defaultParent !== undefined,
+      projectLocations: registry.locations.map(p => ({ path: p.path })),
       profile: overlay.profile ?? emptyProfile(),
       secrets: await describeCreatorSecrets(this.ctx),
       ...(overlay.scriptRules === undefined ? {} : { scriptRules: overlay.scriptRules }),
     };
   }
 
-  async patchItem(
-    id: string,
-    mutate: (item: OverlayItem) => void,
-    signal: AbortSignal,
-    expectedFolder?: string,
-  ): Promise<ContentDetail> {
-    await withOverlayLock(this.dataDir, async () => {
-      const overlay = await loadOverlay(this.dataDir);
-      const root = overlay.libraryRoot ?? this.libraryRoot;
-      if (removedContentIds(overlay, root).includes(id)) throw new Error("项目已移除，请重新加入后操作。");
-      if (expectedFolder && basename(await contentFolder(root, expectedFolder)) !== id) throw new Error("资料位置已变化，结果未写回。");
-      const current = overlay.items[id] ?? {};
-      const next = { ...current };
-      mutate(next);
-      overlay.items[id] = next;
-      await saveOverlay(this.dataDir, overlay);
-      this.invalidateCatalog();
-    });
-    return this.getContent({ id }, signal);
+  async patchItem(id: string, mutate: (item: OverlayItem) => void, signal: AbortSignal, expectedFolder?: string): Promise<ContentDetail> {
+    await this.projectState();
+    const project = this.projectRegistry().resolve(await this.projectState(), id, expectedFolder);
+    if (!project) throw new Error("项目未找到，请刷新。");
+    await this.projectRegistry().mutate(project.id, project.path, p => { signal.throwIfAborted(); mutate(p.item); });
+    this.invalidateCatalog(); return this.getContent({ id: project.id }, signal);
   }
+
 }
 
 function resolveUserPath(path: string): string {

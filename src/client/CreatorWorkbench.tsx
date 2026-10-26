@@ -4,7 +4,7 @@ import { ActionButton } from "./ui/ActionButton.tsx";
 import { ContentInspector } from "./ContentInspector.tsx";
 import { ContentSidebarPanel } from "./sidebar/ContentSidebarPanel.tsx";
 import { CreatorSettingsCard, type CreatorSettingsHandle } from "./CreatorSettingsCard.tsx";
-import { useProfileEpoch, useSelectedContentId } from "./contentSelection.ts";
+import { useProfileEpoch, useSelectedContentId, captureContentSelection } from "./contentSelection.ts";
 import type { CredentialsClient } from "./credentialsApi.ts";
 import type { CreatorViewFace } from "./face.ts";
 import type { CreatorKey } from "./locales.ts";
@@ -45,6 +45,7 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
       if (session === previousSession.current) return;
       previousSession.current = session;
       const ticket = ++revision;
+      const selectionCurrent = captureContentSelection();
       if (!service.isActive() || contentBindingForSession(service) === null) { setRestoring(false); setRestoreFailed(false); return; }
       setRestoring(true);
       setRestoreFailed(false);
@@ -52,10 +53,11 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
       queue = queue.then(async () => {
         if (!alive.current || ticket !== revision || !service.isActive()) return;
         try {
+          if (!selectionCurrent()) return;
           const content = await restoreSessionContent(service, face);
-          if (alive.current && ticket === revision && content !== null) setSelectedId(content);
+          if (alive.current && ticket === revision && selectionCurrent() && content !== null) setSelectedId(content);
         } catch (cause) {
-          if (alive.current && ticket === revision) {
+          if (alive.current && ticket === revision && selectionCurrent()) {
             setRestoreFailed(true);
             setError(`${cause instanceof Error ? cause.message : t("empty.error")} ${t("workbench.relocateHint")}`);
           }
@@ -87,8 +89,10 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
     }
   };
 
+  useEffect(() => { setRestoreFailed(false); setError(null); }, [selectedId]);
+
   const begin = async () => {
-    if (starting || restoring || restoreFailed || selectedId === null) return;
+    if (starting || restoring || selectedId === null) return;
     const id = selectedId;
     const isCurrent = face.captureNavigation();
     setStarting(true);
@@ -96,7 +100,7 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
     try {
       const detail = await face.getContent(id);
       if (!alive.current || currentSelection.current !== id || !isCurrent()) return;
-      await startContentSession(service, { id, folderPath: detail.folderPath }, async () => detail.folderPath);
+      await startContentSession(service, detail, async () => detail.folderPath);
     } catch (cause) {
       if (alive.current && isCurrent()) setError(cause instanceof Error ? cause.message : t("empty.error"));
     } finally {
@@ -109,18 +113,18 @@ export function CreatorWorkbench({ face, service, credentials, t }: {
       <header className="workbenchHeader">
         <span>{t("workbench.title")}</span>
         <div className="workbenchActions">
-          {selectedId !== null && <ActionButton tone="ghost" disabled={starting || restoring || restoreFailed} onClick={() => { void begin(); }}>{starting ? t("workbench.starting") : t("workbench.session")}</ActionButton>}
+          {selectedId !== null && <ActionButton tone="ghost" disabled={starting || restoring} onClick={() => { void begin(); }}>{starting ? t("workbench.starting") : t("workbench.session")}</ActionButton>}
           <ActionButton tone="ghost" onClick={() => { if (settingsOpen) settingsRef.current?.requestClose(); else setSettingsOpen(true); }}>{settingsOpen ? t("workbench.library") : t("workbench.settings")}</ActionButton>
         </div>
       </header>
       {error !== null && <div className="workbenchError" role="alert">{error}</div>}
       {restoreFailed && <ActionButton disabled={restoring} onClick={() => { void reselect(); }}>{t("workbench.relocate")}</ActionButton>}
-      {restoring && <div className="workbenchEmpty" role="status">{t("workbench.restoring")}</div>}
+      {restoring && <div className="workbenchRestoreStatus" role="status">{t("workbench.restoring")}</div>}
       <div className="workbenchSettings" hidden={!settingsOpen}><CreatorSettingsCard initialGroup={settingsGroup} ref={settingsRef} {...face} credentials={credentials} t={t} onClose={() => setSettingsOpen(false)} /></div>
-      <div className="workbenchBody" hidden={settingsOpen || restoring || restoreFailed}>
-        <div className="workbenchLibrary"><ContentSidebarPanel {...face} t={t} suspended={restoring || restoreFailed} /></div>
+      <div className="workbenchBody" hidden={settingsOpen}>
+        <div className="workbenchLibrary"><ContentSidebarPanel {...face} t={t} /></div>
         <div className="workbenchDetail">
-          {selectedId === null ? <div className="workbenchEmpty">{t("workbench.select")}</div> : <ContentInspector {...face} t={t} suspended={restoring || restoreFailed} />}
+          {selectedId === null ? <div className="workbenchEmpty">{t("workbench.select")}</div> : <ContentInspector {...face} t={t} />}
         </div>
       </div>
     </section></SettingsNavigation.Provider>

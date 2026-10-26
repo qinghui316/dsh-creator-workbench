@@ -74,6 +74,9 @@ const burnJobSchema = z.object({
 });
 
 export const contentSummarySchema = z.object({
+  accessError: z.string().optional(),
+  directoryRevision: z.string().optional(),
+  directoryAliases: z.array(z.string()).optional(),
   id: z.string().min(1),
   folderPath: z.string().min(1),
   title: z.string(),
@@ -113,6 +116,7 @@ const secretViewSchema = z.object({
 });
 
 export const librarySettingsSchema = z.object({
+  projectLocations: z.array(z.object({ path: z.string() })).optional(),
   libraryRoot: z.string(),
   libraryConfirmed: z.boolean().optional(),
   profile: creatorProfileSchema,
@@ -122,6 +126,8 @@ export const librarySettingsSchema = z.object({
   }),
   scriptRules: z.string().optional(),
 });
+
+export const projectLocationsSchema = librarySettingsSchema.pick({ libraryRoot: true, libraryConfirmed: true, projectLocations: true });
 
 export const listContentsRequestSchema = z.object({
   query: z.string(),
@@ -148,6 +154,7 @@ export const listContentsResultSchema = z.object({
 
 export const idRequestSchema = z.object({
   id: z.string().min(1),
+  folderPath: z.string().min(1).optional(),
 });
 
 export const contentDetailSchema = contentSummarySchema.and(
@@ -255,9 +262,11 @@ export const setLibraryRootRequestSchema = z.object({
 export const createContentRequestSchema = z.object({
   title: z.string().min(1),
   libraryRoot: z.string().min(1).optional(),
+  requestId: z.string().min(1).max(200).optional(),
 });
 
 export const createContentResultSchema = z.object({
+  directoryAliases: z.array(z.string()).optional(),
   id: z.string().min(1),
   folderPath: z.string().min(1),
 });
@@ -272,6 +281,7 @@ export const setScriptRulesRequestSchema = z.object({
 
 export const setTopicNoteRequestSchema = z.object({
   id: z.string().min(1),
+  folderPath: z.string().min(1).optional(),
   text: z.string(),
 });
 
@@ -282,6 +292,7 @@ export const setScriptRequestSchema = z.object({
 });
 
 export const organizeRequestSchema = z.object({
+  libraryRoot: z.string().min(1).optional(),
   apply: z.boolean(),
   ids: z.array(z.string()),
 });

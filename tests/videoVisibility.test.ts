@@ -14,8 +14,8 @@ async function fixture() {
   await saveOverlay(dataDir, { ...emptyOverlay(), libraryRoot: library, videoSelections: { [library]: { [id]: "A.MP4" } } });
   const service = Object.create(CreatorWorkbenchService.prototype) as CreatorWorkbenchService;
   Object.assign(service, { dataDir, libraryRoot: library, catalogRevision: 0, importJobs: {} });
-  service.scanned = async () => { const overlay = await loadOverlay(dataDir); return { libraryRoot: library, overlay, items: await scanLibrary(library, overlay) }; };
-  service.getContent = async ({ id: contentId }) => ({ ...(await service.scanned()).items.find((i) => i.id === contentId)!, script: "", topicNote: "", publishCopy: "", article: "", secrets: { subtitle: {} as never, cover: {} as never } });
+  service.ensureWatch = () => undefined;
+  service.getContent = async ({ id: contentId, folderPath }) => ({ ...(await service.find(contentId, folderPath))!, script: "", topicNote: "", publishCopy: "", article: "", secrets: { subtitle: {} as never, cover: {} as never } });
   return { root, library, id, folder, dataDir, service, scope: { id, folderPath: folder }, signal: new AbortController().signal };
 }
 describe("display-only video removal", () => {
@@ -23,7 +23,8 @@ describe("display-only video removal", () => {
     const f = await fixture();
     const hidden = await f.service.setVideoVisibility({ ...f.scope, name: "A.MP4", hidden: true }, f.signal);
     expect(hidden.videoSelection).toBe("cleared"); expect(hidden.videos?.map((v) => v.name)).toEqual(["B.MOV"]); expect(hidden.hiddenVideos?.[0]?.name).toBe("A.MP4"); expect(hidden.selectedVideo).toBeUndefined();
-    const fresh = (await scanLibrary(f.library, await loadOverlay(f.dataDir)))[0]!;
+    const persisted = (await f.service.projectRegistry().read())!.projects[0]!; expect(persisted.selectedVideo).toBeNull();
+    f.service.invalidateCatalog(); const fresh = (await f.service.find(f.id))!;
     expect(fresh.videoSelection).toBe("cleared");
     expect(await readFile(join(f.folder, "A.MP4"), "utf8")).toBe("original A"); expect(await readFile(join(f.folder, "B.MOV"), "utf8")).toBe("original B");
     expect((await readdir(f.folder)).sort()).toEqual(["A.MP4", "B.MOV"]);
@@ -38,19 +39,19 @@ describe("display-only video removal", () => {
   it("keeps the current selection when removing another video, and excludes hidden paths from selection", async () => {
     const f = await fixture(); await f.service.setVideoVisibility({ ...f.scope, name: "B.MOV", hidden: true }, f.signal);
     expect((await f.service.getContent({ id: f.id }, f.signal)).selectedVideo).toBe("A.MP4");
-    await expect(f.service.selectVideo({ ...f.scope, name: "B.MOV" }, f.signal)).rejects.toThrow("恢复");
+    await expect(f.service.selectVideo({ ...f.scope, name: "B.MOV" }, f.signal)).rejects.toThrow("重新导入");
   });
   it("reports a removed file that disappeared without manufacturing a replacement", async () => {
-    const f = await fixture(); await f.service.setVideoVisibility({ ...f.scope, name: "B.MOV", hidden: true }, f.signal); await unlink(join(f.folder, "B.MOV"));
+    const f = await fixture(); await f.service.setVideoVisibility({ ...f.scope, name: "B.MOV", hidden: true }, f.signal); await unlink(join(f.folder, "B.MOV")); f.service.invalidateCatalog();
     expect((await f.service.getContent({ id: f.id }, f.signal)).hiddenVideos?.[0]?.missing).toBe(true);
     await expect(f.service.setVideoVisibility({ ...f.scope, name: "B.MOV", hidden: false }, f.signal)).rejects.toThrow();
     expect(await readdir(f.folder)).toEqual(["A.MP4"]);
   });
   it("rejects stale folder scope and path traversal before touching state", async () => {
-    const f = await fixture(), before = await readFile(join(f.dataDir, "overlay.json"), "utf8");
-    await expect(f.service.setVideoVisibility({ ...f.scope, folderPath: "old", name: "A.MP4", hidden: true }, f.signal)).rejects.toThrow("切换");
+    const f = await fixture(); await f.service.projectState(); const before = await readFile(f.service.projectRegistry().file, "utf8");
+    await expect(f.service.setVideoVisibility({ ...f.scope, folderPath: "old", name: "A.MP4", hidden: true }, f.signal)).rejects.toThrow("项目");
     await expect(f.service.setVideoVisibility({ ...f.scope, name: "../A.MP4", hidden: true }, f.signal)).rejects.toThrow();
-    expect(await readFile(join(f.dataDir, "overlay.json"), "utf8")).toBe(before);
+    expect(await readFile(f.service.projectRegistry().file, "utf8")).toBe(before);
   });
   it("re-importing the identical hidden in-folder file restores it without invoking the copy task", async () => {
     const f = await fixture(); await f.service.setVideoVisibility({ ...f.scope, name: "A.MP4", hidden: true }, f.signal);
