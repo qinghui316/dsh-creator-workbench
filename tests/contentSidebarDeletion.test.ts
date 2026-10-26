@@ -83,4 +83,17 @@ describe("project deletion controls in the existing sidebar", () => {
     expect(screen.queryByRole("button",{name:`删除项目：${f.item.title}`})).toBeNull();
     expect(screen.getByRole("button",{name:"删除项目：新配置项目"})).toBeTruthy();
   });
+  it.each(["unmount", "suspend"])("does not restart a list read after a deferred refresh and %s", async (mode) => {
+    const f=fixture(); let finish!: () => void;
+    f.face.refreshCatalog=vi.fn(()=>new Promise<Awaited<ReturnType<CreatorViewFace["refreshCatalog"]>>>(resolve=>{finish=()=>resolve(undefined as never);}));
+    const view=f.view(); await screen.findByRole("button",{name:`删除项目：${f.item.title}`});
+    const reads=vi.mocked(f.face.listContents).mock.calls.length;
+    fireEvent.click(screen.getByRole("button",{name:"刷新"}));
+    if(mode==="unmount")view.unmount();
+    else view.rerender(h(ContentSidebarPanel,{...f.face,suspended:true,t:(key:CreatorKey)=>zh[key]}));
+    setSelectedContentId("another-project");
+    await act(async()=>finish());
+    expect(f.face.listContents).toHaveBeenCalledTimes(reads);
+    expect(getSelectedContentId()).toBe("another-project");
+  });
 });

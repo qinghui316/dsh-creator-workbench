@@ -45,6 +45,12 @@ export function ContentSidebarPanel({
   suspended?: boolean;
 }) {
   const requestVersion = useRef(0);
+  const listLifetime = useRef({ mounted: true, suspended, generation: 0 });
+  listLifetime.current.suspended = suspended;
+  useEffect(() => {
+    listLifetime.current.mounted = true;
+    return () => { listLifetime.current.mounted = false; listLifetime.current.generation += 1; requestVersion.current += 1; };
+  }, []);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRoot = useRef<HTMLDivElement>(null);
@@ -87,7 +93,9 @@ export function ContentSidebarPanel({
   const [createError, setCreateError] = useState<string | undefined>(undefined);
 
   const loadList = async (nextQuery = query) => {
-    if (suspended) return;
+    if (!listLifetime.current.mounted || listLifetime.current.suspended) return;
+    const lifetime = listLifetime.current.generation;
+    const isLive = () => listLifetime.current.mounted && !listLifetime.current.suspended && lifetime === listLifetime.current.generation;
     const ticket = ++requestVersion.current;
     // All registered locations share this list; changing the native conversation
     // does not change its scope. Profile/library changes still invalidate it.
@@ -100,7 +108,7 @@ export function ContentSidebarPanel({
     setError(undefined);
     try {
       const result = await listContents(nextQuery, "all");
-      if (ticket !== requestVersion.current || libraryAtStart !== getLibraryEpoch() || profileAtStart !== getProfileEpoch()) return;
+      if (!isLive() || ticket !== requestVersion.current || libraryAtStart !== getLibraryEpoch() || profileAtStart !== getProfileEpoch()) return;
       setItems(sortByRecency(result.items));
       if (result.cleanupWarnings?.length) setError(result.cleanupWarnings.join("；"));
       const currentId = selectedIdRef.current;
@@ -109,9 +117,9 @@ export function ContentSidebarPanel({
         setSelectedId(old.length === 1 ? old[0]!.id : null);
       }
     } catch (cause) {
-      if (ticket === requestVersion.current) setError(cause instanceof Error ? cause.message : t("empty.error"));
+      if (isLive() && ticket === requestVersion.current) setError(cause instanceof Error ? cause.message : t("empty.error"));
     } finally {
-      if (ticket === requestVersion.current) setLoading(false);
+      if (isLive() && ticket === requestVersion.current) setLoading(false);
     }
   };
 
