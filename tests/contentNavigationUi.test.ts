@@ -167,6 +167,37 @@ describe("original content navigation", () => {
     });
     expect(save).toHaveBeenLastCalledWith("one", "需要保留的正文", "E:/一期");
   });
+  it("recognizes the file writer's terminal newline and empty-file response without changing typed input", async () => {
+    const { face, detail, save } = fixture(); detail.folderPath = "E:/newline-check";
+    save.mockImplementation(async (_id, text) => ({ ...detail, script: text.trim() === "" ? "" : `${text}\n` }));
+    setSelectedContentId("one"); render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));
+    await screen.findByText("测试内容"); fireEvent.click(screen.getByRole("tab", { name: "脚本" }));
+    const editor = await screen.findByLabelText("脚本正文") as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: "未输入换行的正文" } });
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1), { timeout: 2000 });
+    await waitFor(() => expect(screen.getByText("已保存")).toBeTruthy());
+    expect(editor.value).toBe("未输入换行的正文");
+    fireEvent.change(editor, { target: { value: "   " } });
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2), { timeout: 2000 });
+    await waitFor(() => expect(screen.getByText("已保存")).toBeTruthy());
+    expect(editor.value).toBe("   ");
+  });
+  it("keeps newer typing unsaved when an earlier normalized save finishes", async () => {
+    const { face, detail, save } = fixture(); detail.folderPath = "E:/inflight-check";
+    let complete!: (value: ContentDetail) => void;
+    save.mockImplementationOnce(() => new Promise(resolve => { complete = resolve; }));
+    save.mockImplementation(async (_id, text) => ({ ...detail, script: `${text}\n` }));
+    setSelectedContentId("one"); render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));
+    await screen.findByText("测试内容"); fireEvent.click(screen.getByRole("tab", { name: "脚本" }));
+    const editor = await screen.findByLabelText("脚本正文") as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: "第一份" } });
+    await waitFor(() => expect(complete).toBeTypeOf("function"), { timeout: 2000 });
+    fireEvent.change(editor, { target: { value: "继续输入的第二份" } });
+    await act(async () => complete({ ...detail, script: "第一份\n" }));
+    expect(editor.value).toBe("继续输入的第二份"); expect(screen.getByText("保存中…")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText("已保存")).toBeTruthy(), { timeout: 2000 });
+    expect(save).toHaveBeenLastCalledWith("one", "继续输入的第二份", "E:/inflight-check");
+  });
   it("retains mounted business content and configuration during a background refresh", async () => {
     const { face } = fixture(); setSelectedContentId("one");
     render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));

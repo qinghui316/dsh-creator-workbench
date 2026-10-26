@@ -121,6 +121,12 @@ function WorkRow({
 }
 
 const pendingScriptDrafts = new Map<string, string>();
+// catalog.writeScript preserves text and adds one missing terminal newline;
+// an empty/whitespace-only draft removes the file. Keep the editor's input as-is.
+function scriptMatchesSaved(draft: string, saved: string): boolean {
+  const fileText = draft.trim() === "" ? "" : draft.endsWith("\n") ? draft : `${draft}\n`;
+  return draft === saved || fileText === saved;
+}
 const projectNavigation = new Map<string, { tab: ProjectTab; scroll: Partial<Record<ProjectTab, number>> }>();
 
 export type ContentInspectorProps = CreatorViewFace & {
@@ -260,7 +266,7 @@ export function ContentInspector({
         if ((!getProjectView || tab === "script") && (switched || loadedFolder.current !== nextDetail.folderPath || scriptSavedRef.current)) {
           const draft = pendingScriptDrafts.get(nextDetail.folderPath) ?? nextDetail.script;
           setScriptDraft(draft);
-          setScriptSaved(draft === nextDetail.script);
+          setScriptSaved(scriptMatchesSaved(draft, nextDetail.script));
         }
         loadedFolder.current = nextDetail.folderPath;
         setCues(cuesFromSubtitle(nextSubtitle));
@@ -297,10 +303,10 @@ export function ContentInspector({
     setScriptError(undefined);
     const timer = window.setTimeout(() => {
       void setScript(detail.id, scriptDraft, folder).then((next) => {
-        if (pendingScriptDrafts.get(folder) === scriptDraft && next.script === scriptDraft) pendingScriptDrafts.delete(folder);
+        if (pendingScriptDrafts.get(folder) === scriptDraft && scriptMatchesSaved(scriptDraft, next.script)) pendingScriptDrafts.delete(folder);
         if (cancelled) return;
         setDetail(next);
-        setScriptSaved(scriptDraft === next.script);
+        setScriptSaved(scriptMatchesSaved(scriptDraft, next.script));
       }, (cause: unknown) => {
         if (!cancelled) setScriptError(cause instanceof Error ? cause.message : t("empty.error" as CreatorKey));
       });
@@ -577,7 +583,7 @@ export function ContentInspector({
               pendingScriptDrafts.set(detail.folderPath, event.target.value);
               setScriptDraft(event.target.value);
               setScriptError(undefined);
-              setScriptSaved(event.target.value === detail.script);
+              setScriptSaved(scriptMatchesSaved(event.target.value, detail.script));
             }}
           />
           </>
