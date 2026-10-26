@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { createElement as h } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { CreatorViewFace } from "../src/client/face.ts";
 import type { ContentSummary } from "../src/types.ts";
 import { ContentSidebarPanel } from "../src/client/sidebar/ContentSidebarPanel.tsx";
-import { getSelectedContentId, setSelectedContentId } from "../src/client/contentSelection.ts";
+import { bumpProfile, getSelectedContentId, setSelectedContentId } from "../src/client/contentSelection.ts";
 import { zh, type CreatorKey } from "../src/client/locales.ts";
 import { emptyBurn, emptyPublish } from "../src/publishStatus.ts";
 vi.mock("@deepseek-ai/dsh-client-ui-primitives", () => {
@@ -54,11 +54,33 @@ describe("project deletion controls in the existing sidebar", () => {
   it("removes the rendered row when archiving the active session changes host navigation", async () => {
     const f = fixture(); let active = true;
     f.face.captureNavigation = () => () => active;
-    f.face.removeProject = vi.fn(async () => { active = false; });
+    f.face.removeProject = vi.fn(async () => { await f.setContentVisibility(f.item.id, f.item.folderPath, true); active = false; });
     f.view();
     fireEvent.click(await screen.findByRole("button", { name: `删除项目：${f.item.title}` }));
     fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: `删除项目：${f.item.title}` })).toBeNull());
     expect(getSelectedContentId()).toBeNull();
+  });
+  it("renders the global project list when host conversation navigation settles during first load", async () => {
+    const f=fixture(); let active=true, finish!: (value: Awaited<ReturnType<CreatorViewFace["listContents"]>>) => void;
+    f.face.captureNavigation=()=>()=>active;
+    const original=await f.face.listContents("", "all");
+    vi.mocked(f.face.listContents).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+    f.view(); await waitFor(()=>expect(finish).toBeTypeOf("function"));
+    active=false; await act(async()=>finish(original));
+    expect(await screen.findByRole("button",{name:`删除项目：${f.item.title}`})).toBeTruthy();
+    expect(getSelectedContentId()).toBe(f.item.id);
+  });
+  it("rejects a late list response from the previous profile", async () => {
+    const f=fixture(); const original=await f.face.listContents("", "all");
+    let finish!: (value: typeof original) => void;
+    vi.mocked(f.face.listContents).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+    vi.mocked(f.face.listContents).mockResolvedValue({...original,items:[{...f.item,title:"新配置项目"}]});
+    f.view(); await waitFor(()=>expect(finish).toBeTypeOf("function"));
+    await act(async()=>bumpProfile());
+    await screen.findByRole("button",{name:"删除项目：新配置项目"});
+    await act(async()=>finish(original));
+    expect(screen.queryByRole("button",{name:`删除项目：${f.item.title}`})).toBeNull();
+    expect(screen.getByRole("button",{name:"删除项目：新配置项目"})).toBeTruthy();
   });
 });

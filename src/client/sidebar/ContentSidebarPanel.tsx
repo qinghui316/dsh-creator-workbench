@@ -15,7 +15,7 @@ import { datedProjectName } from "../../projectNames.ts";
 import type { ContentSummary } from "../../types.ts";
 import { CoverThumb, coverThumbRevision } from "../CoverThumb.tsx";
 import type { CreatorViewFace } from "../face.ts";
-import { captureContentSelection, useLibraryEpoch, useSelectedContentId } from "../contentSelection.ts";
+import { captureContentSelection, getLibraryEpoch, getProfileEpoch, useLibraryEpoch, useProfileEpoch, useSelectedContentId } from "../contentSelection.ts";
 import type { CreatorKey } from "../locales.ts";
 import { formatRelativeTime } from "../relativeTime.ts";
 import { StatusPill } from "../ui/StatusPill.tsx";
@@ -50,6 +50,7 @@ export function ContentSidebarPanel({
   const searchRoot = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const libraryEpoch = useLibraryEpoch();
+  const profileEpoch = useProfileEpoch();
   const [selectedId, setSelectedId] = useSelectedContentId();
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
@@ -88,7 +89,9 @@ export function ContentSidebarPanel({
   const loadList = async (nextQuery = query) => {
     if (suspended) return;
     const ticket = ++requestVersion.current;
-    const isCurrent = captureNavigation();
+    // All registered locations share this list; changing the native conversation
+    // does not change its scope. Profile/library changes still invalidate it.
+    const libraryAtStart = getLibraryEpoch(), profileAtStart = getProfileEpoch();
     if (!ready()) {
       setError(t("empty.remote"));
       return;
@@ -97,7 +100,7 @@ export function ContentSidebarPanel({
     setError(undefined);
     try {
       const result = await listContents(nextQuery, "all");
-      if (ticket !== requestVersion.current || !isCurrent()) return;
+      if (ticket !== requestVersion.current || libraryAtStart !== getLibraryEpoch() || profileAtStart !== getProfileEpoch()) return;
       setItems(sortByRecency(result.items));
       if (result.cleanupWarnings?.length) setError(result.cleanupWarnings.join("；"));
       const currentId = selectedIdRef.current;
@@ -123,7 +126,7 @@ export function ContentSidebarPanel({
       requestVersion.current += 1;
       window.clearTimeout(handle);
     };
-  }, [query, libraryEpoch, suspended]);
+  }, [query, libraryEpoch, profileEpoch, suspended]);
 
   useEffect(() => {
     if (!searchOpen) return;
