@@ -580,10 +580,12 @@ export function ContentInspector({
             value={scriptDraft}
             placeholder={t("inspector.script.placeholder" as CreatorKey)}
             onChange={(event) => {
-              pendingScriptDrafts.set(detail.folderPath, event.target.value);
+              const saved = scriptMatchesSaved(event.target.value, detail.script);
+              if (saved) pendingScriptDrafts.delete(detail.folderPath);
+              else pendingScriptDrafts.set(detail.folderPath, event.target.value);
               setScriptDraft(event.target.value);
               setScriptError(undefined);
-              setScriptSaved(scriptMatchesSaved(event.target.value, detail.script));
+              setScriptSaved(saved);
             }}
           />
           </>

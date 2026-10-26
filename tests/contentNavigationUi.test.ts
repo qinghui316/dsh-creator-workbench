@@ -198,6 +198,18 @@ describe("original content navigation", () => {
     await waitFor(() => expect(screen.getByText("已保存")).toBeTruthy(), { timeout: 2000 });
     expect(save).toHaveBeenLastCalledWith("one", "继续输入的第二份", "E:/inflight-check");
   });
+  it("does not retain an equivalent draft that could overwrite a later Agent revision", async () => {
+    const { face, detail, save } = fixture(); detail.folderPath = "E:/external-revision-check"; detail.script = "已保存稿\n";
+    setSelectedContentId("one"); render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));
+    await screen.findByText("测试内容"); fireEvent.click(screen.getByRole("tab", { name: "脚本" }));
+    const editor = await screen.findByLabelText("脚本正文") as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: "已保存稿" } });
+    expect(screen.getByText("已保存")).toBeTruthy();
+    detail.script = "Agent 新修订\n";
+    await act(async () => { bumpLibrary(); });
+    await waitFor(() => expect(editor.value).toBe("Agent 新修订\n"));
+    expect(screen.getByText("已保存")).toBeTruthy(); expect(save).not.toHaveBeenCalled();
+  });
   it("retains mounted business content and configuration during a background refresh", async () => {
     const { face } = fixture(); setSelectedContentId("one");
     render(h(ContentInspector, { ...face, t: (key: CreatorKey) => zh[key] }));
