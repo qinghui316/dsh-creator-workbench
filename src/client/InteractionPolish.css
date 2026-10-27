@@ -1,15 +1,27 @@
 /* Shared presentation stays below the workbench root. Portaled media has its own stylesheet. */
 [data-plugin="dsh-creator-workbench"] {
   --creator-feedback-duration:120ms;
+  --creator-glide-duration:220ms;
+  --creator-ease:cubic-bezier(.2,.8,.2,1);
+  --creator-control-radius:12px;
+  --creator-compact-radius:8px;
 }
 [data-plugin="dsh-creator-workbench"] :is(button,summary,input,select,textarea) {
   transition:background-color var(--creator-feedback-duration) ease-out,border-color var(--creator-feedback-duration) ease-out,color var(--creator-feedback-duration) ease-out;
 }
 [data-plugin="dsh-creator-workbench"] :is([data-creator-tone="secondary"],[data-creator-tone="ghost"],.tab,.creatorSettingsTabs button,.publicationPlatforms button,summary):not(:disabled):active { background-color:var(--dsw-alias-interactive-bg-active); }
-[data-plugin="dsh-creator-workbench"] [data-selection-rail] { position:relative; }
+[data-plugin="dsh-creator-workbench"] [data-selection-rail] { position:relative;isolation:isolate; }
+[data-plugin="dsh-creator-workbench"] .creatorSelectionIndicator { position:absolute;left:0;top:0;pointer-events:none;z-index:-1;border-radius:var(--creator-control-radius);background:var(--dsw-alias-interactive-bg-active);border:1px solid var(--dsw-alias-border-l2);box-sizing:border-box;transition-property:transform,width,height;transition-timing-function:var(--creator-ease); }
+[data-plugin="dsh-creator-workbench"] [data-selection-rail="underline"]>.creatorSelectionIndicator { background:var(--dsw-alias-state-business-primary);border:0;border-radius:0;z-index:1; }
+[data-plugin="dsh-creator-workbench"] [data-selection-rail]>.creatorSelectionIndicator[hidden] { display:none; }
+[data-plugin="dsh-creator-workbench"] [data-selection-rail="surface"]>button:is([aria-current],[aria-pressed="true"]) { background:transparent;border-color:transparent; }
+[data-plugin="dsh-creator-workbench"] :is(input:not([type="checkbox"]):not([type="radio"]),textarea,[data-creator-tone],.creatorSelectTrigger) { border-radius:var(--creator-control-radius); }
+[data-plugin="dsh-creator-workbench"] :is(.creatorSettingsTabs button,.publicationPlatforms button,.articleMode button) { border-radius:var(--creator-control-radius); }
+[data-plugin="dsh-creator-workbench"] .creatorSecretToggle { border-radius:var(--creator-compact-radius); }
+[data-plugin="dsh-creator-workbench"] .articleToolbar .creatorSelect { width:0;flex:1; }
 [data-plugin="dsh-creator-workbench"] .creatorSecretInput { display:flex;position:relative;width:100%;min-width:0; }
 [data-plugin="dsh-creator-workbench"] .creatorSecretInput input { width:100%;padding-right:42px; }
-[data-plugin="dsh-creator-workbench"] .creatorSecretToggle { position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:32px;height:30px;padding:0;border:0;border-radius:6px;color:var(--dsw-alias-label-secondary);background:transparent;cursor:pointer; }
+[data-plugin="dsh-creator-workbench"] .creatorSecretToggle { position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:32px;height:30px;padding:0;border:0;border-radius:var(--creator-compact-radius);color:var(--dsw-alias-label-secondary);background:transparent;cursor:pointer; }
 [data-plugin="dsh-creator-workbench"] .creatorSecretToggle:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary); }
 [data-plugin="dsh-creator-workbench"] .creatorSecretToggle:disabled { opacity:.4;cursor:default; }
 [data-plugin="dsh-creator-workbench"] :is(.creatorInlineStatus,.scriptStatus,.articleSaveStatus,.publicationSaveStatus) { min-height:24px;line-height:24px; }
@@ -22,7 +34,8 @@
 [data-plugin="dsh-creator-workbench"] .creatorSettingsForm { gap:18px; }
 [data-plugin="dsh-creator-workbench"] .creatorSettingsSave { min-height:36px;margin-top:4px;border-top:1px solid var(--dsw-alias-border-l1); }
 [data-plugin="dsh-creator-workbench"] .creatorVideoPanel { padding-top:0; }
-html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .creatorSettingsTabs [aria-current] { background:var(--creator-light-selected); }
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] .creatorSelectionIndicator { background:var(--creator-light-selected); }
+html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"] [data-selection-rail="underline"]>.creatorSelectionIndicator { background:var(--dsw-alias-state-business-primary); }
 @media (prefers-reduced-motion:reduce) {
-  [data-plugin="dsh-creator-workbench"] { --creator-feedback-duration:0ms; }
+  [data-plugin="dsh-creator-workbench"] { --creator-feedback-duration:0ms;--creator-glide-duration:0ms; }
 }

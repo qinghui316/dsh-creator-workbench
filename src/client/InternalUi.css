@@ -22,7 +22,6 @@
 [data-plugin="dsh-creator-workbench"]
   :is(
     .creatorField input,
-    .creatorField select,
     .creatorField textarea,
     .creatorDisclosure textarea
   ) {
@@ -41,7 +40,7 @@
   border-color: var(--dsw-alias-state-error-primary);
 }
 [data-plugin="dsh-creator-workbench"]
-  :is(input, select, textarea, summary, button):focus-visible {
+  :is(input, textarea, summary, button):focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
 }

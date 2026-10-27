@@ -1,6 +1,6 @@
 [data-plugin="dsh-creator-workbench"] .creatorMenu { position:relative;flex:none; }
-[data-plugin="dsh-creator-workbench"] .creatorMenuItems { position:absolute;top:calc(100% + 4px);left:0;z-index:8;display:flex;flex-direction:column;gap:4px;min-width:148px;max-width:calc(100cqi - 24px);padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-base);box-shadow:0 4px 12px var(--dsw-alias-bg-mask-1); }
-[data-plugin="dsh-creator-workbench"] .creatorMenu[data-menu-align="end"]>.creatorMenuItems:not([popover]) { left:auto;right:0; }
-[data-plugin="dsh-creator-workbench"] .creatorMenuItems [role="menuitem"] { justify-content:flex-start;width:100%;text-align:left; }
+[data-plugin="dsh-creator-workbench"].creatorMenuItems { min-width:148px; }
+[data-plugin="dsh-creator-workbench"].creatorMenuItems.creatorControlPopup [role="menuitem"] { position:relative;justify-content:flex-start;width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere;flex:none;border-radius:var(--creator-compact-radius,8px);background:transparent; }
+[data-plugin="dsh-creator-workbench"].creatorMenuItems [role="menuitem"]:hover:not(:disabled),html[style*="color-scheme: light"] [data-plugin="dsh-creator-workbench"].creatorMenuItems [role="menuitem"]:hover:not(:disabled) { background:transparent; }
 
 [data-plugin="dsh-creator-workbench"].creatorMenuItems[popover] { position:fixed;inset:auto;margin:0;box-sizing:border-box;max-height:70vh;overflow:auto; }

@@ -31,7 +31,7 @@ describe("local navigation visibility",()=>{
     let accept=false;function Demo(){const [selected,setSelected]=useState("A");return h(SelectionRail,{selected,"aria-label":"选择"},["A","B"].map(value=>h("button",{key:value,"data-value":value,"aria-current":selected===value?"page":undefined,onClick:()=>{if(accept)setSelected(value);}},value)));}
     const view=render(h(Demo)),root=screen.getByRole("navigation");geometry(root);view.container.scrollTop=123;
     fireEvent.click(screen.getByText("B"));expect(root.scrollLeft).toBe(0);expect(screen.getByText("A").getAttribute("aria-current")).toBe("page");
-    accept=true;fireEvent.click(screen.getByText("B"));expect(root.scrollLeft).toBe(60);expect(view.container.scrollTop).toBe(123);expect(screen.getByText("B").getAttribute("aria-current")).toBe("page");expect(root.querySelector(".creatorSelectionIndicator")).toBeNull();
+    accept=true;fireEvent.click(screen.getByText("B"));expect(root.scrollLeft).toBe(60);expect(view.container.scrollTop).toBe(123);expect(screen.getByText("B").getAttribute("aria-current")).toBe("page");expect(root.querySelector(".creatorSelectionIndicator")?.getAttribute("aria-hidden")).toBe("true");
   });
   it("releases resize/focus subscriptions and observer",()=>{
     const disconnect=vi.fn();vi.stubGlobal("ResizeObserver",class{observe(){}disconnect=disconnect;});const remove=vi.spyOn(window,"removeEventListener");

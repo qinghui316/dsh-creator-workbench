@@ -1,3 +1,4 @@
+import { CreatorSelect } from "../ui/CreatorSelect.tsx";
 import { ActionMenu } from "../ui/ActionMenu.tsx";
 import { ActionButton } from "../ui/ActionButton.tsx";
 import { useEffect, useRef, useState } from "react";
@@ -329,10 +330,10 @@ export function ContentSidebarPanel({
           </div>
           <div className="createField">
             <label className="createLabel" htmlFor="creator-create-parent">保存到</label>
-            <select id="creator-create-parent" value={createParent} disabled={creating || parentBusy} onChange={event => { setCreateParent(event.target.value); createRequest.current = crypto.randomUUID(); }}>
+            <CreatorSelect id="creator-create-parent" value={createParent} disabled={creating || parentBusy} onValueChange={value => { setCreateParent(value); createRequest.current = crypto.randomUUID(); }}>
               <option value="" disabled>选择父目录</option>
               {parents.map(path => <option key={path} value={path}>{path}</option>)}
-            </select>
+            </CreatorSelect>
             <Button variant="ghost" disabled={creating || parentBusy} onClick={() => { void chooseParent(); }}>选择其他位置</Button>
             {createParent && <div className="createPath" title={createParent}>预计路径：{createParent.replace(/[\\/]+$/, "")}{createParent.includes("\\") ? "\\" : "/"}{datedProjectName(createName || "项目名称")}</div>}
           </div>

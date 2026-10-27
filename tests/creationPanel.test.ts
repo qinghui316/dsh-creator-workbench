@@ -1,3 +1,4 @@
+import { selectValue } from "./helpers/selectValue.ts";
 // @vitest-environment jsdom
 import { createElement as h } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -23,12 +24,12 @@ describe("continuous platform-owned publication editing",()=>{
  for(const target of ["小红书","抖音"])it(`reuses HTML as readable text for ${target}, keeping its source intact`,async()=>{
   const f=fixture(),html='<html><head><style>.x{color:red}</style><script>bad()</script></head><body><h1>标题</h1><p>A &amp; B</p><p>第二段&#33;</p><img src="one.png"></body></html>';
   f.state.articles.push({id:"html",file:"source.html",title:"HTML文章",format:"html",createdAt:1,frameFiles:[]});f.api.articleSource=vi.fn(async()=>({article:f.state.articles[0]!,source:html,sourceHash:"original"}));f.mount();await screen.findByLabelText("正文");if(target==="抖音"){platform(target);await waitFor(()=>expect((screen.getByLabelText("标题")as HTMLInputElement).value).toBe("抖音标题"));}
-  fireEvent.change(screen.getByLabelText("复用文章内容"),{target:{value:"html"}});await waitFor(()=>expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toContain("A & B\n\n第二段!"));expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).not.toMatch(/<\/?(?:html|h1|p|img)|bad\(\)|color:red/);expect((await f.api.articleSource!({...f.detail,articleId:"html"})).source).toBe(html);
+  selectValue(screen.getByLabelText("复用文章内容"), "html");await waitFor(()=>expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toContain("A & B\n\n第二段!"));expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).not.toMatch(/<\/?(?:html|h1|p|img)|bad\(\)|color:red/);expect((await f.api.articleSource!({...f.detail,articleId:"html"})).source).toBe(html);
  });
  it("copies official-account HTML to a separate plain-text material without changing the original",async()=>{
   const f=fixture(),body='<h1>公众号文章</h1><p>第一段 &amp; 第二段</p><p>可读正文</p>';
   f.state.publications!.push({...f.state.publications![0]!,id:"official",platform:"official-account",type:"article",body,title:"公众号HTML"});f.api.preview=vi.fn(async()=>({html:body,path:"preview.html"}));f.mount();await screen.findByLabelText("正文");platform("公众号");await waitFor(()=>expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toBe(body));
-  fireEvent.click(screen.getByRole("button",{name:"材料操作"}));fireEvent.click(screen.getByRole("menuitem",{name:"复制到其他平台"}));fireEvent.change(screen.getByLabelText("复制到"),{target:{value:"xiaohongshu"}});fireEvent.click(screen.getByRole("button",{name:"创建副本"}));await waitFor(()=>expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toContain("第一段 & 第二段"));expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).not.toContain("<p>");expect(f.state.publications!.find(p=>p.id==="official")!.body).toBe(body);
+  fireEvent.click(screen.getByRole("button",{name:"材料操作"}));fireEvent.click(screen.getByRole("menuitem",{name:"复制到其他平台"}));selectValue(screen.getByLabelText("复制到"), "xiaohongshu");fireEvent.click(screen.getByRole("button",{name:"创建副本"}));await waitFor(()=>expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toContain("第一段 & 第二段"));expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).not.toContain("<p>");expect(f.state.publications!.find(p=>p.id==="official")!.body).toBe(body);
  });
  it("flushes autosave before explicit upload and does not borrow another material's upload notice",async()=>{
   const f=fixture();f.state.images=[{id:"image",file:"one.png",mime:"image/png",width:300,height:400,sha256:"hash",source:"imported",purpose:"card",createdAt:1}];f.state.publications![0]!.imageIds=["image"];f.api.image=vi.fn(async()=>({mime:"image/png",base64:"YWJj"}));
@@ -51,9 +52,9 @@ describe("continuous platform-owned publication editing",()=>{
  it("preserves typing in A when a pending selection finishes loading B",async()=>{
   const f=fixture();f.state.publications!.push({...f.state.publications![0]!,id:"third",title:"另一份小红书",body:"B正文"});f.mount();await screen.findByLabelText("正文");
   let finish!:(p:NonNullable<ProductionState["publications"]>[number])=>void;vi.mocked(f.api.publication!).mockImplementationOnce(()=>new Promise(r=>{finish=r;}));
-  fireEvent.change(screen.getByLabelText("选择发布内容"),{target:{value:"third"}});fireEvent.change(screen.getByLabelText("正文"),{target:{value:"切换期间编辑A"}});
+  selectValue(screen.getByLabelText("选择发布内容"), "third");fireEvent.change(screen.getByLabelText("正文"),{target:{value:"切换期间编辑A"}});
   await act(async()=>finish(f.state.publications!.find(p=>p.id==="third")!));await waitFor(()=>expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toBe("B正文"));
-  fireEvent.change(screen.getByLabelText("选择发布内容"),{target:{value:"first"}});await waitFor(()=>expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toBe("切换期间编辑A"));
+  selectValue(screen.getByLabelText("选择发布内容"), "first");await waitFor(()=>expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toBe("切换期间编辑A"));
  });
  it("adopts acknowledged rebased text only when no later typing exists",async()=>{
   const f=fixture();f.mount();await screen.findByLabelText("正文");f.action.mockImplementationOnce(async()=>{const p=f.state.publications!.find(p=>p.id==="first")!;p.body="![配图](../../images/one.png)";p.revision=2;return{...f.state,savedPublication:{id:p.id,revision:2}};});
@@ -71,9 +72,9 @@ describe("continuous platform-owned publication editing",()=>{
  });
  it("ignores older article reads and preserves manual edits during reuse",async()=>{
   const f=fixture();f.state.articles.push(...["a","b"].map(id=>({id,file:`${id}.md`,title:id,createdAt:1,frameFiles:[]})));const reads=new Map<string,(value:unknown)=>void>();f.api.articleSource=vi.fn(request=>new Promise(resolve=>reads.set(request.articleId,resolve))) as NonNullable<ProductionClient["articleSource"]>;f.mount();await screen.findByLabelText("正文");
-  fireEvent.change(screen.getByLabelText("复用文章内容"),{target:{value:"a"}});fireEvent.change(screen.getByLabelText("复用文章内容"),{target:{value:"b"}});
+  selectValue(screen.getByLabelText("复用文章内容"), "a");selectValue(screen.getByLabelText("复用文章内容"), "b");
   const source=(id:string)=>({article:f.state.articles.find(a=>a.id===id),source:`文章${id}`,sourceHash:id});await act(async()=>reads.get("b")!(source("b")));await act(async()=>reads.get("a")!(source("a")));expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toBe("文章b");
-  fireEvent.change(screen.getByLabelText("复用文章内容"),{target:{value:"a"}});fireEvent.change(screen.getByLabelText("正文"),{target:{value:"人工编辑"}});await act(async()=>reads.get("a")!(source("a")));expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toBe("人工编辑");
+  selectValue(screen.getByLabelText("复用文章内容"), "a");fireEvent.change(screen.getByLabelText("正文"),{target:{value:"人工编辑"}});await act(async()=>reads.get("a")!(source("a")));expect((screen.getByLabelText("正文")as HTMLTextAreaElement).value).toBe("人工编辑");
  });
  it("offers native image creation without a video",async()=>{const f=fixture();f.mount();fireEvent.click(screen.getByRole("button",{name:"让 Agent 制作图片"}));await waitFor(()=>expect(f.prepareRequest).toHaveBeenCalledWith(f.detail,expect.stringContaining("配图或封面"),false));});
  it("explains missing upload inputs and focuses the corresponding editor without starting an upload",async()=>{

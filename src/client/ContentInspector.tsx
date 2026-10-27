@@ -527,7 +527,7 @@ export function ContentInspector({
             </button>
           </div>
         </div>
-        <SelectionRail as="div" selected={tab} className="tabs" role="tablist">
+        <SelectionRail as="div" selected={tab} indicator="underline" className="tabs" role="tablist">
           {TABS.map((id, index) => (
             <button
               key={id}

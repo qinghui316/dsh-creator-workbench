@@ -1,3 +1,4 @@
+import { selectValue } from "./helpers/selectValue.ts";
 // @vitest-environment jsdom
 import { createElement as h } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -32,9 +33,9 @@ describe("article finished output", () => {
     const { preview } = fixture(); await screen.findByTitle("文章排版预览");
     let finish: (value: { path: string; html: string }) => void = () => undefined;
     preview.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
-    fireEvent.change(screen.getByLabelText("文章版本"), { target: { value: "one" } });
+    selectValue(screen.getByLabelText("文章版本"), "one");
     await waitFor(() => expect(preview).toHaveBeenCalledTimes(2));
-    fireEvent.change(screen.getByLabelText("文章版本"), { target: { value: "two" } });
+    selectValue(screen.getByLabelText("文章版本"), "two");
     await screen.findByTitle("文章排版预览");
     finish({ path: "old.html", html: "STALE" });
     await waitFor(() => expect(screen.getByTitle("文章排版预览").getAttribute("srcdoc")).toContain("two.md"));
@@ -43,7 +44,7 @@ describe("article finished output", () => {
   it("keeps source access and offers formatting retry after a local render error", async () => {
     const { preview } = fixture(); await screen.findByTitle("文章排版预览");
     preview.mockRejectedValueOnce(new Error("配图缺失"));
-    fireEvent.change(screen.getByLabelText("文章版本"), { target: { value: "one" } });
+    selectValue(screen.getByLabelText("文章版本"), "one");
     expect((await screen.findByRole("alert")).textContent).toContain("配图缺失");
     expect(screen.getByText("配图缺失")).toBeTruthy();
     fireEvent.click(screen.getByText("重试预览"));

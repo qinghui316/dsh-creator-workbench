@@ -1,3 +1,4 @@
+import { CreatorSelect } from "./ui/CreatorSelect.tsx";
 import { SecretInput } from "./ui/SecretInput.tsx";
 import { SelectionRail } from "./ui/SelectionRail.tsx";
 import { invalidateProjectSettings } from "./projectQuery.ts";
@@ -55,7 +56,7 @@ export const CreatorSettingsCard = forwardRef<
 >(function CreatorSettingsCard({ credentials, onClose, initialGroup, ...face }, ref) {
   const uid = useId();
   const [group, setGroup] = useState<"image" | "general" | "platforms" | "asr" | "wechat">("image");
-  useEffect(() => { if (initialGroup) setGroup(initialGroup); }, [initialGroup]);
+  const pendingGroup = useRef<SettingsGroup>();
   const productionRef = useRef<ProductionSettingsHandle>(null);
   const [productionDirty, setProductionDirty] = useState(false), [productionBusy, setProductionBusy] = useState(false);
   const [saved, setSaved] = useState<LibrarySettings>(),
@@ -166,6 +167,16 @@ export const CreatorSettingsCard = forwardRef<
         JSON.stringify(saved.profile.enabledPlatforms) ||
       !!subtitleKey);
   const dirty = imageDirty || generalDirty || productionDirty;
+  const requestGroup = (next: SettingsGroup) => {
+    if (next === group || saving.current || productionBusy || directorySaving.current) return;
+    if (dirty) { pendingGroup.current = next; setLeaving(true); }
+    else setGroup(next);
+  };
+  useEffect(() => { if (initialGroup) requestGroup(initialGroup); }, [initialGroup]);
+  const leave = () => {
+    const next = pendingGroup.current; pendingGroup.current = undefined;
+    if (next) setGroup(next); else onClose?.();
+  };
   const imageCredential = credentialViews[IMAGE_CREDENTIAL];
   const subtitleRef = saved?.secrets.subtitle.ref;
   const subtitleCredential = subtitleRef
@@ -176,6 +187,7 @@ export const CreatorSettingsCard = forwardRef<
   useImperativeHandle(ref, () => ({
     requestClose: () => {
       if (saving.current || productionBusy || directorySaving.current) return;
+      pendingGroup.current = undefined;
       if (dirty) setLeaving(true);
       else onClose?.();
     },
@@ -192,7 +204,7 @@ export const CreatorSettingsCard = forwardRef<
     setFields({});
     setError(undefined);
     setLeaving(false);
-    onClose?.();
+    leave();
   };
   const validate = () => {
     const next: FieldErrors = {};
@@ -304,7 +316,7 @@ export const CreatorSettingsCard = forwardRef<
       if (alive.current) {
         setNotice("已保存");
         setLeaving(false);
-        if (closeAfter) onClose?.();
+        if (closeAfter) leave();
       }
     } catch (cause) {
       if (alive.current)
@@ -350,7 +362,7 @@ export const CreatorSettingsCard = forwardRef<
       onFocusCapture={(event) => {
         if (
           event.target instanceof HTMLElement &&
-          event.target.matches("input,textarea,select")
+          event.target.matches('input,textarea,select,[role="combobox"]')
         )
           lastField.current = event.target;
       }}
@@ -383,7 +395,7 @@ export const CreatorSettingsCard = forwardRef<
             <ActionButton
               disabled={busy}
               onClick={() => {
-                setLeaving(false);
+                setLeaving(false); pendingGroup.current = undefined;
                 if (lastField.current?.isConnected)
                   lastField.current.focus({ preventScroll: true });
               }}
@@ -400,15 +412,15 @@ export const CreatorSettingsCard = forwardRef<
         <button
           type="button"
           aria-current={group === "image" ? "page" : undefined}
-          onClick={() => setGroup("image")}
+          onClick={() => requestGroup("image")}
         >
           生图服务
         </button>
-        {face.production && ([['platforms', '发布平台'], ['asr', '语音转文字'], ['wechat', '公众号']] as const).map(([value, label]) => <button key={value} type="button" aria-current={group === value ? "page" : undefined} onClick={() => setGroup(value)}>{label}</button>)}
+        {face.production && ([['platforms', '发布平台'], ['asr', '语音转文字'], ['wechat', '公众号']] as const).map(([value, label]) => <button key={value} type="button" aria-current={group === value ? "page" : undefined} onClick={() => requestGroup(value)}>{label}</button>)}
         <button
           type="button"
           aria-current={group === "general" ? "page" : undefined}
-          onClick={() => setGroup("general")}
+          onClick={() => requestGroup("general")}
         >
           常规
         </button>
@@ -523,10 +535,10 @@ export const CreatorSettingsCard = forwardRef<
               <div className="creatorField">
                 <label htmlFor={uid + "-parent"}>项目保存位置</label>
                 <span className="creatorPathRow">
-                  <select id={uid + "-parent"} aria-label="默认父目录" value={saved?.libraryConfirmed ? root : ""} disabled={directoryBusy} onChange={e => { void changeDirectory(e.target.value); }}>
+                  <CreatorSelect id={uid + "-parent"} aria-label="默认父目录" value={saved?.libraryConfirmed ? root : ""} disabled={directoryBusy} onValueChange={value => { void changeDirectory(value); }}>
                     <option value="" disabled>选择默认父目录</option>
                     {[...new Set([root, ...(saved?.projectLocations?.map(p => p.path) ?? [])])].filter(Boolean).map(path => <option key={path} value={path}>{path}</option>)}
-                  </select>
+                  </CreatorSelect>
                   <ActionButton disabled={directoryBusy} onClick={() => { void changeDirectory(); }}>选择其他位置</ActionButton>
                 </span>
                 <span className="creatorMuted" title={root}>{root || "尚未选择默认父目录"}</span>

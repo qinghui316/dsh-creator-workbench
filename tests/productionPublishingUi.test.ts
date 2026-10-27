@@ -1,3 +1,4 @@
+import { selectValue } from "./helpers/selectValue.ts";
 // @vitest-environment jsdom
 import {createElement as h} from 'react';
 import {afterEach,describe,expect,it,vi} from 'vitest';
@@ -17,7 +18,7 @@ async function fixture() {
  const detail:ContentDetail={id:'episode',folderPath:`C:/fixture/episode-${++sequence}`,title:'本期视频',tags:[],covers:{},videoSelection:'selected',selectedVideo:'成片.mp4',videos:[{name:'成片.mp4',path:'C:/fixture/成片.mp4',size:100,modifiedAt:1}],recordedAt:0,createdMs:0,subtitles:{},hasPublishPackage:false,hasArticle:false,pipeline:'raw',workflow:'finish',publish:emptyPublish(),burn:{status:'idle'},subtitleJob:{status:'idle'},coverJob:{status:'idle'},publishCopy:'',topicNote:'',script:'',article:'',secrets:{subtitle:{kind:'subtitle',ref:'subtitle',configured:false,writable:true},cover:{kind:'cover',ref:'cover',configured:false,writable:true}}};
  render(h(ProductionPanel,{detail,api,mode:'publishing',openPath:vi.fn(),enabledPlatforms:['bilibili']}));
  const form=within(screen.getByText('准备上传').closest('details')!);
- fireEvent.change(form.getByLabelText('平台'),{target:{value:'bilibili'}});
+ selectValue(form.getByLabelText('平台'), 'bilibili');
  await form.findByLabelText('B站分区');
  fireEvent.click(form.getByLabelText('我确认本次视频可按原创上传'));
  await waitFor(()=>expect((form.getByText('上传并准备草稿') as HTMLButtonElement).disabled).toBe(false));

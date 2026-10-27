@@ -1,3 +1,4 @@
+import { CreatorSelect } from "./ui/CreatorSelect.tsx";
 import { coverPreviewImages } from "./imageDescriptors.ts";
 import { loadOverviewCover } from "./OverviewMedia.tsx";
 import { useImagePreview } from "./ImagePreview.tsx";
@@ -470,10 +471,10 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
         >
           <label className="creatorField">
             制作记录
-            <select
+            <CreatorSelect
               value={latest.id}
-              onChange={(e) => {
-                setSelectedRunId(e.target.value);
+              onValueChange={value => {
+                setSelectedRunId(value);
                 setAck(false);
               }}
             >
@@ -483,7 +484,7 @@ function CoverPanelBody({detail, shared, ...face}: CoverFace & {detail: ContentD
                   {run.purpose === "service_test" ? "服务测试" : runLabel(run)}
                 </option>
               ))}
-            </select>
+            </CreatorSelect>
           </label>
           <p className="creatorFileName" title={latest.video.name}>
             {latest.video.name}

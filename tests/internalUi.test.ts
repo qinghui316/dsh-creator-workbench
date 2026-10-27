@@ -1,3 +1,4 @@
+import { selectValue } from "./helpers/selectValue.ts";
 import { ImagePreviewProvider } from "../src/client/ImagePreview.tsx";
 // @vitest-environment jsdom
 import { createElement as h, createRef } from "react";
@@ -220,10 +221,9 @@ describe("settings form", () => {
     const f = fixture();
     f.face.setScriptRules.mockRejectedValue(new Error("偏好保存失败"));
     render(h(CreatorSettingsCard, { ...f.face, credentials: f.credentials }));
-    fireEvent.change(await screen.findByLabelText("生图模型"), {
-      target: { value: "new-model" },
-    });
+    await screen.findByLabelText("生图模型");
     fireEvent.click(screen.getByRole("button", { name: "常规" }));
+    fireEvent.click(screen.getByLabelText("视频号"));
     fireEvent.change(screen.getByLabelText("写稿偏好"), {
       target: { value: "未保存的偏好" },
     });
@@ -234,6 +234,18 @@ describe("settings form", () => {
     expect(
       (screen.getByLabelText("写稿偏好") as HTMLTextAreaElement).value,
     ).toBe("未保存的偏好");
+  });
+  it("keeps the accepted settings group and its indicator when an unsaved switch is cancelled", async () => {
+    const f=fixture(); render(h(CreatorSettingsCard,{...f.face,credentials:f.credentials}));
+    const model=await screen.findByLabelText("生图模型"); fireEvent.change(model,{target:{value:"未保存模型"}});
+    fireEvent.click(screen.getByRole("button",{name:"常规"}));
+    expect(screen.getByRole("button",{name:"生图服务"}).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("alertdialog")).toBeTruthy();fireEvent.click(screen.getByRole("button",{name:"继续编辑"}));
+    expect((screen.getByLabelText("生图模型") as HTMLInputElement).value).toBe("未保存模型");
+    expect(f.face.beginImageUpdate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"常规"}));fireEvent.click(screen.getByRole("button",{name:"放弃修改"}));
+    expect(screen.getByRole("button",{name:"常规"}).getAttribute("aria-current")).toBe("page");
+    fireEvent.click(screen.getByRole("button",{name:"生图服务"}));expect((screen.getByLabelText("生图模型") as HTMLInputElement).value).toBe("old-model");
   });
   it("allows a new credential when the host describes an absent reference", async () => {
     const f = fixture();
@@ -428,7 +440,7 @@ describe("immediate project parent setting", () => {
     const f = locationFixture(), closed = vi.fn(), ref = createRef<CreatorSettingsHandle>();
     f.face.setLibraryRoot.mockResolvedValue({ ...general, libraryRoot: f.b, libraryConfirmed: true, projectLocations: [{path:f.a},{path:f.b}] });
     render(h(CreatorSettingsCard, { ...f.face, credentials: f.credentials, ref, onClose: closed, initialGroup: "general" }));
-    const select = await screen.findByLabelText("默认父目录"); fireEvent.change(select, { target: { value: f.b } });
+    const select = await screen.findByLabelText("默认父目录"); selectValue(select, f.b);
     await screen.findByText("已生效"); expect(f.face.setLibraryRoot).toHaveBeenCalledOnce(); expect(f.face.setLibraryRoot).toHaveBeenCalledWith(f.b);
     expect((screen.getByRole("button", { name: "保存" }) as HTMLButtonElement).disabled).toBe(true);
     act(() => ref.current!.requestClose()); expect(closed).toHaveBeenCalledOnce(); expect(screen.queryByRole("alertdialog")).toBeNull();
@@ -441,7 +453,7 @@ describe("immediate project parent setting", () => {
     render(h(CreatorSettingsCard, { ...f.face, credentials: f.credentials, initialGroup: "general" }));
     await screen.findByLabelText("默认父目录"); fireEvent.change(screen.getByLabelText("写稿偏好"), { target: { value: "我的新偏好" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" })); await waitFor(() => expect(f.face.setScriptRules).toHaveBeenCalledWith("我的新偏好"));
-    fireEvent.change(screen.getByLabelText("默认父目录"), { target: { value: f.b } }); await screen.findByText("已生效");
+    selectValue(screen.getByLabelText("默认父目录"), f.b); await screen.findByText("已生效");
     await act(async () => finish()); expect((screen.getByLabelText("默认父目录") as HTMLSelectElement).value).toBe(f.b);
     expect((screen.getByLabelText("写稿偏好") as HTMLTextAreaElement).value).toBe("我的新偏好"); expect(f.credentials.set).not.toHaveBeenCalled();
   });
@@ -449,10 +461,10 @@ describe("immediate project parent setting", () => {
     const f = locationFixture(); f.face.setLibraryRoot.mockRejectedValue(new Error("连接中断"));
     render(h(CreatorSettingsCard, { ...f.face, credentials: f.credentials, initialGroup: "general" }));
     await screen.findByLabelText("默认父目录"); fireEvent.change(screen.getByLabelText("写稿偏好"), { target: { value: "未保存偏好" } });
-    fireEvent.change(screen.getByLabelText("默认父目录"), { target: { value: f.b } }); await screen.findByRole("alert");
+    selectValue(screen.getByLabelText("默认父目录"), f.b); await screen.findByRole("alert");
     expect((screen.getByLabelText("默认父目录") as HTMLSelectElement).value).toBe(f.a); expect((screen.getByLabelText("写稿偏好") as HTMLTextAreaElement).value).toBe("未保存偏好"); expect(f.face.setScriptRules).not.toHaveBeenCalled();
     f.face.getSettings.mockResolvedValue({ ...general, libraryRoot: f.b, libraryConfirmed: true, projectLocations:[{path:f.a},{path:f.b}] });
-    fireEvent.change(screen.getByLabelText("默认父目录"), { target: { value: f.b } }); await waitFor(() => expect((screen.getByLabelText("默认父目录") as HTMLSelectElement).value).toBe(f.b));
+    selectValue(screen.getByLabelText("默认父目录"), f.b); await waitFor(() => expect((screen.getByLabelText("默认父目录") as HTMLSelectElement).value).toBe(f.b));
     expect(f.face.getSettings).toHaveBeenCalledTimes(3); expect((screen.getByLabelText("写稿偏好") as HTMLTextAreaElement).value).toBe("未保存偏好");
   });
   it("cancelled picker does not commit a location", async () => {

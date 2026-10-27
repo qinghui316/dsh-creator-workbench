@@ -1,3 +1,4 @@
+import { CreatorSelect } from "./ui/CreatorSelect.tsx";
 import { SecretInput } from "./ui/SecretInput.tsx";
 import { invalidateProjectSettings } from "./projectQuery.ts";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
@@ -78,7 +79,7 @@ export const ProductionSettingsPanel = forwardRef<ProductionSettingsHandle, { ap
         <label className="creatorField">AppID<input autoComplete="off" spellCheck={false} value={appid} disabled={busy} onChange={(e) => setAppid(e.target.value)} /></label>
         <label className="creatorField"><span className="creatorLabelLine">AppSecret <small>{saved.wechatConfigured && appid === saved.wechat.appid ? "已保存" : "尚未配置"}</small></span><SecretInput aria-label="AppSecret" value={secret} disabled={busy || !credentials} placeholder="留空保留此公众号的原凭据" onChange={(e) => setSecret(e.target.value)} /></label>
         <label className="creatorField">作者<input value={author} disabled={busy} onChange={(e) => setAuthor(e.target.value)} /></label>
-        <label className="creatorField">文章排版<select value={theme} disabled={busy} onChange={(e) => setTheme(e.target.value)}><option value="claude-editorial">简洁编辑风格</option><option value="professional-clean">清爽专业风格</option></select></label>
+        <label className="creatorField">文章排版<CreatorSelect value={theme} disabled={busy} onValueChange={value => setTheme(value)}><option value="claude-editorial">简洁编辑风格</option><option value="professional-clean">清爽专业风格</option></CreatorSelect></label>
         <ActionBar><ActionButton disabled={busy || dirty || !saved.wechatConfigured} onClick={() => void action({ action: "check-wechat" })}>检查账号</ActionButton><ActionButton disabled={busy || dirty} onClick={() => fileInput.current?.click()}>导入已有配置</ActionButton></ActionBar>
         <input hidden ref={fileInput} aria-label="导入公众号配置" type="file" accept=".yaml,.yml" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; if (file) { try { void action({ action: "import-wechat", sourcePath: localFilePath(file) }); } catch (cause) { setError(cause instanceof Error ? cause.message : "文件读取失败"); } } }} />
         {saved.wechat.error && <p role="alert" className="creatorError">{saved.wechat.error}</p>}

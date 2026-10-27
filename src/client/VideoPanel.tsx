@@ -1,3 +1,4 @@
+import { CreatorSelect } from "./ui/CreatorSelect.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { ContentDetail, VideoImportState } from "../types.ts";
 import type { CreatorViewFace } from "./face.ts";
@@ -234,11 +235,10 @@ export function VideoPanel({ detail, t, ...face }: Props) {
       )}
       <label className="creatorField">
         当前视频
-        <select
+        <CreatorSelect
           value={detail.selectedVideo ?? ""}
           disabled={busy || running || !detail.videos?.length}
-          onChange={(event) => {
-            const value = event.target.value;
+          onValueChange={value => {
             if (!value) return;
             setBusy(true);
             setError(undefined);
@@ -258,7 +258,7 @@ export function VideoPanel({ detail, t, ...face }: Props) {
               {v.name}
             </option>
           ))}
-        </select>
+        </CreatorSelect>
       </label>
       {detail.videoSelection === "missing" && (
         <p className="creatorMuted">
